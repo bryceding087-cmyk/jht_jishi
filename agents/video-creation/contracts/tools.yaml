@@ -1,0 +1,559 @@
+format: jianhuitong-tool-contracts/v1
+status: implemented_controller_bindings
+binding_checked_on: '2026-10-08'
+scope: 建绘通项目内部工具；所有调用继承可信会话与项目上下文。
+defaults:
+  transport: internal_python_functions
+  execution: 确定性主控选择业务函数；不向模型开放任意工具执行，也没有通用 jht_* HTTP RPC。
+  input_contract: 下方 input/output 保留逻辑职责约定。实际请求字段以 agent_runtime.py 的 Pydantic 模型与对应业务函数为准。
+  owner_context: HTTP 会话提供 owner_id；project_id 和 request_id 由运行记录派生。
+  unknown_arguments: reject_on_public_agent_requests
+  context_contract: runtime.md
+  output_contract: artifacts.md
+tools:
+- name: jht_run_load
+  purpose: 恢复当前项目的 Agent 运行状态、确认、版本和任务，按需回读已持久化产物正文。
+  effect: read
+  input:
+    required: {}
+    optional:
+      run_id: string
+      artifact_refs: 需要回读的 ArtifactRef[]
+  output: RunSnapshot 或无已有运行；指定 artifact_refs 时另返回对应版本的 loaded_artifacts 正文
+  binding:
+    status: integrated
+    implementation: AgentService.get / snapshot
+    routes: []
+    note: 读取按账号隔离的运行、历史产物和增量事件。
+- name: jht_run_checkpoint
+  purpose: 原子保存状态补丁、结构化产物、任务回执和事件。
+  effect: write
+  input:
+    required:
+      expected_run_revision: integer
+      patch: object
+      event: object
+    optional:
+      artifacts: Artifact[]
+  output: RunSnapshot 和已保存 ArtifactRef 列表
+  binding:
+    status: integrated
+    implementation: AgentService.patch / event / document
+    routes: []
+    note: 单进程锁内串行保存运行与事件；画布另用修订号 CAS，不声称跨多进程事务。
+- name: jht_ui_present
+  purpose: 在建绘通项目对话中显示进度、产物、问题、确认或交付卡。
+  effect: presentation
+  input:
+    required:
+      kind: message|progress|artifact|question|review|issue|delivery
+      payload: object
+    optional:
+      artifact_refs: ArtifactRef[]
+      review_id: string
+  output: PresentationReceipt
+  binding:
+    status: integrated
+    implementation: AgentService.event / question → public/agent-chat.js
+    routes: []
+    note: 对话展示消息、过程步骤、分页确认、文档和媒体；用户事件通过 messages 接口提交。
+- name: jht_project_context
+  purpose: 读取当前项目或可选项目、画布、模板、角色、素材和已有任务摘要。
+  effect: read
+  input:
+    required: {}
+    optional:
+      project_id: string
+      include: projects|canvas|templates|assets|characters|tasks 的数组
+  output: ContextSnapshot
+  binding:
+    status: integrated
+    implementation: active_project / require_live_asset / AgentService.get
+    routes:
+    - GET /api/projects
+    - GET /api/projects/{pid}
+    - GET /api/templates
+    - GET /api/characters
+    - GET /api/assets
+    - GET /api/tasks
+    note: 使用当前运行项目与用户所选素材；团队共享项目，Agent 创作记录按账号隔离。
+- name: jht_project_create
+  purpose: 为本次创作创建建绘通项目。
+  effect: write
+  input:
+    required:
+      name: string，1 到 80 字符
+    optional:
+      template_id: string
+  output: ProjectSnapshot
+  binding:
+    status: integrated
+    implementation: create_project / AgentService.create
+    routes:
+    - POST /api/projects
+    - GET /api/templates
+    note: 新故事自动创建真实项目，也支持 API 指定已有项目；不自动选择模板。
+- name: jht_models_list
+  purpose: 获取脱敏模型配置与经业务服务确认的实际能力。
+  effect: read
+  input:
+    required: {}
+    optional:
+      kinds: text|image|video|voice|music 的数组
+  output: ModelCatalog
+  binding:
+    status: integrated
+    implementation: model_registry / internal_registry_model / AgentService.capabilities
+    routes:
+    - GET /api/model-registry
+    - GET /api/models
+    - GET /api/options
+    note: 提供脱敏文本、图片、视频、音频配置；验证已知视频时长与比例。
+- name: jht_budget_estimate
+  purpose: 对待执行批次按账户与计费单位估算，查询可获得的额度。
+  effect: read
+  input:
+    required:
+      operations: 模型配置、操作类型、数量、规格组成的数组
+    optional:
+      budget_policy_ref: ArtifactRef
+  output: BudgetEstimate
+  binding:
+    status: unavailable
+    implementation: AgentService.capabilities.cost_available=false
+    routes: []
+    note: 尚无供应商统一余额/费用接口。显示未知，不虚构积分或扣费数值。
+- name: jht_assets_search
+  purpose: 在当前可访问素材和角色中寻找可复用资源。
+  effect: read
+  input:
+    required: {}
+    optional:
+      query: string
+      kinds: image|prop|video|audio|text|script 的数组
+      asset_ids: string[]
+      character_ids: string[]
+      tags: string[]
+  output: AssetList，包含来源、类型、引用状态和受保护预览
+  binding:
+    status: integrated
+    implementation: GET /api/assets + AgentService.validate_reuse
+    routes:
+    - GET /api/assets
+    - GET /api/characters
+    note: 素材选择器搜索；主控只允许绑定用户提供的资产或本运行已生成的真实资产。
+- name: jht_assets_import
+  purpose: 将用户通过建绘通上传控件提交的附件绑定到项目素材库。
+  effect: write
+  input:
+    required:
+      upload_token: string
+    optional:
+      kind: image|prop|video|audio|text|script
+      folder_id: string
+  output: AssetRef
+  binding:
+    status: integrated
+    implementation: POST /api/assets (multipart) / require_live_asset
+    routes:
+    - POST /api/assets
+    note: 上传控件直接提交文件，消息绑定返回的资产 ID；不接受模型提供的本地路径。
+- name: jht_document_save
+  purpose: 保存创意、分析或文本快照为可见素材，并关联结构化产物。
+  effect: write
+  input:
+    required:
+      name: string
+      content: string
+      artifact_ref: ArtifactRef
+    optional:
+      tags: string[]
+      folder_id: string
+  output: AssetRef
+  binding:
+    status: integrated
+    implementation: AgentService.document → create_content_asset
+    routes:
+    - POST /api/assets/content
+    note: 文档保存版本和摘要后回读；可查看、下载，并创建文本画布节点。
+- name: jht_story_polish
+  purpose: 根据用户主动选择补全或润色故事，返回可审阅修改稿，不覆盖当前采用版本。
+  effect: paid_generation
+  input:
+    required:
+      source_ref: ArtifactRef
+      expected_source_revision: integer
+      operation: wording_only|complete_and_polish
+      user_instruction: string
+      locked_items: 必须保留的台词、事实和品牌文字数组
+    optional:
+      missing_elements: 导演指出的缺项数组
+      model_config_id: string
+  output: StoryDraft，含修改正文、逐项差异、补充设定和未解决问题
+  binding:
+    status: integrated
+    implementation: AgentService.polish → ask / llm_json
+    routes: []
+    note: 专用润色任务，完整故事不自动改写；草稿经采用后进入下游。
+- name: jht_characters_save
+  purpose: 将本项目已采用的人物设定与参考图保存为可复用角色。
+  effect: write
+  input:
+    required:
+      name: string
+      description: string
+      asset_id: string
+    optional:
+      character_id: string
+      role: string
+      update_shared_character: boolean
+  output: 角色记录及参考资产
+  binding:
+    status: integrated
+    implementation: AgentService.phase_assets → create_character
+    routes:
+    - POST /api/characters
+    - PUT /api/characters/{cid}
+    note: 角色分类参考图绑定实际图片后保存人物设定和角色节点。
+- name: jht_images_generate
+  purpose: 使用建绘通图片模型生成风格、人物、场景或道具参考。
+  effect: paid_generation
+  input:
+    required:
+      name: string
+      prompt: 非空 string，最多 4000 字符
+      model_config_id: string
+    optional:
+      reference_asset_ids: string[]，最多 10 张
+      asset_kind: image|prop
+      size: 当前仅 2K
+      watermark: boolean
+      folder_id: string
+      node_id: 已保存的本次素材节点 ID
+      expected_project_revision: integer
+  output: TaskReceipt
+  binding:
+    status: integrated
+    implementation: AgentService.image → create_image_generation
+    routes:
+    - POST /api/images/generations
+    note: 通过已配置图片服务生成参考图；稳定请求 ID，先创建节点，成功后绑定资产。
+- name: jht_images_query
+  purpose: 查询图片任务和实际生成的素材。
+  effect: read
+  input:
+    required:
+      task_id: string
+    optional: {}
+  output: TaskSnapshot
+  binding:
+    status: integrated
+    implementation: AgentService.wait_media → image_generation_status
+    routes:
+    - GET /api/images/generations/{tid}
+    note: 轮询真实图片任务；中断时先核对已有结果，失败须主动重试。
+- name: jht_script_generate
+  purpose: 调用建绘通脚本功能生成分镜、分析资源或合成提示词。
+  effect: paid_generation
+  input:
+    required:
+      node_id: string
+      action: script|resources|prompts
+      expected_project_revision: integer
+    optional:
+      source_text: 最多 12000 字符
+      script_data: object
+      scene_index: 正整数，最多 80
+  output: 已保存脚本与新项目版本
+  binding:
+    status: integrated
+    implementation: AgentService.phase_storyboard → ask / llm_json
+    routes:
+    - POST /api/scripts/generate
+    note: 加载分镜与提示词 Skill，使用所选文本模型生成结构化分镜；复用现有文本模型服务，不调用旧脚本一键扩写以防覆盖锁定台词。
+- name: jht_script_save
+  purpose: 保存人工或 Agent 修改后的分镜、资源与提示词。
+  effect: write
+  input:
+    required:
+      node_id: string
+      script_data: object
+      expected_project_revision: integer
+      storyboard_ref: ArtifactRef
+    optional: {}
+  output: 已保存脚本与新项目版本
+  binding:
+    status: integrated
+    implementation: AgentService.document / sync_storyboard → update_project
+    routes:
+    - PUT /api/scripts/{pid}/{nid}
+    note: 保存分镜版本，并写入真实脚本节点的 script_data。
+- name: jht_canvas_apply
+  purpose: 将当前产物投影为节点、素材绑定、连线和阶段分组。
+  effect: write
+  input:
+    required:
+      expected_project_revision: integer
+      operations: 语义化画布操作数组
+      artifact_refs: ArtifactRef[]
+    optional:
+      preserve_manual_layout: boolean
+  output: CanvasProjection 和新项目版本
+  binding:
+    status: integrated
+    implementation: AgentService.graph / node / connect_nodes → update_project
+    routes:
+    - GET /api/projects/{pid}
+    - PUT /api/projects/{pid}
+    note: 读取最新项目后按节点合并，最多三次 CAS；稳定节点 ID，七阶段布局与可视分区、关联箭头。agent-flow 关系不进入生成输入；自动同步保留手动移动，旧网格自动迁移，用户可主动整理。分区暂不支持折叠。
+- name: jht_canvas_expand_storyboard
+  purpose: 为选定分镜创建或复用视频节点并绑定正确的资源。
+  effect: write
+  input:
+    required:
+      script_node_id: string
+      storyboard_ref: ArtifactRef
+      expected_project_revision: integer
+    optional:
+      shot_ids: string[]
+  output: CanvasProjection，含 shot_id 到镜号和节点的映射
+  binding:
+    status: integrated
+    implementation: AgentService.sync_storyboard
+    routes:
+    - GET /api/projects/{pid}
+    - PUT /api/projects/{pid}
+    note: 服务端创建视频节点和连线；每镜冻结脚本、模型与参考资产摘要。
+- name: jht_video_generate
+  purpose: 以已批准的脚本和画布输入创建一个视频任务。
+  effect: paid_generation
+  input:
+    required:
+      shot_id: string
+      storyboard_revision: integer
+      node_id: string
+      model_config_id: string
+      expected_project_revision: integer
+      input_digest: string
+    optional: {}
+  output: TaskReceipt，包含实际提交输入快照
+  binding:
+    status: integrated
+    implementation: AgentService.phase_video → submit_video_task
+    routes:
+    - POST /api/tasks
+    note: 先比对用户确认的输入摘要，传冻结项目快照；request_id 去重并拒绝同 ID 不同参数。
+- name: jht_video_query
+  purpose: 查询指定任务或项目内视频任务，用于进度与恢复。
+  effect: read
+  input:
+    required: {}
+    optional:
+      task_id: string
+  output: TaskSnapshot 或项目任务列表
+  binding:
+    status: integrated
+    implementation: task / reconcile_video_task / run_provider_task(resume=True)
+    routes:
+    - GET /api/tasks/{tid}
+    - GET /api/tasks
+    note: 恢复有供应商任务编号的 GET 查询；编号未知时不自动重发生成。
+- name: jht_video_cache
+  purpose: 将已成功生成的远程视频缓存到项目服务，修复下载失败。
+  effect: write
+  input:
+    required:
+      task_id: string
+    optional: {}
+  output: TaskSnapshot
+  binding:
+    status: integrated
+    implementation: cache_generated_video / save_task_asset
+    routes:
+    - POST /api/tasks/{tid}/cache-video
+    note: 上游完成后缓存本地；签名地址过期等错误需明确处理，不当成成功。
+- name: jht_video_save_asset
+  purpose: 将选用的视频任务结果保存为素材库资产。
+  effect: write
+  input:
+    required:
+      task_id: string
+    optional:
+      name: string
+      folder_id: string
+  output: AssetRef
+  binding:
+    status: integrated
+    implementation: save_task_asset
+    routes:
+    - POST /api/assets/from-task
+    note: 成功片段按任务入库，保留本地播放下载地址。
+- name: jht_voice_prepare
+  purpose: 选择已配置音色、绑定可用参考音频并生成需要的声音试听。
+  effect: potentially_paid
+  input:
+    required:
+      speaker_id: string
+      voice_requirements: object
+    optional:
+      voice_id: string
+      reference_asset_id: string
+      sample_text: string
+  output: VoicePlan，必要时附试听 task_ref
+  binding:
+    status: integrated
+    implementation: AgentService.phase_assets → audio(mode=voice)
+    routes:
+    - POST /api/audio/generations
+    note: 生成角色/旁白试听或复用音频；参考音频不超过 30 秒，不虚构可克隆声音 ID。
+- name: jht_speech_generate
+  purpose: 生成指定人物对白或旁白的正式音频。
+  effect: paid_generation
+  input:
+    required:
+      voice_plan_ref: ArtifactRef
+      lines: VoiceLine[]
+    optional:
+      delivery: 情绪、语速、停顿等对象
+  output: TaskReceipt
+  binding:
+    status: integrated
+    implementation: AgentService.phase_music → audio(mode=voice)
+    routes:
+    - POST /api/audio/generations
+    note: 逐条使用锁定台词与参考音频生成正式配音，并实测长度；不保证自动口型同步。
+- name: jht_music_generate
+  purpose: 按节拍表制作整片配乐或指定区间音乐。
+  effect: paid_generation
+  input:
+    required:
+      music_plan_ref: ArtifactRef
+      model_config_id: string
+    optional:
+      reference_asset_id: string
+  output: TaskReceipt
+  binding:
+    status: integrated
+    implementation: AgentService.phase_music → audio(mode=music)
+    routes:
+    - POST /api/audio/generations
+    note: 分镜确认后保存节拍表，生成纯音乐；视频提交前完成，后期循环/裁切适配。
+- name: jht_audio_query
+  purpose: 查询音色试听、正式配音或配乐任务并取得音频资产。
+  effect: read
+  input:
+    required:
+      task_id: string
+      kind: voice_preview|speech|music
+    optional: {}
+  output: TaskSnapshot，成功时附 AudioManifest
+  binding:
+    status: integrated
+    implementation: audio_generation_status / AgentService.wait_media
+    routes:
+    - GET /api/audio/generations/{tid}
+    note: 查询实际音频任务和资产，复用现有音频适配器。
+- name: jht_media_inspect
+  purpose: 读取媒体元数据、抽帧、转写或对指定片段进行可用的质量检查。
+  effect: potentially_paid
+  input:
+    required:
+      asset_ids: string[]
+      checks: metadata|frames|transcript|visual|audio 的数组
+    optional:
+      requirements_ref: ArtifactRef
+      intervals: 时间区间数组
+  output: MediaInspection
+  binding:
+    status: limited
+    implementation: agent_media.inspect_asset / inspect_file
+    routes: []
+    note: 实际检查文件、时长、尺寸与音轨；没有自动画面理解、ASR 转写或口型检查。
+- name: jht_subtitles_align
+  purpose: 将已核对台词对齐到实际音频或视频音轨，生成字幕轨。
+  effect: potentially_paid
+  input:
+    required:
+      lines: VoiceLine[]
+      media_sources: 音频或视频资产 ID、源音轨及裁切区间组成的数组
+      timeline_ref: ArtifactRef
+    optional:
+      style: object
+  output: SubtitleTrack
+  binding:
+    status: limited
+    implementation: AgentService.phase_postproduction / agent_media.subtitle_file
+    routes: []
+    note: 字幕按正式台词音频区间排列；无配音时使用计划区间。不是逐字强制对齐或 ASR。
+- name: jht_timeline_save
+  purpose: 保存视频、音轨、字幕和品牌层组成的可重建时间线。
+  effect: write
+  input:
+    required:
+      timeline: Timeline
+      expected_timeline_revision: integer
+    optional: {}
+  output: TimelineRef
+  binding:
+    status: integrated
+    implementation: AgentService.document(name=timeline)
+    routes: []
+    note: 保存视频资产、声音起止、音量、字幕和片尾文字，可重建合成。
+- name: jht_render_submit
+  purpose: 将已确定时间线渲染为完整视频。
+  effect: potentially_paid
+  input:
+    required:
+      timeline_ref: ArtifactRef
+      output_spec: object
+    optional: {}
+  output: TaskReceipt
+  binding:
+    status: integrated
+    implementation: AgentService.phase_postproduction → agent_media.render_timeline
+    routes: []
+    note: 本地 FFmpeg 实际转码、拼接、混音和叠字，产出已入库 MP4。
+- name: jht_render_query
+  purpose: 查询渲染状态并获取实际成片资产。
+  effect: read
+  input:
+    required:
+      task_id: string
+    optional: {}
+  output: TaskSnapshot，成功时附 RenderArtifact
+  binding:
+    status: integrated
+    implementation: AgentService.snapshot / agent_operation
+    routes: []
+    note: 本地合成在当前运行工作线程执行，通过运行和事件查询；不是独立渲染服务 API。
+- name: jht_run_control
+  purpose: 暂停、恢复或取消运行，并处理相关在途业务任务。
+  effect: write
+  input:
+    required:
+      action: pause|resume|cancel
+      expected_run_revision: integer
+    optional:
+      task_ids: string[]
+  output: ControlReceipt
+  binding:
+    status: limited
+    implementation: AgentService.message / work / checkpoint
+    routes: []
+    note: 暂停、恢复、取消和主动重试；停止新提交，供应商在途任务仍可能完成，无统一远程取消接口。
+- name: jht_delivery_package
+  purpose: 将检查通过的成片和项目资料登记为建绘通作品并返回交付入口。
+  effect: write
+  input:
+    required:
+      render_ref: ArtifactRef
+      quality_report_ref: ArtifactRef
+      title: string
+    optional:
+      supporting_artifact_refs: ArtifactRef[]
+  output: DeliveryPackage
+  binding:
+    status: integrated
+    implementation: AgentService.phase_review / resolve_review(G4)
+    routes: []
+    note: 技术检查后展示成片；用户观看确认后标完成，保留所有文档、片段、声音和时间线，不向站外发布。

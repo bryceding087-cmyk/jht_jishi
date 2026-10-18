@@ -1,0 +1,16 @@
+.task-item .task-status { display: block; margin: 8px 0; }
+.task-error { display: block; margin: 8px 0; color: #f0b1a3; font-size: 13px; overflow-wrap: anywhere; }
+.task-error-box { margin: 10px 0; padding: 12px; border: 1px solid #665032; border-radius: 8px; background: #29251e; line-height: 1.7; }
+.task-error-box strong { display: block; color: #f0cb85; font-size: 14px; }
+.task-error-box p, .task-item .task-error-box p, .library-card .task-error-box p { margin: 8px 0; font-size: 13px; color: #c7bcac; }
+.task-error-box a, .modal-actions a { color: #7edcd3; font-size: 14px; text-decoration: none; }
+.task-error-box a:hover, .modal-actions a:hover { text-decoration: underline; }
+.task-error-box details { margin-top: 8px; font-size: 12px; color: #a99a86; }
+.task-error-box summary { cursor: pointer; }
+.task-error-box pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.6 monospace; }
+.billing-note { color: #d9b975; font-size: 13px; }
+.quota-steps { padding-left: 20px; line-height: 1.9; color: #b9cadb; font-size: 14px; }
+.request-id { overflow-wrap: anywhere; font-size: 12px; }
+.history-retry { margin-top: 8px; border: 1px solid #526878; padding: 6px 10px; border-radius: 5px; font-size: 13px; }
+.history-retry:hover { background: #203348; }
+.modal-actions button:disabled { opacity: .5; cursor: wait; }

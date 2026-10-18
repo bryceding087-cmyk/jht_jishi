@@ -1,0 +1,342 @@
+/* Shared identity from the supplied web icon package. */
+.sidebar .brand-mark,
+.canvas-active.workspace-nav-open .sidebar .brand-mark,
+.brand .brand-symbol {
+  display: block;
+  object-fit: contain;
+  background: transparent;
+  box-shadow: none;
+}
+.sidebar .brand-copy b,
+.brand > span > strong {
+  color: #48dfff;
+  background: linear-gradient(110deg, #69eeff 0%, #16baff 48%, #b784ff 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.brand .brand-ai { -webkit-text-fill-color: #2f75d6; }
+
+/* Reference lettering supplies the shape; keep the existing UI brand gradient. */
+.sidebar .brand-copy b.brand-wordmark {
+  width: 78px;
+  height: 26px;
+  font-size: 0;
+  line-height: 0;
+  background-clip: border-box;
+  -webkit-background-clip: border-box;
+  -webkit-mask: url("/brand-wordmark.svg?v=vector-2") center / contain no-repeat;
+  mask: url("/brand-wordmark.svg?v=vector-2") center / contain no-repeat;
+}
+
+/* Sidebar identity and the logo-sized navigation toggle share one hover target. */
+.sidebar .brand-copy > span {
+  color: #fff;
+  font-family: "SimHei", "Heiti SC", "Microsoft YaHei", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+}
+.sidebar .brand > .sidebar-toggle {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #f5f5f5;
+  box-shadow: none;
+  transition: opacity 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+.sidebar .brand > .sidebar-toggle:hover,
+.sidebar .brand > .sidebar-toggle:focus-visible {
+  background: #ffffff09;
+  box-shadow: 0 0 14px #ffffff16, inset 0 0 9px #ffffff08;
+}
+.sidebar .brand > .sidebar-toggle:focus-visible {
+  outline: 1px solid #ffffff80;
+  outline-offset: 2px;
+}
+.sidebar .sidebar-toggle .rail-icon {
+  width: 19px;
+  height: 19px;
+  stroke-width: 1.8;
+  transform: none;
+}
+.sidebar .sidebar-icon-open { display: none; }
+.sidebar-collapsed .sidebar .brand { height: 60px; }
+.sidebar-collapsed .sidebar .brand-mark { transition: opacity 160ms ease; }
+.sidebar-collapsed .sidebar .brand > .sidebar-toggle {
+  top: 8px;
+  right: auto;
+  left: calc(50% - 18px);
+  width: 36px;
+  height: 36px;
+  opacity: 0;
+  z-index: 1;
+  transform: none;
+}
+.sidebar-collapsed .sidebar .brand:hover > .sidebar-toggle,
+.sidebar-collapsed .sidebar .brand > .sidebar-toggle:focus-visible {
+  opacity: 1;
+}
+.sidebar-collapsed .sidebar .brand:hover > .brand-mark,
+.sidebar-collapsed .sidebar .brand:has(> .sidebar-toggle:focus-visible) > .brand-mark { opacity: 0; }
+.sidebar-collapsed .sidebar .sidebar-icon-close { display: none; }
+.sidebar-collapsed .sidebar .sidebar-icon-open { display: block; }
+@media (prefers-reduced-motion: reduce) {
+  .sidebar .brand > .sidebar-toggle,
+  .sidebar-collapsed .sidebar .brand-mark { transition: none; }
+}
+
+/* Rounded, monochrome navigation glyphs with a settled open state. */
+.sidebar #mainNav button > i {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 24px;
+  flex: 0 0 22px;
+}
+.sidebar #mainNav .nav-icon {
+  display: block;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: #eee;
+  stroke-width: 1.85;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  overflow: visible;
+  transition: filter 180ms ease;
+}
+.sidebar #mainNav .nav-spark { fill: #eee; stroke-width: 1; }
+.sidebar #mainNav .nav-folder-lid,
+.sidebar #mainNav .nav-asset-front,
+.sidebar #mainNav .nav-model-top,
+.sidebar #mainNav .nav-model-bottom { fill: #151515; }
+.sidebar #mainNav .nav-folder-lid {
+  transform-origin: 12px 20px;
+  transition: transform 260ms ease, fill 180ms ease;
+}
+.sidebar #mainNav .nav-asset-back,
+.sidebar #mainNav .nav-asset-front,
+.sidebar #mainNav .nav-model-top,
+.sidebar #mainNav .nav-model-bottom { transition: transform 260ms ease, fill 180ms ease; }
+.sidebar #mainNav button.active .nav-icon { filter: drop-shadow(0 0 4px #ffffff20); }
+.sidebar #mainNav button.active .nav-folder-lid { transform: translateY(1px) scaleY(.72) skewX(-7deg); fill: #353535; }
+.sidebar #mainNav button.active .nav-asset-back { transform: translate(1px, -1px); }
+.sidebar #mainNav button.active .nav-asset-front { transform: translate(-1px, 1px); fill: #353535; }
+.sidebar #mainNav button.active .nav-model-top { transform: translateX(4px); fill: #eee; }
+.sidebar #mainNav button.active .nav-model-bottom { transform: translateX(-4px); fill: #eee; }
+.sidebar #mainNav button:focus-visible { outline: 1px solid #ffffff80; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .sidebar #mainNav .nav-icon,
+  .sidebar #mainNav .nav-icon * { transition: none; }
+}
+
+/* Keep navigation geometry stable while the icon animates and views change. */
+.sidebar #mainNav button[data-view] {
+  align-items: center;
+  box-sizing: border-box;
+  height: 48px;
+  min-height: 48px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.sidebar #mainNav button > i {
+  position: relative;
+  contain: strict;
+  overflow: clip;
+  overflow-clip-margin: 4px;
+}
+.sidebar #mainNav .nav-icon {
+  position: absolute;
+  left: 0;
+  top: 1px;
+  transform-origin: 50% 50%;
+  overflow: hidden;
+  filter: none;
+  transition: none;
+}
+.sidebar #mainNav button.active .nav-icon { filter: none; }
+
+.sidebar #mainNav .nav-icon-motion { transform-origin: 12px 12px; }
+
+.sidebar-collapsed .sidebar #mainNav button[data-view] {
+  justify-content: center;
+  padding-inline: 0;
+  gap: 0;
+}
+.sidebar-collapsed .sidebar #mainNav button > span { display: none; }
+
+/* Consistent sidebar type and a neutral scrollbar on the dark surface. */
+.sidebar #mainNav button[data-view] > span { font-size: 13px; }
+.sidebar #projectList .recent-section-label {
+  color: #fff;
+  font-size: 12px;
+  padding-left: 8px;
+}
+.sidebar #projectList button { font-size: 13px; }
+.sidebar .project-list { position: relative; }
+.sidebar #projectList {
+  scrollbar-width: none;
+  padding-right: 10px;
+}
+.sidebar #projectList::-webkit-scrollbar,
+.sidebar #projectList::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+.recent-scroll-track {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 280ms ease;
+}
+.recent-scroll-track.is-scrolling { opacity: 1; }
+.recent-scroll-thumb {
+  position: absolute;
+  top: 0;
+  right: 1px;
+  width: 5px;
+  border-radius: 999px;
+  background: #656565;
+  touch-action: none;
+}
+.recent-scroll-track.is-scrolling .recent-scroll-thumb { pointer-events: auto; cursor: default; }
+.recent-scroll-thumb:hover,
+.recent-scroll-track.is-dragging .recent-scroll-thumb { background: #808080; }
+@media (prefers-reduced-motion: reduce) {
+  .recent-scroll-track { transition: none; }
+}
+
+@media (min-width: 1101px) { body { --sidebar-width: 244px; } }
+@media (min-width: 821px) and (max-width: 1100px) { body { --sidebar-width: 210px; } }
+.sidebar #projectList .recent-row {
+  position: relative;
+  height: 42px;
+  border-radius: 10px;
+  margin: 2px 0;
+}
+.sidebar #projectList .recent-row:hover,
+.sidebar #projectList .recent-row:focus-within,
+.sidebar #projectList .recent-row.active,
+.sidebar #projectList .recent-row.menu-open { background: #292929; }
+.sidebar #projectList .recent-open {
+  width: 100%;
+  height: 42px;
+  margin: 0;
+  padding: 5px 34px 5px 8px;
+  border-radius: 10px;
+  background: transparent;
+  color: #c8c8c8;
+  gap: 8px;
+}
+.sidebar #projectList .recent-row.active .recent-open { color: #fff; }
+.sidebar #projectList .recent-open .recent-kind-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  border-radius: 6px;
+  background: #343434;
+  color: #a7a7a7;
+  opacity: 1;
+}
+.sidebar #projectList .recent-kind-icon > .ui-icon { width: 16px; height: 16px; }
+.sidebar #projectList button.recent-more {
+  display: grid;
+  place-items: center;
+  position: absolute;
+  top: 7px;
+  right: 0;
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  margin: 0;
+  border-radius: 6px;
+  color: #bbb;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease, color 150ms ease;
+}
+.sidebar #projectList .recent-more svg { width: 18px; height: 18px; fill: currentColor; }
+.sidebar #projectList .recent-row:hover .recent-more,
+.sidebar #projectList .recent-row:focus-within .recent-more,
+.sidebar #projectList .recent-row.menu-open .recent-more { opacity: 1; pointer-events: auto; }
+.sidebar #projectList button.recent-more:hover { background: transparent; color: #fff; }
+.recent-context-menu {
+  position: fixed;
+  z-index: 100;
+  width: 180px;
+  padding: 6px;
+  border-radius: 15px;
+  background: #292929;
+  box-shadow: 0 8px 28px #0004;
+  color: #f5f5f5;
+  font-family: var(--font-ui);
+  transform-origin: top left;
+  animation: recent-menu-enter 200ms cubic-bezier(.22,.8,.25,1) both;
+}
+@keyframes recent-menu-enter {
+  from { opacity: 0; transform: translateY(-5px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .recent-context-menu { animation: none; }
+}
+.recent-context-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  text-align: left;
+  white-space: nowrap;
+}
+.recent-context-menu button:hover,
+.recent-context-menu button:focus-visible { background: #3c3c3c; outline: none; }
+.recent-context-menu svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.modal.recent-delete-modal{width:min(560px,calc(100vw - 32px));padding:36px 34px 34px;border:1px solid #ffffff03;border-radius:18px;background:#1b1b1b;box-shadow:0 24px 80px #0008}
+.recent-delete-modal h2{margin:0 28px 28px 0;font-size:18px;font-weight:600;line-height:1.6;overflow-wrap:anywhere;color:#f5f5f5}
+.recent-delete-modal .recent-delete-description{margin:0;color:#aaa;font-size:15px;font-weight:500;line-height:1.7}
+.recent-delete-modal .modal-actions{margin-top:36px;gap:14px}
+.recent-delete-modal .modal-actions button{min-width:88px;height:40px;padding:0 20px;border:0;border-radius:9px;font-size:14px;font-weight:500}
+.recent-delete-modal .secondary{background:#2c2c2c;color:#eee}
+.recent-delete-modal .primary{background:#f7f7f7;color:#151515}
+.recent-delete-modal #recentDeleteError{color:#e8a6a6}
+.recent-delete-modal .modal-close{right:26px;top:34px;color:#f5f5f5}
+.recent-delete-modal .modal-close .ui-icon{width:20px;height:20px}
+#recentRenameError { color: #ff9393; }
+@media (hover: none) {
+  .sidebar #projectList button.recent-more { opacity: 1; pointer-events: auto; }
+}
+
+/* Give recent rows more room and keep their scroll thumb near the rail edge. */
+.sidebar .project-list { width: calc(100% + 10px); }
+.sidebar #projectList .recent-pin-marker {
+  position: absolute;
+  top: 14px;
+  right: 7px;
+  display: block;
+  width: 14px;
+  height: 14px;
+  color: #686868;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 150ms ease;
+}
+.sidebar #projectList .recent-pin-marker svg { display: block; width: 14px; height: 14px; fill: currentColor; }
+.sidebar #projectList .recent-row:hover .recent-pin-marker,
+.sidebar #projectList .recent-row:focus-within .recent-pin-marker,
+.sidebar #projectList .recent-row.menu-open .recent-pin-marker { opacity: 0; }
+@media (hover: none) {
+  .sidebar #projectList .recent-pin-marker { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar #projectList .recent-pin-marker { transition: none; }
+}

@@ -1,0 +1,62 @@
+/* Shared neutral appearance for screens reached from the canvas. */
+:root { --font-ui: -apple-system, BlinkMacSystemFont, "PingFang SC", Inter, "Noto Sans SC", "Microsoft YaHei", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; color-scheme: dark; }
+body { --bg: #141414; --panel: #242424; --panel2: #2c2c2c; --line: #363636; --text: #f2f2f2; --muted: #929292; --cyan: #eee; --purple: #a7a7a7; }
+.sidebar { background: #1a1a1a; border-color: #303030; }
+:root { --brand-gradient: linear-gradient(100deg, #695cff 0%, #299bff 100%); }
+.brand-mark { background: var(--brand-gradient); color: #fff; }
+.brand-copy b { width: fit-content; color: #6970ff; background: var(--brand-gradient); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.new-btn, .primary { background: #eee; color: #222; }
+.secondary { border-color: #404040; color: #bbb; }
+.sidebar #mainNav button { color: #969696; }
+.sidebar #mainNav button.active, .sidebar #mainNav button:hover { background: #303030; color: #eee; }
+.side-label { color: #777; }
+.project-list button { color: #999; }
+.project-list button.active { background: #303030; color: #eee; }
+.quota { display: none; }
+.rail-toggle { background: #292929; border-color: #3a3a3a; color: #aaa; }
+.rail-toggle:hover { background: #3a3a3a; border-color: #555; color: #eee; }
+.library-card, .info-card, .task-item { background: #222; border-color: #383838; }
+.library-thumb { background: #292929; color: #888; }
+.library-head h1, .model-page-head h1 { color: #e2e2e2; font-weight: 500; }
+.model-page-head p { color: #929292; }
+.modal { background: #242424; border-color: #414141; }
+.modal-backdrop { background: #000a; }
+.modal input, .modal textarea, .modal select { background-color: #1c1c1c; border-color: #454545; color: #ddd; }
+.preview-summary div { background: #1c1c1c; border-color: #3a3a3a; }
+.agent-modes button.selected { background: #414141; }
+.agent-welcome h1 { font-family: var(--font-ui); font-weight: 400; }
+.agent-hero-mark .ui-icon, .agent-location > .ui-icon { color: #b0d7e9; }
+.al-library { --al-line: #383838; --al-muted: #929292; --al-text: #dedede; }
+.al-search { background-color: #202020; border-color: #414141; color: #bbb; }
+.al-card, .al-empty { background: #242424; border-color: #3a3a3a; }
+.al-card-preview { background: #1b1b1b; }
+.al-btn { background: #2e2e2e; border-color: #484848; color: #ccc; }
+.al-btn.al-primary { background: #eee; border-color: #eee; color: #222; }
+.al-form input:not([type=file]), .al-form textarea, .al-form select { background: #1e1e1e; border-color: #444; color: #ddd; }
+.mm-manager { color: #ddd; }
+.mm-category-tabs { border-color: #383838; }
+.mm-category-tabs button { border-color: #3a3a3a; background: #232323; color: #aaa; }
+.mm-category-tabs button:hover { background: #303030; border-color: #555; }
+.mm-category-tabs button.is-active { border-color: #777; background: #363636; color: #eee; box-shadow: none; }
+.mm-tab-icon, .mm-category-tabs .is-active .mm-tab-icon { background: #3b3b3b; color: #ccc; }
+.mm-category-tabs small, .mm-category-tabs .is-active small, .mm-category-heading p { color: #929292; }
+.mm-category-tabs button b { color: #aaa; border-color: #4a4a4a; }
+.mm-button { background: #303030; border-color: #484848; color: #ccc; }
+.mm-button:hover { background: #414141; border-color: #666; color: #fff; }
+.mm-button.mm-primary { border-color: #eee; background: #eee; color: #222; }
+.mm-button.mm-primary:hover { background: #fff; }
+.mm-active-summary { background: #242424; border-color: #414141; }
+.mm-summary-mark { background: #393939; border-color: #555; color: #ccc; }
+.mm-active-summary strong { color: #ddd; }
+.mm-active-summary > div span, .mm-active-summary p { color: #999; }
+.mm-model-card { background: #242424; border-color: #3c3c3c; }
+.mm-field input, .mm-field select { background-color: #1e1e1e; border-color: #454545; color: #ddd; }
+.ig-dialog, .ag-dialog { background: #242424; border-color: #414141; color: #ddd; }
+.ig-overlay input:not([type=checkbox]), .ig-overlay textarea, .ig-overlay select,
+.ag-field input, .ag-field select, .ag-field textarea { background: #1c1c1c; border-color: #444; color: #ddd; }
+.toast { background: #303030; border-color: #474747; color: #e1e1e1; }
+.sidebar #mainNav button { font-size: 12px; }
+.sidebar .project-list button { font-size: 11px; }
+.sidebar .brand-copy b { font-size: 17px; }
+.sidebar .brand-copy span { font-size: 10px; }
+.sidebar .brand-mark { font-size: 18px; }

@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN" data-app-boot="loading">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>建绘通 · AI 视频创作平台</title>
+  <style>
+    html[data-app-boot] { background: #101212; }
+    html[data-app-boot] body > aside, html[data-app-boot] body > main { visibility: hidden; }
+    #appBootScreen { position: fixed; inset: 0; z-index: 10000; display: grid; place-content: center; justify-items: center; gap: 16px; background: #101212; color: #999; font: 14px system-ui, sans-serif; }
+    #appBootScreen p { margin: 0; }
+    html[data-app-boot="loading"] #appBootScreen p { animation: boot-status-reveal 150ms 600ms both; }
+    #appBootScreen button { padding: 8px 18px; border: 1px solid #444; border-radius: 8px; background: #292929; color: #eee; cursor: pointer; }
+    @keyframes boot-status-reveal { from { opacity: 0; } to { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { html[data-app-boot="loading"] #appBootScreen p { animation: none; } }
+  </style>
+  <link rel="icon" href="/favicon.ico?v=brand-1" sizes="any">
+  <link rel="icon" href="/icon-32.png?v=brand-1" type="image/png" sizes="32x32">
+  <link rel="icon" href="/icon-16.png?v=brand-1" type="image/png" sizes="16x16">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=brand-1" sizes="180x180">
+  <link rel="stylesheet" href="styles.css?v=font-icons-3">
+  <link rel="stylesheet" href="task-errors.css?v=typography-theme-1">
+  <link rel="stylesheet" href="canvas-ui.css?v=agent-canvas-clean-3">
+  <link rel="stylesheet" href="asset-library.css?v=media-history-2">
+  <link rel="stylesheet" href="media-nodes.css?v=node-title-unclip-2">
+  <link rel="stylesheet" href="image-generation.css?v=image-ref-1">
+  <link rel="stylesheet" href="audio-generation.css?v=audio-feature-1">
+  <link rel="stylesheet" href="model-manager.css?v=audio-feature-1">
+  <link rel="stylesheet" href="canvas-chrome.css?v=node-title-theme-1">
+  <link rel="stylesheet" href="theme.css?v=dark-only-1">
+  <link rel="stylesheet" href="session.css?v=profile-2">
+  <link rel="stylesheet" href="aurora-loader.css?v=1">
+  <link rel="stylesheet" href="agent-chat.css?v=conversation-preview-1">
+  <link rel="stylesheet" href="platform-theme.css?v=ui-cleanup-1">
+  <link rel="stylesheet" href="canvas-workspace.css?v=canvas-controls-cleanup-2">
+  <link rel="stylesheet" href="canvas-connections.css?v=1">
+  <link rel="stylesheet" href="canvas-agent.css?v=canvas-agent-float-2">
+  <link rel="stylesheet" href="node-context.css?v=compact-editor-top-1">
+  <link rel="stylesheet" href="inline-node-media.css?v=image-params-3">
+  <link rel="stylesheet" href="asset-mentions.css?v=video-reference-sync-3">
+  <link rel="stylesheet" href="node-player.css?v=audio-surfaces-5">
+  <link rel="stylesheet" href="canvas-groups.css?v=group-title-zoom-2">
+  <link rel="stylesheet" href="asset-history.css?v=actions-fade-1">
+  <link rel="stylesheet" href="project-library.css?v=viewport-info-3">
+  <link rel="stylesheet" href="home-composer.css?v=sent-draft-clear-3">
+  <link rel="stylesheet" href="dream-home.css?v=recent-video-1">
+  <link rel="stylesheet" href="home-tabs.css?v=editor-edge-curves-7">
+  <link rel="stylesheet" href="generation-conversation.css?v=reference-lightbox-1">
+  <link rel="stylesheet" href="agent-conversation.css?v=compact-cards-2">
+  <link rel="stylesheet" href="/brand.css?v=recent-delete-5">
+  <link rel="stylesheet" href="delete-confirm.css?v=1">
+  <link rel="stylesheet" href="modal-motion.css?v=1">
+  <link rel="stylesheet" href="image-lightbox.css?v=1">
+  <link rel="stylesheet" href="loading-state.css?v=1">
+  <link rel="stylesheet" href="asset-preview.css?v=1">
+  <link rel="stylesheet" href="/visual-style-picker.css?v=2">
+</head>
+<body>
+  <div id="appBootScreen" role="status" aria-live="polite"><img class="app-boot-loader" src="/triangle-flow.svg?v=1" alt="" aria-hidden="true"><p id="appBootMessage">正在加载…</p><button id="appBootRetry" type="button" hidden>重新加载</button></div>
+  <aside class="sidebar">
+    <div class="brand"><img class="brand-mark" src="/brand-logo-transparent.png?v=brand-2" width="36" height="36" alt="建绘通 Logo"><div class="brand-copy"><b class="brand-wordmark" aria-label="建绘通">建绘通</b><span>湖南建投 · AI 创作平台</span></div><button class="rail-toggle sidebar-toggle" id="sidebarToggle" type="button" aria-label="折叠左侧导航" aria-expanded="true"><svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path class="sidebar-icon-close" d="M9 5v14"/><path class="sidebar-icon-open" d="M15 5v14"/></svg></button></div>
+    <nav id="mainNav">
+      <button data-view="home" title="首页" aria-label="首页"><i aria-hidden="true"><svg class="ui-icon nav-icon nav-icon-home" viewBox="0 0 24 24"><g class="nav-icon-motion"><path class="nav-spark" d="M12 2.5c1.3 5.8 3.7 8.2 9.5 9.5-5.8 1.3-8.2 3.7-9.5 9.5C10.7 15.7 8.3 13.3 2.5 12 8.3 10.7 10.7 8.3 12 2.5Z"/></g></svg></i><span>首页</span></button>
+      <button data-view="projects" title="项目" aria-label="项目"><i aria-hidden="true"><svg class="ui-icon nav-icon nav-icon-projects" viewBox="0 0 24 24"><g class="nav-icon-motion"><path d="M3 9V6.5A2.5 2.5 0 0 1 5.5 4H9l2.3 2.5h7.2A2.5 2.5 0 0 1 21 9v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/><path class="nav-folder-lid" d="M3 10h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8Z"/></g></svg></i><span>项目</span></button>
+      <button data-view="assets" title="资产" aria-label="资产"><i aria-hidden="true"><svg class="ui-icon nav-icon nav-icon-assets" viewBox="0 0 24 24"><g class="nav-icon-motion"><rect class="nav-asset-back" x="6" y="3" width="14" height="15" rx="3"/><g class="nav-asset-front"><rect x="3" y="6" width="14" height="15" rx="3"/><circle cx="7.5" cy="10.5" r="1.2"/><path d="m4 17 3.5-3.5 3 2.5 2-2 3.5 3.5"/></g></g></svg></i><span>资产</span></button>
+      <button data-view="models" title="模型管理" aria-label="模型管理"><i aria-hidden="true"><svg class="ui-icon nav-icon nav-icon-models" viewBox="0 0 24 24"><g class="nav-icon-motion"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M7 8h10M7 16h10"/><circle class="nav-model-top" cx="10" cy="8" r="2"/><circle class="nav-model-bottom" cx="14" cy="16" r="2"/></g></svg></i><span>模型管理</span></button>
+    </nav>
+    <div class="project-list"><div id="projectList"></div></div>
+    <div class="side-bottom">
+      <div class="quota"><span>本月创作额度</span><strong>24 / 100</strong><div class="bar"><i></i></div></div>
+    </div>
+    <div class="session-user" id="sessionUser">
+      <div class="session-avatar" id="sessionAvatar" aria-hidden="true">·</div>
+      <div class="session-identity"><span class="session-name" id="sessionName">正在读取账号…</span><small class="session-role" id="sessionRole">安全访问</small></div>
+      <button class="session-logout" id="logoutButton" type="button" title="退出登录" aria-label="退出登录" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M14 8l4 4-4 4M8 12h11"/></svg></button>
+    </div>
+  </aside>
+
+  <main>
+    <header>
+      <div id="projectBreadcrumb"><span class="crumb">创作空间 / </span><strong id="projectName">加载中…</strong><button class="edit" id="renameProject" title="重命名"><svg class="ui-icon ui-icon-sm" viewBox="0 0 24 24"><path d="m4 16-.8 4.8L8 20l10.7-10.7a2.4 2.4 0 0 0-3.4-3.4L4.6 16.6Z"/><path d="m13.8 7.2 3 3"/></svg></button><span class="save-state" id="saveState">已保存</span></div>
+      <div id="modelPageBreadcrumb" hidden><span class="crumb">设置 / </span><strong>模型管理</strong></div>
+      <div id="agentBreadcrumb" hidden><strong>对话创作</strong></div>
+    </header>
+
+    <section class="agent-view view" id="agentView" aria-label="Agent 对话创作"></section>
+    <section class="workspace view active-view" id="canvasView">
+      <div class="canvas-head">
+        <div><h1 id="canvasTitle">智慧工地宣传片</h1><p>V 移动节点 · H 抓手平移 · 滚轮缩放 · Space 临时抓手</p></div>
+        <div class="canvas-tools"><button id="fitBtn" title="适应画布"><svg class="ui-icon" viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h3a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/></svg></button><button id="zoomOut" aria-label="缩小"><svg class="ui-icon ui-icon-sm" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button><span id="zoomText">100%</span><button id="zoomIn" aria-label="放大"><svg class="ui-icon ui-icon-sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button><button id="resetCanvas" title="重置位置"><svg class="ui-icon" viewBox="0 0 24 24"><path d="M5 5v5h5M5.5 10A7.5 7.5 0 1 1 7.8 17"/></svg></button></div>
+      </div>
+      
+      <div class="canvas" id="canvas">
+        <div class="grid"></div>
+        <div class="canvas-stage" id="canvasStage"></div>
+
+        <div class="canvas-dock" role="toolbar" aria-label="画布工具">
+          <button id="dockAddNode" class="dock-add" aria-label="添加节点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="dock-tooltip" aria-hidden="true">添加节点</span></button>
+          <div class="tool-picker" id="toolPicker">
+            <button id="dockToolTrigger" class="dock-active" aria-label="画布工具：移动" aria-haspopup="menu" aria-expanded="false" aria-controls="toolMenu"><span id="activeToolIcon"></span><span class="tool-caret" aria-hidden="true">⌄</span><span class="dock-tooltip" aria-hidden="true">移动 · V</span></button>
+            <div class="tool-menu" id="toolMenu" role="menu" aria-label="移动与抓手" hidden>
+              <button id="dockSelect" role="menuitemradio" aria-checked="true"><span class="tool-icon" data-tool-icon="move"></span><span>移动</span><kbd>V</kbd></button>
+              <button id="dockHand" role="menuitemradio" aria-checked="false"><span class="tool-icon" data-tool-icon="hand"></span><span>抓手工具</span><kbd>H</kbd></button>
+            </div>
+          </div>
+          <button id="dockConnect" aria-label="连接节点"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="5" height="8" rx="1.5"/><rect x="16" y="3" width="5" height="6" rx="1.5"/><rect x="16" y="15" width="5" height="6" rx="1.5"/><path d="M8 12h3a2 2 0 0 0 2-2V8a2 2 0 0 1 2-2h1M11 12a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2h1"/></svg><span class="dock-tooltip" aria-hidden="true">连接节点</span></button>
+          <button id="dockMaterial" aria-label="素材库"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="m4 18 5-5 3 3 4-5 5 6"/></svg><span class="dock-tooltip" aria-hidden="true">素材库</span></button>
+          <button id="dockHistory" aria-label="历史记录"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg><span class="dock-tooltip" aria-hidden="true">历史记录</span></button>
+          <span class="dock-divider"></span>
+          <button id="dockShortcuts" aria-label="快捷键"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 15h10"/></svg><span class="dock-tooltip" aria-hidden="true">快捷键</span></button>
+          <button id="dockHelp" aria-label="帮助"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 4M12 17h.01"/></svg><span class="dock-tooltip" aria-hidden="true">帮助</span></button>
+        </div>
+        <section class="canvas-panel" id="canvasPanel" hidden aria-live="polite">
+          <div class="canvas-panel-head"><div><strong id="canvasPanelTitle">添加节点</strong><small id="canvasPanelSub">选择一个节点放入画布</small></div><button id="canvasPanelClose" title="关闭"><svg class="ui-icon ui-icon-sm" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+          <div class="canvas-panel-body" id="canvasPanelBody"></div>
+        </section>
+      </div>
+    </section>
+
+    <section class="library-view view" id="libraryView"><div class="library-head"><div><h1 id="libraryTitle">项目</h1><p id="librarySub">查看已创建的项目</p></div><div class="library-head-actions"><button class="primary small" id="libraryAction">新建创作</button></div></div><div class="library-grid" id="libraryGrid"></div></section>
+
+    <section class="models-view view" id="modelsView"><div class="model-page-head"><div><h1>模型管理</h1><p>统一管理文本、图片、视频和音频模型</p></div><button class="secondary" id="modelsBack"><svg class="ui-icon ui-icon-sm" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>返回创作</button></div><div id="modelManagerContent"></div></section>
+
+    <aside class="inspector" id="inspector">
+      <button class="rail-toggle inspector-toggle" id="inspectorToggle" type="button" aria-label="折叠右侧详情栏" aria-expanded="true"><svg class="rail-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 7-5 5 5 5"/></svg></button>
+      <div class="inspector-body">
+      <div class="inspector-tabs"><button class="active" data-tab="node">节点设置</button><button data-tab="project">项目信息</button><button data-tab="history">任务记录</button></div>
+      <div class="inspector-content tab-panel active" id="nodePanel">
+        <div id="nodeEditorFields">
+        <div class="selected-node-heading"><small>VIDEO NODE · 视频生成</small><input id="selectedNodeLabel" class="selected-node-title-input" aria-label="节点名称" maxlength="80" autocomplete="off"></div>
+        <div class="prompt-source"><span id="promptSourceNote"></span><button type="button" id="editPromptSource" hidden>编辑上游内容 ↗</button><select id="promptSourceSelect" aria-label="选择上游文本或脚本" hidden></select><select id="scriptSceneSelect" aria-label="选择脚本镜头" hidden></select></div>
+        <label for="promptInput">提示词</label><textarea id="promptInput" maxlength="4000" placeholder="描述画面内容、镜头运动与风格…"></textarea><div class="counter"><span id="promptCount">0</span>/4000</div>
+        <label for="negativeInput">负面提示词</label><textarea id="negativeInput" class="short" maxlength="1000" placeholder="例如：模糊、抖动、人物变形、字幕、水印"></textarea>
+        <div class="field-head"><label for="modelSelect">模型</label></div><select id="modelSelect"></select><div class="model-status" id="modelStatus">默认模型 · API Key 未配置</div>
+        <div class="two-col"><div><label for="ratioSelect">画幅</label><select id="ratioSelect"></select></div><div><label for="durationSelect">时长</label><select id="durationSelect"></select></div></div>
+        <label for="resolutionSelect">分辨率</label><select id="resolutionSelect"></select>
+        <div class="field-head"><label>参考素材</label><button id="chooseReferenceBtn" type="button">从素材库添加</button></div><p class="reference-hint" id="assetRequirement">由画布连接自动同步</p>
+        <button class="upload" id="uploadBox"><b><svg class="ui-icon" viewBox="0 0 24 24"><path d="M12 16V4M8 8l4-4 4 4M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg></b><span>上传图片<br><small>支持 JPG、PNG、WEBP，≤20MB</small></span></button>
+        <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp,audio/wav,audio/mpeg,.wav,.mp3" hidden multiple>
+        <div class="asset-chips" id="selectedAssets"></div>
+        <button class="generate" id="generateBtn" type="button"><svg class="ui-icon generate-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 11 7-11 7V5Z"/></svg><span class="generate-label">生成视频</span><span class="generate-hint">提交任务</span></button><p class="safe">内容安全审核已开启</p>
+        </div>
+        <div id="nodeDetailView" hidden></div>
+      </div>
+      <div class="inspector-content tab-panel" id="projectPanel"><label>项目名称</label><input id="projectNameInput" maxlength="80"><label>画布节点</label><div class="info-card"><strong id="nodeCount">2</strong><span>个节点</span></div><label>创建时间</label><div class="plain-value" id="createdAt">—</div><div class="project-actions"><button class="secondary full" id="saveProjectBtn">保存项目</button><button class="secondary full" id="duplicateProjectBtn">复制项目</button><button class="danger-outline full" id="deleteProjectBtn">移入回收站</button></div></div>
+      <div class="inspector-content tab-panel" id="historyPanel"><div id="taskHistory" class="task-history"></div></div>
+      </div>
+    </aside>
+  </main>
+
+  <div class="modal-backdrop" id="modalBackdrop" hidden>
+    <div class="modal" id="modal" role="dialog" aria-modal="true"><button class="modal-close" id="modalClose" aria-label="关闭"><svg class="ui-icon ui-icon-sm" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button><div id="modalContent"></div></div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <div class="session-status" id="sessionStatus" role="status" aria-live="polite" hidden></div>
+  <script src="browser-runtime.js?v=http-uuid-1"></script>
+  <script type="module" src="modal-motion.js?v=1"></script>
+  <script type="module" src="app.js?v=video-reliability-1"></script>
+  <script type="module" src="sidebar-scrollbar.js?v=shared-overlay-2"></script>
+</body>
+</html>

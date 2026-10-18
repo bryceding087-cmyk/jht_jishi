@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { normalizeGroups,contentBounds,groupBounds } from '../public/canvas-groups.js';
+const nodes=[{id:'a',x:100,y:120},{id:'b',x:500,y:200}],size=()=>({width:300,height:200});
+const group={id:'g',title:'Group 1',color:'#4285f4',node_ids:['a','b']};
+assert.deepEqual(contentBounds(group,nodes,size),{x:76,y:96,width:748,height:328});
+assert.deepEqual(groupBounds({...group,x:50,y:50,width:900,height:500},nodes,size),{x:50,y:50,width:900,height:500});
+assert.deepEqual(groupBounds({...group,x:200,y:200,width:200,height:200},nodes,size),{x:76,y:96,width:748,height:328});
+const groups=normalizeGroups([{...group,node_ids:['a','a','missing']},{id:'empty',node_ids:[]},{id:'second',node_ids:['a','b'],color:'invalid'}],nodes);
+assert.deepEqual(groups.map(g=>g.node_ids),[['a'],['b']]);
+assert.equal(groups[1].color,'#999999');
+assert.equal(normalizeGroups(groups,[]).length,0);
+console.log('PASS: group content geometry, resize containment, membership deduplication, deletion pruning and colors');

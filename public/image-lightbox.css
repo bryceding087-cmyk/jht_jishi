@@ -1,0 +1,9 @@
+dialog.image-lightbox { width: fit-content; height: fit-content; max-width: calc(100vw - 48px); max-height: calc(100dvh - 48px); margin: auto; padding: 0; border: 0; background: transparent; overflow: visible; outline: none; }
+dialog.image-lightbox::backdrop { background: #000c; }
+dialog.image-lightbox > img { display: block; width: auto; height: auto; max-width: calc(100vw - 48px); max-height: calc(100dvh - 48px); object-fit: contain; border-radius: 6px; }
+.image-lightbox-close { position: absolute; top: 10px; right: 10px; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid #ffffff30; border-radius: 50%; background: #171717b3; color: #fff; font: 24px/1 sans-serif; cursor: pointer; transition: background-color 180ms ease; }
+.image-lightbox-close:hover { background: #171717ed; }
+.image-lightbox-close:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+dialog.image-lightbox[data-closing]::backdrop { animation: image-lightbox-backdrop-exit 180ms ease-out forwards; }
+@keyframes image-lightbox-backdrop-exit { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .image-lightbox-close { transition: none; } dialog.image-lightbox[data-closing]::backdrop { animation: none; } }

@@ -1,0 +1,158 @@
+format: jianhuitong-agent-workflow/v1
+states: [draft, running, waiting_user, waiting_tool, paused, blocked, failed, completed, cancelled]
+execution_policy:
+  phase_outputs: produces 列出本阶段可能形成的产物；条件分支和不适用项无需全部产生，以 exit 和本次目标判断能否继续。
+  routing: next 为完整制作的默认顺序；用户选择、局部修订和阶段产物任务按相应 routes 处理，不强制从头执行。
+  supporting_skills: 模型与费用检查、持久化、画布同步及已授权的必要试读可按依赖插入；不改变故事先审查、BGM 默认先于视频的顺序。
+gates:
+  G4:
+    name: 成片观看检查
+    satisfied_by: 文件和时长技术检查通过后，用户播放确认画面、台词、字幕与人物一致性。
+  S0:
+    name: 故事补充或主动润色选择
+    conditional: true
+    satisfied_by: 导演判断完整则跳过；有关键缺项时由用户选择补充、授权润色或沿用原文，记录对应版本。
+  G1:
+    name: 参数与初始制作范围
+    satisfied_by: 明确参数、用户选择或有效的自主决定授权；付费范围单独核对。
+  G2:
+    name: 创意与参考素材
+    satisfied_by: 对所展示版本的确认，或已明确覆盖创意选择的授权。
+  G3:
+    name: 分镜与生成策略
+    satisfied_by: 对输入版本、模型和本批次费用范围的确认，或既有等价授权。
+phases:
+  - id: intake
+    skills: [project-context]
+    produces: [ContextSnapshot]
+    exit: 当前项目与原始故事已载入，现有运行和任务已恢复。
+    next: story_review
+  - id: story_review
+    skills: [director, story-polishing]
+    produces: [DirectorReview, StoryDraft]
+    exit: 当前采用故事经导演判断完整，或用户明确接受缺项继续；未采用的润色稿不进入下游。
+    next: analysis
+  - id: analysis
+    skills: [story-analysis, model-budget]
+    produces: [StoryAnalysis, ModelPlan, BudgetEstimate]
+    exit: 已基于采用故事预估台词时长、整体时长和分段；必要参数已明确，G1 有效。
+    next: creative
+  - id: creative
+    skills: [creative-design, director, quality-review]
+    produces: [CreativeBrief, DirectorReview, QualityReport]
+    exit: 已回读保存的创意稿，台词保真和叙事完整性检查通过。
+    next: assets
+  - id: assets
+    skills: [canvas-management, visual-assets, voice-production, creative-design, director, quality-review]
+    produces: [AssetManifest, VoicePlan, CreativeBrief, CanvasProjection, DirectorReview, QualityReport]
+    exit: 必要图片与声音参考已具备并回填创意文档；素材自审和本轮画布整理完成，G2 有效。可选素材不阻塞。
+    next: storyboard
+  - id: storyboard
+    skills: [storyboard-planning, prompt-composition, director, model-budget, voice-production, canvas-management, quality-review]
+    produces: [Storyboard, PlannedTimeline, PromptSet, ModelPlan, BudgetEstimate, VoicePlan, AudioManifest, CanvasProjection, DirectorReview, QualityReport]
+    exit: 基于回填素材后的创意文档形成分镜与计划时间线；台词、时长、素材和声音策略通过检查，G3 有效。
+    next: music
+  - id: music
+    skills: [voice-production, music-production, quality-review, canvas-management]
+    produces: [VoicePlan, AudioManifest, MusicPlan, QualityReport, CanvasProjection]
+    exit: 整片 BGM 已按已采用分镜生成或复用并检查；所需前置正式配音具备。无配乐需求可标为不适用，调整制作顺序需记录用户选择。
+    next: video
+  - id: video
+    skills: [video-generation, quality-review, canvas-management]
+    produces: [VideoBatch, QualityReport, CanvasProjection]
+    exit: 所有采用片段已保存且通过必要检查，或使用用户已提供的合格片段。
+    next: postproduction
+  - id: postproduction
+    skills: [voice-production, music-production, video-editing]
+    produces: [AudioManifest, MusicPlan, Timeline, RenderArtifact]
+    exit: 当前采用时间线已产生可读取的成片。
+    next: review
+  - id: review
+    skills: [director, quality-review, revision-recovery]
+    produces: [DirectorReview, QualityReport]
+    exit: 成片必要检查通过；问题已修复或按用户接受的新要求复核。
+    next: delivery
+  - id: delivery
+    skills: [canvas-management]
+    produces: [DeliveryPackage, CanvasProjection]
+    exit: 成片入库并可播放和下载；交付卡对应检查通过的版本。
+    next: null
+dependency_rules:
+  - 风格方向先确定；独立角色与场景参考可并行。
+  - 本轮素材节点先建立并保存；视觉素材与角色音色锚定就绪后回填创意文档，再自审和整理画布。
+  - 音色锚定与正式配音分别记录；有口型同步依赖时正式台词音频先于视频生成。
+  - 需要上一片段尾帧的任务等待上游通过检查；独立片段在授权并发内执行。
+  - 整片 BGM 默认在分镜确认后、视频生成前制作，依据 PlannedTimeline；后期复用并按实测 Timeline 对齐，不要求先有实际片段才能生成音乐。
+  - 合成等待所有被时间线引用的文件具备；精确字幕与品牌层不可被通用字幕开关替代。
+  - 对话、画布和脚本使用同一版本；图写入串行合并，媒体任务可并发。
+  - 用户指定无配音或无配乐时，对应产物标为不适用并继续，不为凑流程生成音频。
+scope_routes:
+  full_video: 按阶段主流程执行并复用已有成果。
+  stage_artifact: 仅执行用户指定产物及必要的文档依赖；仅要分镜时仍检查故事但跳过视觉、音色、BGM、视频与后期生成，使用已有或可选资源，审阅完成即交付。
+  revision: 由 revision-recovery 确定受影响阶段，不强制回到 intake 或再次生成所有素材。
+story_decision_routes:
+  complete: 直接进入 analysis，不自动润色。
+  supplement: 等待用户补充，形成新的输入版本并重新调用导演。
+  polish: 仅在有主动操作或明确改写授权后调用 story-polishing；稿件被采用后回到导演审查。
+  continue_original: 记录用户接受的缺项，保持原文作为采用稿，进入 analysis；没有可识别内容时只请求最少必要信息。
+asset_preparation_passes:
+  - skill: canvas-management
+    operation: prepare_resource_nodes
+    outcome: 为本轮需求创建或复用待生成素材节点，保存需求与节点映射。
+  - skill: visual-assets
+    operation: prepare_visuals
+    outcome: 通过节点关联生成或复用风格、角色、场景与道具图片。
+  - skill: voice-production
+    operation: prepare_anchors
+    outcome: 生成或复用角色与旁白音色锚定音频，记录实际声音和资产引用。
+  - skill: creative-design
+    operation: bind_assets
+    outcome: 将图片和音色音频的真实引用、受保护路径写回创意文档，保存新版本。
+  - skill: director
+    operation: review_creative
+    outcome: 回读已回填素材的创意稿，复核人物、声音和叙事一致性。
+  - skill: quality-review
+    operation: review_assets
+    outcome: 核验素材文件、绑定完整性和可用性。
+  - skill: canvas-management
+    operation: organize_batch
+    outcome: 读取最新画布，整理本轮实际产物节点，再交 G2 审阅。
+music_preparation_passes:
+  - skill: voice-production
+    operation: generate_lines
+    outcome: 落实正式对白与旁白，生成必须前置的独立配音；原生对白方案只核对所需声音依赖。
+  - skill: quality-review
+    operation: review_audio
+    outcome: 先核对前置台词的保真与实测时长；原生对白使用已标注的估算。时长冲突先回修分镜、计划时间线及相关授权，再制作 BGM。
+  - skill: music-production
+    operation: generate_full_bgm
+    outcome: 依据已确认的分镜计划时间线生成整片 BGM，并保存音乐资产。
+  - skill: quality-review
+    operation: review_audio
+    outcome: 检查 BGM 的实际文件、长度和意外人声；通过后才进入默认视频批次。
+  - skill: canvas-management
+    operation: organize_batch
+    outcome: 同步本轮正式声音与 BGM 的实际资产和音频节点，保留已有布局。
+postproduction_passes:
+  - skill: video-editing
+    operation: plan_timeline
+    outcome: 根据采用片段形成实际剪辑草稿，允许尚未制作的音轨引用为待补需求。
+  - skill: voice-production
+    operation: complete_required_audio
+    outcome: 补齐仍需要的正式配音；若时长导致镜头修改，先回修分镜或片段并更新草稿。
+  - skill: music-production
+    operation: align_to_timeline
+    outcome: 将已在视频之前生成的 BGM 对齐实际剪辑与人声，优先裁切、循环和淡入淡出；需重生成时核对范围，无配乐需求时跳过。
+  - skill: video-editing
+    operation: render
+    outcome: 补齐音轨、字幕与品牌层，检查全部依赖后保存最终时间线并渲染。
+interruption_rules:
+  revision: 调用 revision-recovery，按依赖回到受影响阶段；不清空无关成果。
+  status_question: 查询和回答后继续原目标。
+  pause: 停止新提交并保存任务；恢复时先对账。
+  cancel: 停止新提交，尽力取消供应商任务，真实记录取消结果。
+  missing_capability: 阻断依赖该能力的阶段，继续可以独立完成的工作。
+completion:
+  full_video: 成片资产存在、必要检查通过、作品可播放下载、输入版本与用户要求一致。
+  stage_artifact: 用户指定的阶段产物已保存且必要检查通过；不称为完整视频。
+  revision: 受影响产物已更新并完成其依赖交付；保留旧版本与复用记录。

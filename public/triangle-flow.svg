@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none" role="img" aria-labelledby="triangle-flow-title">
+ <title id="triangle-flow-title">圆角三角流线加载动画，2 秒循环</title>
+ <defs>
+  <path id="triangle-flow-route" d="M32 34 Q32 20 44 27 L98 58 Q109 64 98 70 L44 101 Q32 108 32 94 Z" pathLength="300"/>
+  <linearGradient id="triangle-flow-color" x1="32" y1="25" x2="93" y2="98" gradientUnits="userSpaceOnUse"><stop stop-color="#20e8e4"/><stop offset=".48" stop-color="#1687ff"/><stop offset="1" stop-color="#a151ff"/></linearGradient>
+ </defs>
+ <style>
+  .triangle-flow-track{stroke:url(#triangle-flow-color);stroke-width:2;opacity:.13}
+  .triangle-flow-line{stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:62 238;animation:triangle-flow-chase 2s linear infinite,triangle-flow-reach 2s ease-in-out infinite;animation-play-state:var(--triangle-flow-play,running)}
+  .triangle-flow-cyan{stroke:#25dbed;--start:0}
+  .triangle-flow-blue{stroke:#318cff;--start:-100}
+  .triangle-flow-purple{stroke:#a170fa;--start:-200}
+  @keyframes triangle-flow-chase{from{stroke-dashoffset:var(--start)}to{stroke-dashoffset:calc(var(--start) - 300)}}
+  @keyframes triangle-flow-reach{0%,100%{stroke-dasharray:62 238}50%{stroke-dasharray:88 212}}
+  @media(prefers-reduced-motion:reduce){.triangle-flow-line{animation:none;stroke-dashoffset:var(--start)}}
+ </style>
+ <use href="#triangle-flow-route" class="triangle-flow-track"/>
+ <use href="#triangle-flow-route" class="triangle-flow-line triangle-flow-cyan"/>
+ <use href="#triangle-flow-route" class="triangle-flow-line triangle-flow-blue"/>
+ <use href="#triangle-flow-route" class="triangle-flow-line triangle-flow-purple"/>
+</svg>

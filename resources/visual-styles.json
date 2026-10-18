@@ -1,0 +1,1668 @@
+{
+  "version": "1.0.0",
+  "styles": [
+    {
+      "id": "urban-natural-realism",
+      "source_name": "国产都市写实",
+      "category": "真人",
+      "display_name": "都市自然写实",
+      "aliases": [
+        "现代生活剧",
+        "自然生活摄影"
+      ],
+      "summary": "真实人物与生活空间，大面积窗光、克制配色和可信细节。",
+      "image_style_prompt_zh": "以自然主义生活剧的实景摄影质感呈现用户指定主体；保留对象真实比例、原有材质和使用痕迹，若含人物则保持自然表情、动作与肤质；根据场景采用大面积柔和侧光和可信环境反射，可由侧窗或天空提供，明暗柔和但不平坦；暖灰、米白、木棕与少量低饱和绿色，若含人物则肤色自然；建议平视构图、适度景深和细微颗粒。",
+      "image_style_prompt_en": "Render the user's chosen subject with naturalistic live-action photographic treatment. Preserve believable proportions, existing materials and signs of use; if people are present, retain natural expressions, gestures and skin texture. Use broad soft side light and credible environmental bounce, motivated by a window or sky when appropriate. Gentle dimensional shadows, restrained warm gray, ivory, wood brown and muted green. Natural skin color where applicable; suggested eye-level framing, moderate depth of field and subtle grain.",
+      "avoid": [
+        "过度平滑导致主体材质丢失",
+        "默认无影白光消除空间层次",
+        "过度青橙调色",
+        "未经请求用夸张散景吞掉环境"
+      ],
+      "video_motion": "建议固定机位或缓慢侧移，动作跟随用户指定内容；若含人物，可保留呼吸、目光和手部的自然小变化；静物或场景可仅用轻微视差。",
+      "video_consistency": [
+        "保持已设定光源方向和色温",
+        "保持已有物体位置、材质与时间连续",
+        "若含人物，保持身份与肤质一致"
+      ],
+      "sources": [
+        {
+          "url": "https://www.studiobinder.com/blog/what-is-soft-light/",
+          "title": "What is Soft Light Photography — Examples and Techniques",
+          "kind": "cinematography_technique",
+          "note": "已阅读全文。依据：扩散光使明暗过渡柔和，阴天和反射补光也是柔光来源。风格配方为原创综合。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/urban-natural-realism.jpg",
+      "source_preview_sha256": "df0f4832900a8abd12fa4d6f348a6eeb00725d2120e2dcb090268c4d12490190",
+      "preview_sha256": "2519eb35d900dbc17e3f37bf0a96c571e52049d0dae08b8e63253c9660ff34db"
+    },
+    {
+      "id": "hong-kong-neon-reverie",
+      "source_name": "王家卫港夜迷离电影风",
+      "category": "真人",
+      "display_name": "港夜霓虹迷离",
+      "aliases": [
+        "港风夜景",
+        "都市霓虹诗意"
+      ],
+      "summary": "潮湿夜街、霓虹染色、近距离人物与若隐若现的城市层次。",
+      "image_style_prompt_zh": "将用户指定主体呈现为都市夜景摄影般的亲密、迷离观感；局部琥珀、暗红和青绿色光源，深暗背景保留层次，按场景使用玻璃或湿润表面的反射；偏心构图、浅景深和细颗粒，可利用已有前景遮挡；若含人物则保持自然皮肤与克制表情。轻微拖影仅用于用户场景中实际运动的次要元素，主体识别特征保持清楚，不自动添加街道、行人或门窗。",
+      "image_style_prompt_en": "Give the user's chosen subject an intimate, wistful night-photography treatment. Localized amber, dark red and cyan-green light, a deep layered background, and reflections on glass or wet surfaces where the scene supports them. Off-center framing, shallow depth of field and fine grain; use existing foreground occlusion if useful. If people are present, preserve natural skin and restrained expression. Optional slight motion smearing belongs only to moving secondary elements, while identifying subject details remain clear. Do not add streets, passersby or windows as mandatory style props.",
+      "avoid": [
+        "全画面均匀彩虹霓虹",
+        "未经请求添加未来机甲或改造场景时代",
+        "严重拖影导致主体变形",
+        "未经请求复刻特定电影人物或场景"
+      ],
+      "video_motion": "建议缓慢靠近或横移，利用已有前景形成视差；按用户内容安排主体运动或短暂停顿。反光与背景运动跟随场景，拖影仅作为可选后期表达。",
+      "video_consistency": [
+        "保持已设定彩色光源位置与主配色",
+        "保持主体身份、结构及已有服饰一致",
+        "若有反射表面，保持倒影与光源对应"
+      ],
+      "sources": [
+        {
+          "url": "https://www.bfi.org.uk/interviews/christopher-doyle-shooting-chungking-express",
+          "title": "Christopher Doyle on shooting Chungking Express for Wong Kar-wai",
+          "kind": "cinematographer_interview",
+          "note": "已阅读全文。依据：都市空间、梦幻霓虹与流动的人群，以及较柔和亲密的摄影。动作拖影为本配方建议，非文章提供的具体参数。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/hong-kong-neon-reverie.jpg",
+      "source_preview_sha256": "8399c08f2b6b78dc6a264745770606168a53f9c5157ae07682424a1c346fce63",
+      "preview_sha256": "87f6eb98fd6b1e9626a105848899e384cd9b6d31c2cbd10814f7fa82f244c2fb"
+    },
+    {
+      "id": "chinese-folklore-night",
+      "source_name": "中式志怪电影感",
+      "category": "真人",
+      "display_name": "中式志怪幽夜",
+      "aliases": [
+        "东方民间奇谭",
+        "古宅幽玄"
+      ],
+      "summary": "冷月和暖灯相互分离，老木、旧纸与雾气构成含蓄怪谈气氛。",
+      "image_style_prompt_zh": "以中国民间奇谭的低调实景摄影气氛呈现用户指定主体；小面积暖色实用光照亮局部，冷色环境光勾勒已有轮廓，光源按用户场景合理设置；墨蓝、灰绿与旧木褐配色，大部分空间沉静但暗部可辨；保留现有材质的细微纹理，若场景含旧木、纸、苔藓或石材则强调其真实触感。克制留白与层次纵深营造神秘，薄雾仅在环境适用时使用，不自动添加人物、古建筑或灯笼。",
+      "image_style_prompt_en": "Treat the user's chosen subject with a low-key live-action folkloric mystery atmosphere. A small warm practical source lights selected areas while cool ambient light outlines existing forms, with lighting motivated by the requested scene. Ink blue, gray green and old wood brown, quiet darkness with readable layers. Preserve tactile surface detail; emphasize aged timber, paper, moss or stone only if those materials are present. Restrained negative space and depth create mystery, with sparse mist only where appropriate. Do not require a person, period building or lantern.",
+      "avoid": [
+        "未经请求满屏添加荧光符咒或奇幻特效",
+        "将写实材质变成光滑游戏CG",
+        "无来源蓝光",
+        "未经请求用怪物或血腥替代原定主体"
+      ],
+      "video_motion": "建议缓慢推进或静止观察，运动由用户指定主体和场景决定；若有悬挂物、雾或人物，可分别使用轻摆、横向飘移或细微回望，不为运镜增加这些元素。",
+      "video_consistency": [
+        "保持暖色光源亮度、位置和照明对象对应",
+        "保持冷色环境光方向",
+        "保持已有纹样、物体结构与空间关系"
+      ],
+      "sources": [
+        {
+          "url": "https://www.studiobinder.com/blog/what-is-low-key-lighting-definition/",
+          "title": "What is Low Key Lighting — Definition, Examples in Photo & Film",
+          "kind": "cinematography_technique",
+          "note": "已通过 Google 网页翻译代理读取完整英文正文，链接为原文。依据：暗调、硬主光、少量补光与阴影塑形；本配方的题材和配色为原创综合。",
+          "accessed_date": "2026-10-18"
+        },
+        {
+          "url": "https://www.bfi.org.uk/lists/10-great-wuxia-swordplay-films",
+          "title": "10 great wuxia films",
+          "kind": "film_visual_reference",
+          "note": "已阅读全文。依据：宽阔景观、竹林、精准动作、逆光与风，以及色彩设计；不复制具体人物、服装或镜头。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/chinese-folklore-night.jpg",
+      "source_preview_sha256": "5d38f60533b95e1a3c58ed5944ce4ca95507032dd0b2e777aac978d8272039a1",
+      "preview_sha256": "04f72767749d592776adf5b0c46f70ea55e1c08acf7b70463e28c1ac5e6f0d71"
+    },
+    {
+      "id": "poetic-wuxia-landscape",
+      "source_name": "东方写意武侠江湖电影",
+      "category": "真人",
+      "display_name": "写意武侠山水",
+      "aliases": [
+        "竹林武侠",
+        "江湖写意摄影"
+      ],
+      "summary": "山水留白中的真人侠客，竹林与水雾营造安静、流动的气韵。",
+      "image_style_prompt_zh": "以写实摄影结合东方山水的留白与层次呈现用户指定主体；构图疏密有序，尺度关系可信，建议宽阔的横向空间但遵循用户画幅；自然漫射光、柔和逆光和层层远景，竹青、石灰、雾白与少量赭石；保留对象原有材质，若含岩石、叶片或丝麻则突出其自然触感。若含人物，姿态和衣料运动服从用户动作、重心与风向；不自动添加侠客、竹林、山水或武器。",
+      "image_style_prompt_en": "Apply photographic realism with restrained East Asian landscape composition, purposeful negative space and layered depth to the user's chosen subject. Keep scale relationships credible; an expansive horizontal arrangement is a suggestion, subject to the requested aspect ratio. Diffused natural light, soft backlight, bamboo green, stone gray, mist white and a small ochre accent. Preserve existing materials, emphasizing rock, leaves or woven fabric only where present. If people appear, posture and cloth movement follow the requested action, weight and wind. Do not automatically add warriors, bamboo, terrain or weapons.",
+      "avoid": [
+        "未经请求添加游戏盔甲或法术",
+        "运动缺少用户场景要求的受力逻辑",
+        "过量粒子遮挡主体",
+        "油画笔触替代已选写实摄影"
+      ],
+      "video_motion": "建议缓慢横移或轻推，保留已有主体与环境的尺度；若场景有风，已有叶片和衣料应共同响应；人物动作或其他运动遵循用户内容。",
+      "video_consistency": [
+        "若存在风，所有受风元素方向一致",
+        "保持已有道具形状",
+        "保持已有地形、建筑或背景线条位置"
+      ],
+      "sources": [
+        {
+          "url": "https://www.bfi.org.uk/lists/10-great-wuxia-swordplay-films",
+          "title": "10 great wuxia films",
+          "kind": "film_visual_reference",
+          "note": "已阅读全文。依据：宽阔景观、竹林、精准动作、逆光与风，以及色彩设计；不复制具体人物、服装或镜头。",
+          "accessed_date": "2026-10-18"
+        },
+        {
+          "url": "https://www.studiobinder.com/blog/what-is-soft-light/",
+          "title": "What is Soft Light Photography — Examples and Techniques",
+          "kind": "cinematography_technique",
+          "note": "已阅读全文。依据：扩散光使明暗过渡柔和，阴天和反射补光也是柔光来源。风格配方为原创综合。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/poetic-wuxia-landscape.jpg",
+      "source_preview_sha256": "742734f4b590df38457b983b5b673f5d4ece1bacfbbd0c350a13e06b5fe97290",
+      "preview_sha256": "ad15ef2e1d9e66f2ea4e232540d6eb56b9f96a08a2b22651730b752924c24fa6"
+    },
+    {
+      "id": "period-romance-softlight",
+      "source_name": "古偶柔光滤镜风",
+      "category": "真人",
+      "display_name": "古装柔光雅致",
+      "aliases": [
+        "古偶柔光",
+        "古风浪漫摄影"
+      ],
+      "summary": "通透柔和的古装人物，绢纱、花木与暖亮高光构成浪漫层次。",
+      "image_style_prompt_zh": "以古装爱情剧般的雅致柔光摄影处理用户指定主体；保留对象原有比例和材质，丝绸、绢纱与刺绣仅在场景已有时强调其纹理；大面积柔和侧逆光，轻柔立体阴影，明亮处只有细微光晕；象牙白、淡桃、浅青和米金色，低至中等反差，浅而可信的景深。可利用已有轻透前景，但不自动添加人物、古装、花枝或纱帘；若含人物，保持自然五官和肤质。",
+      "image_style_prompt_en": "Apply the elegant soft-light photography associated with period romance to the user's chosen subject. Preserve its proportions and existing materials; emphasize silk, gauze or embroidery only when present. Broad soft side-backlight, gentle dimensional shadows and a delicate bloom on bright edges. Ivory, pale peach, light jade and muted warm gold, low-to-moderate contrast and shallow but credible depth of field. Existing translucent foreground elements may be used, but do not add people, period clothing, branches or curtains as requirements. Keep natural features and skin texture if people are present.",
+      "avoid": [
+        "过度平滑导致原有纹理丢失",
+        "高光过曝吞掉主体",
+        "满屏单一粉色滤镜",
+        "未经请求添加繁复饰物抢占主体"
+      ],
+      "video_motion": "建议缓慢推近或轻柔侧移，动作由用户内容决定；若含人物可使用细微表情或手部动作，若有轻薄材质可轻微摆动，不强制添加衣袖或纱帘。",
+      "video_consistency": [
+        "保持主体形状与已有装饰细节",
+        "柔光方向与光晕强度一致",
+        "已有半透明或柔软材质不穿插实体"
+      ],
+      "sources": [
+        {
+          "url": "https://www.studiobinder.com/blog/what-is-soft-light/",
+          "title": "What is Soft Light Photography — Examples and Techniques",
+          "kind": "cinematography_technique",
+          "note": "已阅读全文。依据：扩散光使明暗过渡柔和，阴天和反射补光也是柔光来源。风格配方为原创综合。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/period-romance-softlight.jpg",
+      "source_preview_sha256": "8e36eb66beebbe65cda7dfbbcb7174ab8ce0f4e2b5f1b2d2ebffd1d3ba4b7f04",
+      "preview_sha256": "5b9067176b0e976daec3745056932a62e73758c634a3ace622e1e4938236e8e6"
+    },
+    {
+      "id": "muted-documentary-film",
+      "source_name": "富士xs10胶片风",
+      "category": "真人",
+      "display_name": "低饱和纪实胶片",
+      "aliases": [
+        "富士感纪实",
+        "杂志纪实胶片"
+      ],
+      "summary": "略冷暗部、温和肤色与低饱和色彩，接近老杂志的纪实印相感。",
+      "image_style_prompt_zh": "以彩色纪实摄影呈现用户指定主体，克制低饱和、略冷灰蓝暗部和适度厚实黑位，抑制艳丽洋红；自然光或用户场景内有来源的照明、平顺高光和细微颗粒形成老杂志印相感；保留真实材质，建议适度景深和清楚的主体环境关系。若含人物则保持自然肤色、皮肤细节与抓拍感动作。相机型号不作为视觉效果的唯一依据。",
+      "image_style_prompt_en": "Render the user's chosen subject as a restrained color documentary photograph with subdued saturation, slightly cool gray-blue shadows and moderately dense blacks; suppress vivid magenta. Use natural or scene-motivated light, smooth highlight transitions and fine grain for a vintage editorial-print quality. Preserve real material textures, with suggested moderate depth of field and a clear subject-environment relationship. If people are present, keep natural skin color, skin detail and candid gestures. This is a visual interpretation rather than exact camera or film-stock emulation.",
+      "avoid": [
+        "滤镜式黄绿色蒙版",
+        "随机漏光和重刮痕",
+        "假装精确复现相机直出",
+        "过度怀旧褐色"
+      ],
+      "video_motion": "建议稳定手持观察或短距离跟随，保留少量自然呼吸感；主体运动依据用户内容，静物可通过轻微机位变化呈现。",
+      "video_consistency": [
+        "全片保持已选低饱和和黑位基准",
+        "颗粒尺度稳定",
+        "曝光变化平缓；若含人物，肤色不漂移"
+      ],
+      "sources": [
+        {
+          "url": "https://www.fujifilm-x.com/en-us/products/film-simulation/classic-chrome/",
+          "title": "CLASSIC CHROME — Fujifilm Film Simulation",
+          "kind": "manufacturer_visual_technique",
+          "note": "已阅读全文。依据：低饱和、抑制洋红、偏冷暗部及杂志纪实感。厂商明确此模拟不对应某一种真实胶片；也不意味着 X-S10 只有一种外观。",
+          "accessed_date": "2026-10-18"
+        },
+        {
+          "url": "https://www.studiobinder.com/blog/what-is-soft-light/",
+          "title": "What is Soft Light Photography — Examples and Techniques",
+          "kind": "cinematography_technique",
+          "note": "已阅读全文。依据：扩散光使明暗过渡柔和，阴天和反射补光也是柔光来源。风格配方为原创综合。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/muted-documentary-film.jpg",
+      "source_preview_sha256": "ee01a418ec683c5e1ab056fda51dc291b443c85409707d3e8681be4ab352524e",
+      "preview_sha256": "2d1dc49205b92a770ea48fdce8825f5c961ccaaf2c9891dc1b46e452b6eaf91f"
+    },
+    {
+      "id": "rural-period-realism",
+      "source_name": "年代乡土生活剧",
+      "category": "真人",
+      "display_name": "年代乡土纪实",
+      "aliases": [
+        "乡村生活剧",
+        "乡土年代摄影"
+      ],
+      "summary": "朴素乡村空间和真实劳动动作，土色调、旧衣料与柔和自然光。",
+      "image_style_prompt_zh": "将用户指定主体处理为乡土年代纪实般的实拍质感，保留真实比例、原有材料和生活使用痕迹；若场景包含夯土、青砖、竹编、旧棉布或搪瓷，则清楚表现其纹理；柔和自然天光与有层次的暗部，土黄、褪色靛蓝、竹褐和灰绿的克制配色，细微颗粒。建议平视中远景展示主体和环境关系；若含人物，保留用户指定年龄、肤质与动作，不强制安排劳动或乡村建筑。",
+      "image_style_prompt_en": "Apply naturalistic rural period-drama texture to the user's chosen subject, preserving its proportions, original materials and believable signs of use. Render earth, brick, woven bamboo, faded cotton or enamel tactually only when present. Soft natural daylight with dimensional shadows, restrained earth yellow, faded indigo, bamboo brown and gray green, subtle grain. Suggested eye-level medium-wide framing connects subject and surroundings. If people appear, preserve the requested age, skin detail and action; do not require labor, tools or village architecture.",
+      "avoid": [
+        "未经请求添加贫困或脏污刻板印象",
+        "抹去用户指定人物年龄与肤质",
+        "年代道具与用户指定时代无意冲突",
+        "浓重黄色旧照片滤镜"
+      ],
+      "video_motion": "建议固定中远景或缓慢观察，记录用户指定的完整简单动作；静物或环境可只保留自然光影与环境微动，不强制加入劳动人物。",
+      "video_consistency": [
+        "保持用户设定的时代与已有物件清单",
+        "若含人物，年龄、身份和已有衣料细节稳定",
+        "自然光、季节与时间连续"
+      ],
+      "sources": [
+        {
+          "url": "https://www.studiobinder.com/blog/what-is-soft-light/",
+          "title": "What is Soft Light Photography — Examples and Techniques",
+          "kind": "cinematography_technique",
+          "note": "已阅读全文。依据：扩散光使明暗过渡柔和，阴天和反射补光也是柔光来源。风格配方为原创综合。",
+          "accessed_date": "2026-10-18"
+        },
+        {
+          "url": "https://www.fujifilm-x.com/en-us/products/film-simulation/classic-chrome/",
+          "title": "CLASSIC CHROME — Fujifilm Film Simulation",
+          "kind": "manufacturer_visual_technique",
+          "note": "已阅读全文。依据：低饱和、抑制洋红、偏冷暗部及杂志纪实感。厂商明确此模拟不对应某一种真实胶片；也不意味着 X-S10 只有一种外观。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/rural-period-realism.jpg",
+      "source_preview_sha256": "b284394726becaa99442c5dccec20920e48fc889036e3477f103e24d5e3294ed",
+      "preview_sha256": "31c8d1685d0df5d6d182ec5c11194c911763396a5064d9c1c621453fced4dfb2"
+    },
+    {
+      "id": "y2k-digicam-flash",
+      "source_name": "复古Y2K潮流风",
+      "category": "真人",
+      "display_name": "Y2K 数码直闪",
+      "aliases": [
+        "千禧潮流",
+        "早期数码随拍"
+      ],
+      "summary": "小型数码相机直闪，鲜亮塑料与金属细节，轻松随性的千禧氛围。",
+      "image_style_prompt_zh": "将用户指定主体呈现为早期数码相机潮流随拍，近轴直闪照亮前景并在后方留下短硬阴影；略软的数码细节和鲜活色彩，银色、冰蓝与少量亮粉；按对象现有材料突出光泽、透明度和织物差异，亮面尼龙、金属、塑料或牛仔布仅为适用时的材料例子。建议稍广近距离视角和轻微倾斜构图，背景保留环境光；不强制添加人物、饰品或千禧道具。",
+      "image_style_prompt_en": "Give the user's chosen subject an early-2000s compact-digital snapshot treatment. Near-axis built-in direct flash brightens the foreground and creates a short hard shadow behind it. Slightly soft early-digital detail, lively color, silver and ice blue with small vivid pink accents. Emphasize gloss, transparency and fabric differences according to existing materials; nylon, metal, plastic or denim are optional material examples. Suggested close, slightly wide framing with a mild casual tilt and visible ambient background. Do not require people, accessories or period props.",
+      "avoid": [
+        "未经请求添加VHS磁带横纹",
+        "未经请求将主体改成未来赛博机甲",
+        "现代旗舰手机式超锐化",
+        "未经请求添加时间戳"
+      ],
+      "video_motion": "建议轻便手持随拍，跟随用户指定的主体运动；持续画面可用近轴补光近似直闪观感，拍照闪光只在用户叙事需要时短暂出现。",
+      "video_consistency": [
+        "已有饰品、线缆和小部件形状位置稳定",
+        "保持早期数码细节水平",
+        "持续补光稳定，避免无请求的逐帧频闪"
+      ],
+      "sources": [
+        {
+          "url": "https://www.mpb.com/en-us/content/kit-guides/guide-to-y2k-digicam-style-photography",
+          "title": "Guide to Y2K Digicam-style Photography",
+          "kind": "photographic_technique",
+          "note": "已阅读全文。依据：1998—2004 文化、早期数码相机、直闪、稍软焦点、鲜艳色彩和随拍构图。本配方不添加时间戳，也不假定所有 CCD 相机色彩相同。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/y2k-digicam-flash.jpg",
+      "source_preview_sha256": "9873f67f234ede05ab4d20334ef04d715f023310f486e9d1cd3031b8aacb822d",
+      "preview_sha256": "5bc185b6ad99c22049e3bc84a3d2cecbe244006e803bdf5cafd426b5af8f181a"
+    },
+    {
+      "id": "minidv-home-video",
+      "source_name": "复古DV质感风",
+      "category": "真人",
+      "display_name": "复古 MiniDV 生活影像",
+      "aliases": [
+        "DV手持",
+        "千禧家庭录像"
+      ],
+      "summary": "略薄的标清数字画质、有限高光与轻微手持感，像家用摄像机记录日常。",
+      "image_style_prompt_zh": "以早期家用 MiniDV 数字磁带录像的静帧观感呈现用户指定主体；标清细节、轻微数码锐边、较薄色彩层次和少量暗部噪声，保留用户原有对象与场景；现场有来源的照明，高光有限而自然地截断；建议稍广视角与随意中景构图，克制运动模糊。此处理模拟数字录像，不默认添加 VHS 扫描横纹、磁带追踪故障或胶片划痕，也不要求人物或家庭场景。",
+      "image_style_prompt_en": "Render the user's chosen subject with the appearance of an early consumer MiniDV digital-tape video still. Standard-definition detail, slight digital edge emphasis, relatively thin color separation and mild shadow noise; preserve the requested objects and scene. Available or scene-motivated light with limited believable highlight clipping. Suggested slightly wide perspective, casual medium-wide framing and restrained motion blur. This evokes digital video, without default analog VHS tracking bars, tape damage or film scratches, and requires neither people nor a domestic setting.",
+      "avoid": [
+        "VHS追踪横纹",
+        "胶片划痕和漏光",
+        "极端像素化",
+        "现代电影浅景深"
+      ],
+      "video_motion": "建议轻微手持漂移或短距离跟随用户指定主体，必要时使用一个短而缓的光学变焦感；避免持续剧烈抖动，静物也可只用微小机位变化。",
+      "video_consistency": [
+        "保留同一标清细节密度和色彩特征",
+        "高光截断程度稳定",
+        "明确避免每帧随机磁带损坏"
+      ],
+      "sources": [
+        {
+          "url": "https://howtofilmschool.com/dictionary/mini-dv/",
+          "title": "Mini DV — HowToFilmSchool.com",
+          "kind": "camera_format_technique",
+          "note": "已阅读全文。依据：数字磁带、标清、较薄的数码质感、硬高光截断、低照粗糙及便携手持的即时性。MiniDV 与模拟 VHS 不同。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/minidv-home-video.jpg",
+      "source_preview_sha256": "5aa3dfb8145f71bc95865ee799030d182066effb171f18125ba50b28607fa0e5",
+      "preview_sha256": "5722b8c89a6f7ffc1be4dc86d728f2c285acca31353e3074bbd54e38714803a5"
+    },
+    {
+      "id": "golden-age-color-cinema",
+      "source_name": "美式复古好莱坞风",
+      "category": "真人",
+      "display_name": "经典彩色好莱坞",
+      "aliases": [
+        "复古彩色电影",
+        "黄金时代摄影棚"
+      ],
+      "summary": "精心布置的摄影棚空间，宝石色衣料、柔亮肤色和清楚的色彩分区。",
+      "image_style_prompt_zh": "以经典彩色电影摄影棚美学处理用户指定主体，协调现有对象与环境的色彩关系；宝石绿、酒红、奶油白和暖金形成明确色块，丰富饱和但不溢色，若含人物则肤色可信；有塑形的主光、柔补光与克制轮廓光，保留原有材质，天鹅绒、缎面、黄铜和深色木材仅在已有时强调细节；建议平衡中景构图和前中后景分层，细颗粒、温和高光，不自动添加人物、年代服饰或摄影棚布景。",
+      "image_style_prompt_en": "Apply a classic golden-age color-cinema studio aesthetic to the user's chosen subject, coordinating the colors of existing objects and surroundings. Distinct jewel green, burgundy, cream and warm gold color masses, rich controlled saturation and credible skin where people are present. Sculpting key, soft fill and restrained rim light. Preserve original materials, emphasizing velvet, satin, brass or dark wood only when present. Suggested balanced medium framing with layered depth, fine grain and gentle highlights. Do not require people, period costumes or a studio set.",
+      "avoid": [
+        "全局过饱和与颜色溢出",
+        "未经请求替换人物身份或相貌",
+        "真实材料被统一塑料化",
+        "道具或布景时代与用户设定无意冲突"
+      ],
+      "video_motion": "建议平稳轨道推镜或横移，动作遵循用户内容，已有主体的移动清楚而优雅；以视差保留现有空间层次。",
+      "video_consistency": [
+        "已有主体与环境主色固定",
+        "轮廓光和主光位置稳定",
+        "已有道具时代与材质符合用户设定"
+      ],
+      "sources": [
+        {
+          "url": "https://www.bfi.org.uk/lists/10-great-technicolor-films",
+          "title": "10 great Technicolor films",
+          "kind": "film_visual_reference",
+          "note": "已阅读全文。依据：三色染印的鲜艳饱和色、服装与布景的协同设计及黄金时代的摄影棚美感；不声称图像模型真正执行染印工艺。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/golden-age-color-cinema.jpg",
+      "source_preview_sha256": "cb8937545a70c38445b07f4ffe86eeacd4adf7bd847663c997df883e183ba234",
+      "preview_sha256": "eca1f9856953499ede138f5b54ad0b4f3b62db0dbbc38316ea00ea5d8dcb6763"
+    },
+    {
+      "id": "weathered-industrial-cinema",
+      "source_name": "老式工业影视风格",
+      "category": "真人",
+      "display_name": "旧工业冷峻电影",
+      "aliases": [
+        "老厂房",
+        "工业写实电影"
+      ],
+      "summary": "旧厂房中的冷灰、铁锈与灰尘光束，真人和机器形成明确尺度关系。",
+      "image_style_prompt_zh": "以旧工业电影的冷峻写实摄影处理用户指定主体，保留其结构与尺度；局部硬光和少量环境补光形成空间层次，若场景有高窗或尘埃可据此表现光束；钢灰、铁锈褐、炭黑与褪色黄，低饱和、中高反差；按已有对象表现磨损、锈蚀、混凝土粗糙度或帆布纹理，不把所有材料强行变旧。利用原有结构线组织纵深，不自动添加工人、机器或厂房。",
+      "image_style_prompt_en": "Treat the user's chosen subject with weathered industrial live-action cinematography while preserving its structure and scale. Localized hard light and minimal ambient fill create depth; high-window light shafts and sparse dust are optional when supported by the scene. Low-saturation steel gray, rust brown, charcoal and faded yellow with moderately high contrast. Render wear, corrosion, concrete roughness or canvas texture only where the existing materials support them, rather than aging everything indiscriminately. Use existing structural lines for depth; do not add workers, machines or factories as requirements.",
+      "avoid": [
+        "未经请求添加发光机械或赛博改造",
+        "无依据堆砌机械零件",
+        "过量烟雾遮挡主体",
+        "全暗导致材质不可读"
+      ],
+      "video_motion": "建议慢速横移或推进，沿已有结构形成视差；部件、人物与环境是否运动均由用户内容决定，不凭风格添加运转机器或检查动作。",
+      "video_consistency": [
+        "已有结构与部件连接稳定",
+        "光束或主光方向固定",
+        "已有磨损、锈蚀和污迹不逐帧随机改变"
+      ],
+      "sources": [
+        {
+          "url": "https://www.fujifilm-x.com/en-us/products/film-simulation/eterna-bleach-bypass/",
+          "title": "ETERNA BLEACH BYPASS — Fujifilm Film Simulation",
+          "kind": "manufacturer_visual_technique",
+          "note": "已阅读全文。依据：高反差、低饱和与冷峻感。将其用于具体年代、工业或战争题材是原创设计，并非原文断言。",
+          "accessed_date": "2026-10-18"
+        },
+        {
+          "url": "https://www.studiobinder.com/blog/what-is-low-key-lighting-definition/",
+          "title": "What is Low Key Lighting — Definition, Examples in Photo & Film",
+          "kind": "cinematography_technique",
+          "note": "已通过 Google 网页翻译代理读取完整英文正文，链接为原文。依据：暗调、硬主光、少量补光与阴影塑形；本配方的题材和配色为原创综合。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/weathered-industrial-cinema.jpg",
+      "source_preview_sha256": "df75b81171a9bfb36751e73f15eab56b41ddc556923a2b3106af4bae79c0bd8b",
+      "preview_sha256": "4b0866ed564b15ccefe7f09b9151728416af0c5d57b92fb607f22bf222d8015f"
+    },
+    {
+      "id": "monochrome-street-grain",
+      "source_name": "日本黑白胶片摄影风格",
+      "category": "真人",
+      "display_name": "黑白银盐街头纪实",
+      "aliases": [
+        "黑白街拍",
+        "银盐纪实"
+      ],
+      "summary": "日常街景的银盐印相感，丰富灰阶、颗粒和真实瞬间。",
+      "image_style_prompt_zh": "将用户指定主体呈现为黑白银盐纪实摄影；丰富连续灰阶、细致可见颗粒和适度黑白反差，亮处不死白、阴影有柔和层次；自然漫射光或温和侧光，依靠现有材料的灰阶和反射差异区分质感；建议平视构图与清楚空间线条，保留适度偶然性。若含人物则保持用户指定身份、年龄和自然姿态；不自动添加人物或街道。",
+      "image_style_prompt_en": "Render the user's chosen subject as a black-and-white silver-print documentary photograph. Rich continuous gray tones, fine visible grain and measured black-white contrast, luminous highlights and softly detailed shadows. Natural diffused or gentle side light; differentiate existing materials through their tonal and reflective qualities. Suggested eye-level composition, readable spatial lines and candid imperfections. If people are present, preserve their requested identity, age and natural posture. Do not require people or a street setting.",
+      "avoid": [
+        "未经请求硬套黑色电影几何阴影",
+        "全图黑白二值化",
+        "重刮痕破损掩盖主体",
+        "将日本摄影概括为单一视觉传统"
+      ],
+      "video_motion": "建议固定观察或缓慢跟随用户指定主体，光区变化根据场景发生；静物或环境镜头保持自然节奏与丰富灰阶。",
+      "video_consistency": [
+        "默认保持所选黑白处理；用户明确要求的色彩变化另行执行",
+        "颗粒强度与灰阶分布统一",
+        "避免逐帧随机纹理导致闪烁"
+      ],
+      "sources": [
+        {
+          "url": "https://www.fujifilm-x.com/en-us/products/film-simulation/acros/",
+          "title": "ACROS — Fujifilm Film Simulation",
+          "kind": "manufacturer_visual_technique",
+          "note": "已阅读全文。依据：有层次的黑白、柔和灰阶、随亮度变化的颗粒及银盐印相质感；不将一种处理等同全部日本摄影。",
+          "accessed_date": "2026-10-18"
+        },
+        {
+          "url": "https://www.studiobinder.com/blog/what-is-soft-light/",
+          "title": "What is Soft Light Photography — Examples and Techniques",
+          "kind": "cinematography_technique",
+          "note": "已阅读全文。依据：扩散光使明暗过渡柔和，阴天和反射补光也是柔光来源。风格配方为原创综合。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/monochrome-street-grain.jpg",
+      "source_preview_sha256": "284fe993c31e4c8622b6bd4d4f74ec086a80240712e13ee4e9362b4c0b57c883",
+      "preview_sha256": "31667a1bf7c06a47e1a46bc645c6eedcf3839baf9bdaeaabbe4539028f919e75"
+    },
+    {
+      "id": "wilderness-natural-epic",
+      "source_name": "荒野电影风格",
+      "category": "真人",
+      "display_name": "荒野自然电影",
+      "aliases": [
+        "旷野摄影",
+        "自然史诗实拍"
+      ],
+      "summary": "风化地貌、厚重天气和小比例人物，以真实材料和开阔景深表现旷远。",
+      "image_style_prompt_zh": "以荒野电影般的开阔自然摄影处理用户指定主体，强调可信尺度、前中后景与自然大气透视；大面积漫射天光，适用时用克制侧光区分层次；页岩灰、苔藓绿、土褐与灰蓝，可用少量赭红强调已有主体；保留原有材质，岩石、湿土、羊毛或皮革仅在已有时表现其真实触感。建议较深景深和细微颗粒，不自动添加人物、旷野或装备；若含动作则遵循用户设定的重量和接触关系。",
+      "image_style_prompt_en": "Apply an expansive natural-cinema treatment to the user's chosen subject, emphasizing credible scale, layered depth and natural atmospheric perspective. Broad diffused sky light, with restrained side light where appropriate. Slate gray, moss green, earth brown and gray blue; a small ochre-red accent may emphasize an existing subject. Preserve original materials, rendering rock, damp soil, wool or leather tactually only where present. Suggested deeper focus and subtle grain. Do not require people, wilderness terrain or equipment; requested motion should retain credible weight and contact.",
+      "avoid": [
+        "无层次的过饱和天空",
+        "主体尺度或接触关系无意失真",
+        "无来源强光晕",
+        "过量尘雾掩盖用户主体"
+      ],
+      "video_motion": "建议缓慢前移或侧向跟随用户指定动作；若场景存在风，已有柔软物体和植被共同响应，保持稳定视差与可信空间尺度。",
+      "video_consistency": [
+        "保持已有地形、环境与天气的运动逻辑",
+        "已有主体、装备或衣物颜色固定",
+        "保持用户指定动作的体积、重量与接触连续"
+      ],
+      "sources": [
+        {
+          "url": "https://www.studiobinder.com/blog/what-is-soft-light/",
+          "title": "What is Soft Light Photography — Examples and Techniques",
+          "kind": "cinematography_technique",
+          "note": "已阅读全文。依据：扩散光使明暗过渡柔和，阴天和反射补光也是柔光来源。风格配方为原创综合。",
+          "accessed_date": "2026-10-18"
+        },
+        {
+          "url": "https://www.fujifilm-x.com/en-us/products/film-simulation/classic-chrome/",
+          "title": "CLASSIC CHROME — Fujifilm Film Simulation",
+          "kind": "manufacturer_visual_technique",
+          "note": "已阅读全文。依据：低饱和、抑制洋红、偏冷暗部及杂志纪实感。厂商明确此模拟不对应某一种真实胶片；也不意味着 X-S10 只有一种外观。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/wilderness-natural-epic.jpg",
+      "source_preview_sha256": "79d65184ec8dbec637d4da47029f70e1a0de4307f2b8242a8646d9054d55622e",
+      "preview_sha256": "a830e01cd461f02ceb6272991e8b97fdd4509ce27d69c882ff1679c16ab64e7b"
+    },
+    {
+      "id": "period-war-bleachbypass",
+      "source_name": "复古战争电影风格",
+      "category": "真人",
+      "display_name": "复古战地漂白感",
+      "aliases": [
+        "战地纪实电影",
+        "冷峻年代战争"
+      ],
+      "summary": "暗绿、土褐与灰白的冷峻战地质感，光影硬朗而年代细节明确。",
+      "image_style_prompt_zh": "以战地剧情片般的冷峻实拍摄影处理用户指定主体，低饱和、高反差、冷灰白高光和厚重但可读的暗部形成漂白旁路般观感；军绿灰、土褐与炭黑，保留对象现有材料，粗呢、帆布、泥土或旧金属仅在已有时强调细节；建议中广景、克制运动即时性和适量细颗粒。若含人物、装备或动作，保留用户指定年龄、时代与内容，不自动添加战争、制服、武器、伤情或医护剧情。",
+      "image_style_prompt_en": "Apply a field-drama-like photographic treatment to the user's chosen subject: bleach-bypass-like low saturation, strong contrast, cool gray-white highlights and dense but readable shadows. Olive gray, earth brown and charcoal. Preserve existing materials, emphasizing wool, canvas, mud or worn metal only where present. Suggested medium-wide contextual framing, restrained movement immediacy and fine grain. If people, equipment or action are present, preserve the requested age, era and content; do not automatically introduce warfare, uniforms, weapons, injuries or a medical storyline.",
+      "avoid": [
+        "已有装备或服装与用户设定时代无意冲突",
+        "未经请求添加战争或伤情元素",
+        "全黑暗部吞掉主体",
+        "强烈橙青调色掩盖漂白低饱和特征"
+      ],
+      "video_motion": "建议略有呼吸感的短距离手持观察或跟拍，记录用户指定动作并保持清楚；静物和场景可仅使用细微视差，不自动安排医护或战斗行为。",
+      "video_consistency": [
+        "已有装备、服饰及其他细节符合用户设定并保持稳定",
+        "统一已选低饱和高反差",
+        "已有颗粒、泥污和表面磨损不逐帧重新生成"
+      ],
+      "sources": [
+        {
+          "url": "https://www.fujifilm-x.com/en-us/products/film-simulation/eterna-bleach-bypass/",
+          "title": "ETERNA BLEACH BYPASS — Fujifilm Film Simulation",
+          "kind": "manufacturer_visual_technique",
+          "note": "已阅读全文。依据：高反差、低饱和与冷峻感。将其用于具体年代、工业或战争题材是原创设计，并非原文断言。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/period-war-bleachbypass.jpg",
+      "source_preview_sha256": "bb2d1f8ccb8a1c917e0594c22a47045780668dbc100e52e6bb431066b7374ae4",
+      "preview_sha256": "fb96511adb4466def3aaa0bb37122f89b056483b3409626de5c104813ff9806b"
+    },
+    {
+      "id": "classic-monochrome-noir",
+      "source_name": "好莱坞黑白电影风格",
+      "category": "真人",
+      "display_name": "经典黑白黑色电影",
+      "aliases": [
+        "黑色电影",
+        "Noir硬光"
+      ],
+      "summary": "硬质单侧主光、百叶窗几何阴影与深黑空间，人物与光影构成戏剧。",
+      "image_style_prompt_zh": "以经典黑白黑色电影摄影处理用户指定主体，硬质单侧主光、极少补光、明亮轮廓、深黑空间和可辨灰阶共同塑形；依据现有遮挡物形成几何阴影，不强制添加百叶窗或门框；保留原有材质，以清楚反光区分玻璃、金属、木材或织物等已有表面；建议偏心构图、克制颗粒和有意义的暗空间。若含人物则保留用户指定年龄与外貌，不自动添加人物或年代服装。",
+      "image_style_prompt_en": "Apply classic black-and-white film-noir cinematography to the user's chosen subject: a hard single-sided key with very little fill, bright contours, deep black space and readable gray structure. Form geometric shadows using existing occluders rather than requiring blinds or doorways. Preserve original materials and distinguish glass, metal, wood or fabric through reflections only where present. Suggested off-center framing, restrained grain and meaningful dark negative space. If people appear, preserve requested age and appearance; do not add people or period costumes as requirements.",
+      "avoid": [
+        "未经请求添加局部彩色保留",
+        "全画面黑到缺失主体细节",
+        "平坦无影光削弱明暗塑形",
+        "未经请求添加侦探、烟、枪等固定题材道具"
+      ],
+      "video_motion": "建议慢速推进或静止镜头，依据用户内容让主体或光影发生克制变化；若含人物，表演保持细微可读，不强制转身或移动。",
+      "video_consistency": [
+        "已有几何阴影角度与间距符合光源和遮挡物",
+        "默认保持已选黑白处理；用户要求的变化另行执行",
+        "主光方向及已有反光位置保持连续"
+      ],
+      "sources": [
+        {
+          "url": "https://www.studiobinder.com/blog/what-is-low-key-lighting-definition/",
+          "title": "What is Low Key Lighting — Definition, Examples in Photo & Film",
+          "kind": "cinematography_technique",
+          "note": "已通过 Google 网页翻译代理读取完整英文正文，链接为原文。依据：暗调、硬主光、少量补光与阴影塑形；本配方的题材和配色为原创综合。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/classic-monochrome-noir.jpg",
+      "source_preview_sha256": "7cce325ef887a16fa820c46b5487de4f2cf047582f800b8f740dbc5e80083c43",
+      "preview_sha256": "d2fb2067f5ad67ac8e936632da0b0440889daf87b0ec9ff61603df03e189b11d"
+    },
+    {
+      "id": "cool-realistic-suspense",
+      "source_name": "现实悬疑冷调风",
+      "category": "真人",
+      "display_name": "冷调现实悬疑",
+      "aliases": [
+        "冷峻悬疑",
+        "城市现实惊疑"
+      ],
+      "summary": "普通建筑中的钢蓝灰、克制冷光和不对称留白，低调而真实。",
+      "image_style_prompt_zh": "以现实主义悬疑摄影处理用户指定主体，保持可信尺度和原有场景；有明确来源的冷日光或人工光、低调照明，主体关键细节可读；钢蓝灰、灰绿、水泥灰与极少琥珀，低饱和、中高反差；保留现有材质，旧漆、磨砂玻璃或混凝土仅在已有时强调触感；偏置主体、纵深和不对称留白营造不安。若含人物则保持自然肤质与用户指定表情，不自动添加人物、建筑、走廊或恐怖元素。",
+      "image_style_prompt_en": "Treat the user's chosen subject with realistic suspense cinematography, preserving believable scale and the requested setting. Motivated cool daylight or artificial light, low-key exposure with key subject details still legible. Desaturated steel blue-gray, gray green, concrete gray and a trace of amber, moderately high contrast. Preserve existing materials, emphasizing worn paint, frosted glass or concrete only where present. Off-center framing, depth and asymmetric negative space create uncertainty. If people appear, preserve natural skin and the requested expression; do not require people, buildings, corridors or horror elements.",
+      "avoid": [
+        "蓝色蒙版覆盖所有材料与肤色",
+        "未经请求添加怪物或恐怖剧情",
+        "未经请求将场景改造成霓虹赛博",
+        "无依据的大雾和强轮廓光"
+      ],
+      "video_motion": "建议非常慢的推镜或固定观察，保留有意义的空空间；主体动作与镜头节奏跟随用户叙事，可用轻微停顿制造张力，不强制人物倾听或转头。",
+      "video_consistency": [
+        "已有空间结构、物体与文字内容保持连续",
+        "冷暖光源位置一致",
+        "已有材料颜色稳定；若含人物，肤色不逐帧青灰漂移"
+      ],
+      "sources": [
+        {
+          "url": "https://www.studiobinder.com/blog/what-is-low-key-lighting-definition/",
+          "title": "What is Low Key Lighting — Definition, Examples in Photo & Film",
+          "kind": "cinematography_technique",
+          "note": "已通过 Google 网页翻译代理读取完整英文正文，链接为原文。依据：暗调、硬主光、少量补光与阴影塑形；本配方的题材和配色为原创综合。",
+          "accessed_date": "2026-10-18"
+        },
+        {
+          "url": "https://www.fujifilm-x.com/en-us/products/film-simulation/eterna-bleach-bypass/",
+          "title": "ETERNA BLEACH BYPASS — Fujifilm Film Simulation",
+          "kind": "manufacturer_visual_technique",
+          "note": "已阅读全文。依据：高反差、低饱和与冷峻感。将其用于具体年代、工业或战争题材是原创设计，并非原文断言。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/cool-realistic-suspense.jpg",
+      "source_preview_sha256": "d22220b68a8eca92d6a9bad730ce24142debe12bba0dee400ef1261eb8fd2e8d",
+      "preview_sha256": "95a137ccc463e8107dcf5301651f1c6dd69198d14e2344317233def4f7ed67fb"
+    },
+    {
+      "id": "retro-cel-anime",
+      "source_name": "90年代柯南赛璐璐画风",
+      "category": "2D",
+      "display_name": "90年代赛璐璐动画",
+      "aliases": [
+        "90年代柯南赛璐璐画风",
+        "复古日漫",
+        "cel animation"
+      ],
+      "summary": "略带模拟颗粒的手绘动画帧；角色以硬边色块塑形，背景保留细腻手绘笔触。",
+      "image_style_prompt_zh": "二维90年代手绘赛璐璐动画质感，轮廓干净且略有手绘变化，主体采用不透明平涂色块和单层硬边阴影，内线细于外轮廓；已有背景采用水粉手绘笔触，复古但清楚的色彩，极轻模拟胶片颗粒。保持二维造型和原有空间层次。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "A hand-drawn 1990s cel-animation look: clean dark contours with slight organic variation, thinner interior lines, opaque flat subject colors and one hard-edged shadow level. Render the existing background with soft gouache brushwork, restrained vintage colors and very subtle analog grain. Keep the subject distinctly two-dimensional and preserve the existing spatial hierarchy. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "三维塑料材质",
+        "皮肤摄影毛孔",
+        "全画面柔焦",
+        "复杂空气刷渐变"
+      ],
+      "video_motion": "使用缓慢横移或固定机位；仅让用户场景已有且适合运动的元素完成一个简单动作。有角色时可选眨眼或轻微转头；静物保持静止。可用传统有限动画节奏，避免连续环绕制造三维展示感。",
+      "video_consistency": [
+        "每镜头保持相同轮廓粗细",
+        "阴影保持一到两档硬边色块",
+        "主体色板与造型不变；若有人物，脸型保持一致",
+        "已有背景笔触不随动作闪烁"
+      ],
+      "sources": [
+        {
+          "url": "https://www.adobe.com/creativecloud/animation/discover/cel-animation.html",
+          "title": "Cel Animation Explained - Explore the Classic Disney Technique | Adobe",
+          "kind": "technique",
+          "note": "正文解释透明片上手绘角色叠放于绘制背景，轮廓和上色分开完成；另介绍有限动画、循环和多层摄影。这里据此建立角色平涂与手绘背景分层配方，不把该文当作日漫特定作品的官方参数。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/retro-cel-anime.jpg",
+      "source_preview_sha256": "791a69151474a370248dfef4b7b5b5a571ce656c9696fe8c467edbdf325cb66d",
+      "preview_sha256": "f565e7f8fb48b88f6903dda72b53185e834461b6cbb0255ced2c2973acd46748"
+    },
+    {
+      "id": "japanese-flat-editorial",
+      "source_name": "日系平涂插画风格",
+      "category": "2D",
+      "display_name": "日系清爽平涂",
+      "aliases": [
+        "日系平涂插画风格",
+        "flat illustration"
+      ],
+      "summary": "清爽细线、大片纯色和有节奏的留白，适合生活方式与人物叙事。",
+      "image_style_prompt_zh": "清爽的日系现代二维平涂插画，主体比例接近原有结构，简洁细线和大片哑光纯色，不超过五种主色；人物存在时才简化五官与衣褶。奶油白、天青和珊瑚橙构成默认色盘，画面有大中小色块节奏与充分留白。照明图形化，至多一层平面阴影，不添加厚涂或摄影材质。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Fresh Japanese-inspired contemporary flat editorial illustration, preserving the subject's recognizable proportions and structure, with spare fine linework and broad matte solid-color shapes. Simplify facial and clothing detail only when people are present. A restrained five-color default palette of cream, sky blue, coral, sage and deep blue-gray, generous negative space and balanced large, medium and small shapes. Graphic even illumination with at most one flat shadow color, no painterly volume. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "三维投影堆叠",
+        "空气刷脸部",
+        "密集网点",
+        "儿童大头比例",
+        "照片拼贴"
+      ],
+      "video_motion": "固定机位或短距离二维平移；仅在用户场景已有可动元素时选择一个小幅循环动作，静物可仅用镜头移动展示。已有背景可做少量分层视差。",
+      "video_consistency": [
+        "主色限制始终一致",
+        "细线粗细不漂移",
+        "主体细节简化程度稳定；人物存在时保持简化五官",
+        "不自动增加三维反光"
+      ],
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Flat_design",
+          "title": "Flat design",
+          "kind": "visual-principle",
+          "note": "已读定义：以简单元素和扁平颜色构成的极简设计语言，也用于海报、艺术与出版物。本文只作为平涂原则依据；日系人物比例、五色色板和阳台场景为原创设计建议。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/japanese-flat-editorial.jpg",
+      "source_preview_sha256": "490bf11f986fab901986055bfcddc9d8d580c24d7f2da4a9d0b027b083827509",
+      "preview_sha256": "d60cba38fa0eb202c2059818c918f418ec3737e68bb2b606b5f97091a4ac3cd1"
+    },
+    {
+      "id": "monochrome-ink-manga",
+      "source_name": "黑白漫画书风格",
+      "category": "2D",
+      "display_name": "黑白墨线网点漫画",
+      "aliases": [
+        "黑白漫画书风格",
+        "screentone manga"
+      ],
+      "summary": "高反差墨线与精确网点，保留纸白，避免被生成成灰色照片。",
+      "image_style_prompt_zh": "黑白漫画书印刷效果，以纸白、纯黑实填、粗细变化的墨线和有限档网点塑形，关键轮廓有力，内部排线克制，统一网点尺寸与角度。高反差但主体可读，局部高光直接留白，材料纹理由笔线表现。不要彩色，不要灰度照片或连续空气刷渐变。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Black-and-white printed manga illustration using clean paper white, solid ink-black masses, expressive varied line weights and a few deliberate screentone densities. Strong outer contours, restrained interior hatching, consistent dot size and angle, reserved white highlights and readable high-contrast silhouettes. All materials are described through ink marks, not photographic grayscale or airbrushed gradients. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "彩色点缀",
+        "灰度摄影",
+        "全画面均匀噪点",
+        "随机文字气泡",
+        "网点摩尔纹"
+      ],
+      "video_motion": "短促推进或固定后执行用户指定的单一动作；有动作时保留黑白墨线，不生成额外彩色光效。翻页式转场仅在用户需要多画面或漫画叙事时采用。",
+      "video_consistency": [
+        "网点粒度和方向固定",
+        "黑白面积比例稳定",
+        "墨线随形体移动但不沸腾",
+        "保持单幅构图，不新增分格边框"
+      ],
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Screentone",
+          "title": "Screentone",
+          "kind": "technique",
+          "note": "已读正文说明网点用作绘画纹理与明暗，作为排线的替代，通过预印图案转印到纸张。来源页面本身有单一来源提示，因此只采用基础工艺定义，不据此断言某商业漫画的配方。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/monochrome-ink-manga.jpg",
+      "source_preview_sha256": "917b843df3233085f6039cf618646536b4ac4c9c2afb00384205ff719f776404",
+      "preview_sha256": "4ffb1fcabef096373b147429fafe7b12ef8f7947207d7a922409ead6e44abb51"
+    },
+    {
+      "id": "monochrome-ink-wash",
+      "source_name": "黑白水墨国画风格",
+      "category": "2D",
+      "display_name": "留白黑白水墨",
+      "aliases": [
+        "黑白水墨国画风格",
+        "东方水墨画风",
+        "ink wash"
+      ],
+      "summary": "以枯湿笔触、墨色层次和大片纸白表达物象，不依赖摄影式光影。",
+      "image_style_prompt_zh": "中国黑白水墨写意，毛笔书写性线条、干笔飞白与湿墨渗化相结合，以浓淡墨层和纸白塑造形体；远景淡而虚，近景浓而有力，保留大量呼吸感留白与自然宣纸纹理。主体简练但可辨，避免摄影式光影、硬性三维建模和均匀数字模糊。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Chinese monochrome ink-wash painting on absorbent xuan paper, calligraphic brush lines, broken dry-brush strokes and controlled wet-ink diffusion. Build form through varied ink density and unpainted paper; distant forms pale and sparse, foreground marks concentrated and decisive. Asymmetrical spacious composition with generous negative space and subtle paper fibers, no photographic lighting or 3D volume. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "照片转黑白滤镜",
+        "无处不在的浓雾",
+        "彩色霓虹",
+        "三维体积光",
+        "随意汉字和伪印章"
+      ],
+      "video_motion": "固定长镜头或卷轴式缓慢横移；仅让用户场景已有且适合运动的元素轻动，不补入雾、枝叶、衣袖或船只。保持墨迹与纸纹稳定。",
+      "video_consistency": [
+        "纸色和墨色范围固定",
+        "留白不能被自动填满",
+        "干湿边缘保持同一逻辑",
+        "主体轮廓不能变成写实摄影"
+      ],
+      "sources": [
+        {
+          "url": "https://www.metmuseum.org/zh/essays/chinese-painting",
+          "title": "Chinese Painting — The Metropolitan Museum of Art",
+          "kind": "museum-essay",
+          "note": "已读全文：传统绘画强调外形之外的内在精神，以墨笔线条而非变化光影塑形；文人画常用纸上水墨与书法性笔线。配方中的留白比例是创作控制建议，不是博物馆规定。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/monochrome-ink-wash.jpg",
+      "source_preview_sha256": "33463b334ee7ca7534ba7fc68096d7db767a99262ed496f7c39a4be19fb6ad26",
+      "preview_sha256": "8f7092c86194e12804d1be97c06464633ca6d038cb8daa6cb6c8c7a68f4b02a5"
+    },
+    {
+      "id": "gilded-myth-illustration",
+      "source_name": "中国神话描金风",
+      "category": "2D",
+      "display_name": "东方神话描金重彩",
+      "aliases": [
+        "中国神话描金风",
+        "金线重彩",
+        "gilded myth illustration"
+      ],
+      "summary": "深色底上的细金线、青绿朱砂与平面云纹，营造庄重而精密的神话插画。",
+      "image_style_prompt_zh": "东方描金重彩的二维视觉语言，深靛底色，石青石绿与朱砂的大色面，温润细金线沿已有主体的轮廓和结构线勾勒；哑光矿物颜料和微细绢纹，装饰性平面造型，线条流动而清楚。用户题材中已有衣纹、云纹或饰件时才按此语言处理；金线仅作克制点缀，避免变成金属浮雕或写实三维CG。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "East Asian gilded mineral-pigment illustration on silk, with a deep indigo ground, azurite blue, malachite green and cinnabar color fields. Warm delicate gold lines articulate the existing subject's contours and structural details. Matte pigment grain, subtle silk texture, decorative planar shapes and rhythmic linework. Apply this treatment to garments, cloud motifs or ornaments only if they belong to the requested subject. Gold remains fine painted accents, not metallic 3D relief. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "金色金属雕像化",
+        "写实CG质感",
+        "所有区域都发光",
+        "纹样挤满焦点",
+        "未请求的文字或伪书法"
+      ],
+      "video_motion": "卷轴式横移和极轻推近；用户场景已有柔性或流动元素时，可沿其原有线条方向轻动。金线仅轻微改变亮度，不补入云纹、丝带或新饰件。",
+      "video_consistency": [
+        "金线宽度与密度固定",
+        "青绿朱砂比例稳定",
+        "装饰纹样不自动改写",
+        "不转成三维浮雕"
+      ],
+      "sources": [
+        {
+          "url": "https://www.metmuseum.org/zh/essays/chinese-painting",
+          "title": "Chinese Painting — The Metropolitan Museum of Art",
+          "kind": "museum-essay-and-collection",
+          "note": "已读文章区分纸上单色书写性绘画与绢本矿物颜料绘画；所列《Wang Xizhi watching geese》媒介为纸上墨、色与金。这里仅据此取矿物色、绢纹与金线媒介线索，神话造型与深靛青绿配方为原创综合，不宣称复原某历史流派。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/gilded-myth-illustration.jpg",
+      "source_preview_sha256": "7a6bd3556cd200a136e39fd8fbecf15e0faa8560092cbcb00f372f4cb1c3110e",
+      "preview_sha256": "856a0ff42966577fb6349cfc47a3819bb62dcd7b96156aa45a3599b8a18eb1e1"
+    },
+    {
+      "id": "flat-childrens-storybook",
+      "source_name": "欧美扁平儿童插画风",
+      "category": "2D",
+      "display_name": "几何童趣绘本",
+      "aliases": [
+        "欧美扁平儿童插画风",
+        "儿童扁平",
+        "flat storybook"
+      ],
+      "summary": "圆润几何形、明快少色和友好表情，主体识别比细节优先。",
+      "image_style_prompt_zh": "友好的二维儿童绘本插画，将已有主体概括为圆润几何形、豆形和圆角色块；角色存在时可采用大头小肢体和极简表情，静物保持物品身份。五种以内明快颜色，哑光色纸般表面、轻微纸纹、简洁背景，形状边界清楚，情绪温暖。全画面平面化，避免细密线条、真实投影与三维塑料效果。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Friendly flat children's picture-book illustration, simplifying the existing subject into rounded geometric forms, bean shapes and soft color blocks. Use larger heads, smaller limbs and tiny expressive facial marks only for characters already requested; keep objects recognizably inanimate. A cheerful palette of no more than five dominant colors, matte colored-paper feel, very subtle grain, clean silhouettes and a simple background. Entirely planar, without realistic cast shadows or plastic 3D rendering. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "写实动物毛发",
+        "复杂解剖",
+        "密集小物件",
+        "三维玩具质感",
+        "刺眼阴影"
+      ],
+      "video_motion": "固定正视机位或缓慢二维平移；已有角色可完成一次简单手势或跳跃，动作弧线清楚。静物仅使用镜头或已有可动部件，不自动添加人物来表演。",
+      "video_consistency": [
+        "主体几何概括比例固定；有人物时保持头身比例",
+        "主体关键细节数量稳定；有表情时保持表情元素",
+        "不新增写实纹理",
+        "背景颜色不逐帧漂移"
+      ],
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Flat_design",
+          "title": "Flat design",
+          "kind": "visual-principle",
+          "note": "已读简单元素与扁平颜色的定义，以及海报、艺术和出版物应用。儿童角色的大头比例、圆润轮廓与暖色方案是依据该原则原创的绘本适配，并非来源对某出版社画风的规定。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/flat-childrens-storybook.jpg",
+      "source_preview_sha256": "ebbb4800f466d602252db37ae76918c8f61a4636fb16f48ea099e9dce93502e6",
+      "preview_sha256": "2b2467aa76d27051d61229c3eb41606152153cec579660629c41f679e8666891"
+    },
+    {
+      "id": "wax-crayon-storybook",
+      "source_name": "儿童蜡笔手绘插画风",
+      "category": "2D",
+      "display_name": "颗粒蜡笔手绘",
+      "aliases": [
+        "儿童蜡笔手绘插画风",
+        "蜡笔绘本",
+        "wax crayon"
+      ],
+      "summary": "粗蜡笔的颗粒、重复涂抹和不完全填满的纸白构成天真亲切的画面。",
+      "image_style_prompt_zh": "粗蜡笔儿童手绘插画，暖白有纹理纸张，清楚可见的蜡粉颗粒与断续笔触，颜色通过笔压、同方向排线和局部叠色形成；不完全涂满的色面露出纸白，轮廓略歪却可读，造型天真温暖。保持蜡笔媒介，避免平滑矢量边缘、水彩水渍和三维材质。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Hand-drawn wax-crayon storybook illustration on textured warm-white paper. Clearly visible wax grain, broken marks, directional strokes, pressure variation and small areas of overlapping color; tiny paper-white gaps remain inside broad colored shapes. Slightly wonky but readable contours, naive warm proportions and an organized childlike composition. Keep genuine crayon marks rather than smooth vector fills, watercolor blooms or 3D materials. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "平滑矢量填色",
+        "水彩晕染替代蜡笔",
+        "摄影纸张阴影",
+        "过细工笔线条",
+        "随机书写文字"
+      ],
+      "video_motion": "使用微小手绘线条颤动与两三姿态循环；相机慢移，仅让用户场景已有且适合运动的元素轻微循环，静物保持稳定。避免添加云朵、风筝等题材元素或使用真实流体模拟。",
+      "video_consistency": [
+        "蜡笔颗粒尺度固定",
+        "纸张纹理不跟随主体滑动",
+        "不把线条变光滑",
+        "轮廓的稚拙程度一致"
+      ],
+      "sources": [
+        {
+          "url": "https://www.montmarte.com/blogs/tips-techniques/10-crayon-techniques-to-try",
+          "title": "10 crayon techniques to try — Mont Marte",
+          "kind": "technique",
+          "note": "已读正文列出笔压控制明暗、叠色产生视觉混色、方向性线条、排线与绕圈涂抹等技巧。配方保留这些蜡笔痕迹，儿童造型与色板为原创适配。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/wax-crayon-storybook.jpg",
+      "source_preview_sha256": "ede31c397152d28b2fbd5e61d1252256f6d420c3ff54ff773f919c8afd5e9c62",
+      "preview_sha256": "89b5edbece86f2cc84bb6acad76834f337a916258baca0e9bc541b845fe4a435"
+    },
+    {
+      "id": "city-pop-summer",
+      "source_name": "复古City Pop风",
+      "category": "2D",
+      "display_name": "复古都市夏日插画",
+      "aliases": [
+        "复古City Pop风",
+        "City Pop",
+        "都市流行封面"
+      ],
+      "summary": "干净建筑几何、饱和蓝色与强烈日照组成怀旧夏日封面感。",
+      "image_style_prompt_zh": "复古City Pop夏日二维封面视觉，饱和钴蓝、青色、粉色与乳白构成默认色盘，清晰硬边大色块，强日光和深而干净的几何投影。简洁准确的透视、安静开阔的留白与细微印刷质感；将已有主体与背景按这一语言处理，不自动补入天空、水面、建筑或棕榈。避免拥挤赛博霓虹和三维摄影效果。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Retro city-pop summer cover aesthetics in crisp two-dimensional hard-edge acrylic color fields. A default palette of saturated cobalt, turquoise, coral pink and cream, strong sunlight and deep clean geometric shadows. Precise simple perspective, quiet open negative space and subtle printed-paper texture. Apply this language to the subject and background already specified; do not introduce skies, water, buildings or palms. Keep a nostalgic atmosphere rather than neon cyberpunk scenery or photorealistic rendering. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "密集赛博霓虹",
+        "紫红全屏渐变",
+        "写实摄影反光",
+        "未请求的复杂人物群像",
+        "未请求的专辑标题或新标志"
+      ],
+      "video_motion": "几乎固定的慢推或横移；用户场景已有可动元素时可轻微循环，保持平静节奏，不使用高速运镜或添加水面与树叶。",
+      "video_consistency": [
+        "蓝青粉色板固定",
+        "已有直线、轮廓和透视稳定",
+        "投影方向不跳变",
+        "避免从平涂变成照片"
+      ],
+      "sources": [
+        {
+          "url": "https://sato.art/the-story-of-hiroshi-nagai/",
+          "title": "The Story of Hiroshi Nagai — SATO GALLERY",
+          "kind": "gallery-interview-and-visual-reference",
+          "note": "已读访谈并查看页面作品图：正文谈及明亮天空、平静海岸、强日光与深黑投影，以及对地平线、天空比例、建筑距离的平衡。这里只提炼时代性的硬边夏日视觉，不要求复制在世艺术家的个人作品或用其姓名生成。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/city-pop-summer.jpg",
+      "source_preview_sha256": "9980e986702b8691d1d81dcc6d226da14421bec955c33033760b5c183c0a2dbb",
+      "preview_sha256": "dfc78bba10e17032c9343fa34422bac676004c274afd400520a56667aba5a81b"
+    },
+    {
+      "id": "vaporwave-collage",
+      "source_name": "复古蒸汽波插画风格",
+      "category": "2D",
+      "display_name": "粉紫蒸汽波拼贴",
+      "aliases": [
+        "复古蒸汽波插画风格",
+        "插画蒸汽波风格",
+        "vaporwave"
+      ],
+      "summary": "粉紫青渐变、旧数字图形与古典物件错置，形成梦幻而略疏离的复古未来感。",
+      "image_style_prompt_zh": "复古蒸汽波二维数字拼贴视觉，粉红、淡紫与电青渐变，明确拼贴边缘、克制扫描线和微小色彩错位，怀旧而疏离的超现实氛围。已有主体可转化为平面剪贴或石膏般色面；在用户允许背景图形化时才采用几何透视图案，不自动补入雕像或悬浮道具。保持拼贴平面与图形秩序，不变成写实科幻摄影。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Retro vaporwave digital-collage aesthetics, pink-lilac-cyan gradients, deliberate cutout boundaries, restrained scanlines and tiny chromatic offsets, with a nostalgic and estranged surreal mood. Treat the existing subject as a flat cutout or plaster-like color planes. Use geometric perspective patterns only if background graphic treatment is allowed; do not add statues or floating props. Preserve flat collage hierarchy rather than photorealistic science-fiction scenery. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "真实城市夜景",
+        "蒸汽朋克齿轮",
+        "文字字符堆叠",
+        "过强故障遮挡",
+        "所有物件均为写实3D"
+      ],
+      "video_motion": "慢速二维推移；仅让已有拼贴层产生轻微视差或位移，扫描线保持固定或低幅移动，避免强闪烁。用户未提供悬浮物或网格时不新增。",
+      "video_consistency": [
+        "粉紫青渐变方向固定",
+        "拼贴边界不融化",
+        "扫描线密度稳定",
+        "已有主体和拼贴层位置保持可追踪"
+      ],
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Vaporwave",
+          "title": "Vaporwave",
+          "kind": "aesthetic-reference",
+          "note": "已读视觉定义：1990年代网页图像、glitch art、动漫、古希腊罗马雕塑、Memphis几何形和3D物件等会被组合进封面与音乐视频。配方选择二维拼贴方向，粉紫青配色为本项目设计控制。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/vaporwave-collage.jpg",
+      "source_preview_sha256": "11b7ada6e9d6f6851b93dc200fd7ffaf6d1c4c66a788eb892a012d4e3e513b7f",
+      "preview_sha256": "65e008db002470826f5c4ba9520e379827ef9e8fbcd911a5eb47a63c8572273a"
+    },
+    {
+      "id": "pop-art-print",
+      "source_name": "复古波普艺术风",
+      "category": "2D",
+      "display_name": "复古波普网点印刷",
+      "aliases": [
+        "复古波普艺术风",
+        "Pop Art",
+        "Ben Day dots"
+      ],
+      "summary": "放大的商品或人物轮廓与本戴网点，带轻微套色错位的平面印刷张力。",
+      "image_style_prompt_zh": "复古波普二维印刷插画，鲜明红黄青蓝与纸白，粗黑轮廓、简化大形、平面黑影和规则等距本戴圆点；少量套色错位和纸纹体现印刷感，主体大胆裁切而可读。避免照片式渐变，用户未要求时不添加文字气泡、拟声词或重复面板。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Retro pop-art print illustration with bold red, yellow, cyan-blue, black and paper white. Thick black contours, simplified graphic shapes, flat black shadow areas and consistent evenly spaced Ben Day dots. Slight ink misregistration and restrained paper grain, a boldly cropped but readable focal subject. Avoid photographic gradients; add speech balloons, sound-effect lettering or repeated panels only if requested. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "灰暗厚涂",
+        "网点随机噪声",
+        "写实反射",
+        "漫画拟声词",
+        "多个重复面板"
+      ],
+      "video_motion": "短促二维推进和一到两个清晰姿态切换；仅移动已有主体或图形层，保留印刷图形的平面性，不自动补入放射纹样。",
+      "video_consistency": [
+        "圆点尺寸与间距固定",
+        "粗黑外轮廓稳定",
+        "原色色板不变",
+        "套色错位小且一致"
+      ],
+      "sources": [
+        {
+          "url": "https://en.wikipedia.org/wiki/Ben_Day_process",
+          "title": "Ben Day process",
+          "kind": "printing-technique",
+          "note": "已读：Ben Day图案利用纸上细点形成灰度或颜色，单一区域的点大小和分布相等，曾用于廉价彩色漫画，也被波普艺术放大使用。配方按该区别要求规则点阵，而不是把所有噪点都称为本戴网点。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/pop-art-print.jpg",
+      "source_preview_sha256": "adc5afa5016f50d5e6942d588ee0c09ef6011c65dd383397c9ac733411ee77d8",
+      "preview_sha256": "3e2de53720fe4cee4839d9c55c597c6f19a1a8e550a9741a2f5b55b6ca7d0bbe"
+    },
+    {
+      "id": "dark-fantasy-concept",
+      "source_name": "暗黑奇幻原画概念美术",
+      "category": "2D",
+      "display_name": "暗黑奇幻概念原画",
+      "aliases": [
+        "暗黑奇幻原画概念美术",
+        "黑暗原画概念风格",
+        "dark fantasy concept art"
+      ],
+      "summary": "大块明暗、可辨剪影与克制局部细节形成压迫感，仍然保留绘画笔触。",
+      "image_style_prompt_zh": "暗黑奇幻二维概念原画，大块明暗先行，清楚的主剪影与主次形体层级，冷灰蓝与炭黑为主，单一琥珀暖色焦点；已有材质以选择性绘画笔触表现，旧石、金属和粗布仅在用户题材中存在时处理，不自动改变物品用途或使用状态。焦点精细、边缘和背景概括，低调照明但暗部可读，营造神秘感，不转换为CG截图。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Dark-fantasy 2D concept painting organized around large value masses and a strong readable focal silhouette. Clear primary, secondary and tertiary shapes; charcoal and cool blue-gray with one restrained amber accent. Describe existing materials through selective brushwork; depict weathered stone, aged metal or coarse fabric only where they belong to the user's subject, without inventing wear or changing its function. Refined focal detail, broad peripheral shapes, low-key but legible lighting and atmospheric depth, not a polished 3D game screenshot. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "全画面死黑",
+        "每处一样锐利",
+        "随机尖刺堆砌",
+        "光滑游戏CG"
+      ],
+      "video_motion": "低速推近或轻微侧移；仅执行用户指定或已有主体适合的一个小动作。背景保持稳定，不自动补入人物、灯、薄雾或衣摆。",
+      "video_consistency": [
+        "主剪影和主体结构固定；有服饰时保持其结构",
+        "唯一暖色焦点位置可追踪",
+        "绘画笔触不变成照片",
+        "暗部结构保持可见"
+      ],
+      "sources": [
+        {
+          "url": "https://www.21-draw.com/course/dark-fantasy-characters/",
+          "title": "Dark Fantasy Character Design — 21 Draw",
+          "kind": "public-course-outline",
+          "note": "已读公开课纲而未购买或访问付费视频：形状语言区分主次与第三级形，构图涉及框景、引导线、透视；材质段落解释金属、衣物和高光阴影，最后加入雾与微光。具体场景和冷暖配色为原创归纳。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/dark-fantasy-concept.jpg",
+      "source_preview_sha256": "261a404e4821306c3d2dcdb9cd12fb52c8ab08e43798aa6c10e301a809e4af0a",
+      "preview_sha256": "48d214149758006cd4ca5c87f96155b890c6e71882761077a545c7c14f9623a8"
+    },
+    {
+      "id": "shadow-puppet-illustration",
+      "source_name": "皮影戏插画风格",
+      "category": "2D",
+      "display_name": "彩色镂刻皮影",
+      "aliases": [
+        "皮影戏插画风格",
+        "中国皮影",
+        "shadow puppetry"
+      ],
+      "summary": "镂空彩皮在暖色幕布上形成清楚侧影，保留平面关节与戏台秩序。",
+      "image_style_prompt_zh": "彩色镂刻皮影戏二维表现，暖白薄布幕质感的平面背景，主体保持侧影式平面轮廓；染色皮革的半透明赭红、琥珀和孔雀绿色，沿已有结构设计精细镂空与清楚墨黑轮廓。已有角色或可动结构才显示对应关节，操纵杆仅在用户要求时出现。均匀暖背光与纸片般平面结构，保持原主体身份和形状。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Colored Chinese shadow-puppet aesthetics on a flat warm translucent-cloth backdrop. Keep the existing subject as a planar silhouette, with translucent dyed-leather vermilion, amber and peacock-green areas, fine pierced details following existing structure and crisp dark contours. Show articulated joints only on existing characters or movable structures; control rods appear only if requested. Even warm backlighting and flat construction preserve the subject's identity and recognizable shape. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "三维木偶",
+        "正面写实脸",
+        "实体厚重浮雕",
+        "摄影景深",
+        "关节消失或多生肢体"
+      ],
+      "video_motion": "固定正视角；已有角色或结构只能围绕其真实存在的关节做平面运动，主要沿左右方向移动；静物保持静止，幕光稳定，不自动增添操纵杆。",
+      "video_consistency": [
+        "若主体有关节，其数量与位置固定",
+        "可动部件只做平面关节运动",
+        "镂空纹样不改变",
+        "幕后光和幕布纹理稳定"
+      ],
+      "sources": [
+        {
+          "url": "https://ich.unesco.org/en/RL/chinese-shadow-puppetry-00421",
+          "title": "Chinese shadow puppetry — UNESCO Intangible Cultural Heritage",
+          "kind": "official-cultural-reference",
+          "note": "已读 UNESCO 正文：彩色皮或纸质剪影由杆操纵，在背光半透明布幕上活动；影人可有12至24个活动关节。配方据此采用平面侧影、背光和关节式运动，不把皮影误作三维木偶。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/shadow-puppet-illustration.jpg",
+      "source_preview_sha256": "157c2dd543812512cda43eaefa00f31340cd311370a3e84661e2f9ace4462c02",
+      "preview_sha256": "59d07d617d11e0bc5a2b5511d74d88d244498d384bf956f9dbb39653ecd1727a"
+    },
+    {
+      "id": "pixel-art-diorama",
+      "source_name": "像素风",
+      "category": "2D",
+      "display_name": "有限色复古像素画",
+      "aliases": [
+        "像素风",
+        "pixel art",
+        "16-bit inspired"
+      ],
+      "summary": "边缘由清楚像素台阶构成，有限色板与少量规律抖色呈现复古游戏式画面。",
+      "image_style_prompt_zh": "精心设计的二维复古像素插画，统一可见方形像素网格、整齐像素簇、有限色板和清楚阶梯边缘；每种物体使用少数明暗色阶，少量规则两色抖色表示过渡，前中后景可读。像素边界锐利，无抗锯齿、无柔焦、无矢量平滑或三维体素。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Carefully designed two-dimensional retro pixel art with a consistent visible square-pixel grid, clean purposeful pixel clusters, a limited palette and crisp stepped contours. Use a few discrete value steps per material and restrained two-color dithering only where useful. Readable foreground, midground and background, sharp nearest-neighbor-like edges, no antialiasing, blur, vector smoothing or 3D voxels. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "三维体素模型",
+        "模糊像素滤镜",
+        "不同大小像素混杂",
+        "连续渐变光晕",
+        "游戏界面文字"
+      ],
+      "video_motion": "固定镜头或整数像素步进式横滚；仅对已有可动元素做简短循环，人物存在时使用少量清晰姿态。不补入灯光道具、烟或水面。",
+      "video_consistency": [
+        "像素网格与像素尺寸固定",
+        "有限色板不扩张",
+        "相机移动不产生平滑插值模糊",
+        "抖色图案不随机闪烁"
+      ],
+      "sources": [
+        {
+          "url": "https://drububu.com/tutorial/pixel-art-and-dithering.html",
+          "title": "Pixel Art & Dithering — drububu.com",
+          "kind": "artist-technique-tutorial",
+          "note": "已读教程：有限色板通过邻近颜色的排列模拟中间色；介绍规则与不规则抖色，并强调图案的一致性。这里只采用有限色与抖色视觉原则，不把教程中的特定软件导出说明当成生图模型参数。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/pixel-art-diorama.jpg",
+      "source_preview_sha256": "9390048d24e8d6f495b4d1989804754326e2c17d30b5ddf7a8a4de2f8912f5e7",
+      "preview_sha256": "b3d7f43fdc9593c5f261c5eb52f533c14a9c728e7e2b660e2ee27b378847ec3d"
+    },
+    {
+      "id": "semi-real-cg",
+      "source_name": "半写实精致 CG 渲染",
+      "category": "3D",
+      "display_name": "半写实精致CG",
+      "aliases": [
+        "半写实精致 CG 渲染",
+        "semi-realistic CG"
+      ],
+      "summary": "自然解剖比例、略理想化五官，皮肤、毛发与布料有细致区别，呈现可触摸但明确经过美术设计的CG形象。",
+      "image_style_prompt_zh": "半写实精致三维CG，保持主体原有身份与可信比例。人物存在时使用接近真实的解剖比例、略理想化五官、克制皮肤微纹理和清晰发束；只对已有材质区分散射、反射与粗糙度。大面积柔光塑形、弱补光与窄轮廓光，清楚但不过锐的细节，电影式景深和有序背景，保持精修CG美术感。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Refined semi-realistic 3D CGI preserving the subject's identity and believable proportions. When people are present, use near-natural anatomy, subtly idealized facial design, restrained skin microtexture and organized hair. Differentiate scattering, reflectance and roughness only for materials actually present. Large soft key light, gentle fill, a narrow rim, controlled detail, cinematic depth of field and a clean visual hierarchy. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "巨大的卡通眼睛",
+        "蜡像般无纹理的皮肤",
+        "全表面同一种塑料高光",
+        "真人照片外观",
+        "浓重黑描边",
+        "过强美容磨皮"
+      ],
+      "video_motion": "4—6秒缓慢推近或轻微侧移；只对已有主体安排一个适合的小动作，人物存在时可眨眼或微转头，静物保持稳定。首轮避免高速大幅转身。",
+      "video_consistency": [
+        "固定主体比例与结构；有人物时锁定脸型、眼睛和发束",
+        "同一镜头保持已有材质的散射与粗糙度",
+        "首帧与末帧维持精修CG外观",
+        "用相同主体参考图约束不同景别"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.blender.org/manual/en/latest/render/shader_nodes/shader/principled.html",
+          "title": "Principled BSDF — Blender Manual",
+          "kind": "official_material_documentation",
+          "note": "已读官方说明：粗糙度决定反射清晰度；金属、漫反射、次表面散射和透射分属不同材质分量；coat表现清漆，sheen表现微小纤维。配方采用材质观感描述，不把提示词当作真实渲染参数。",
+          "accessed_date": "2026-10-18"
+        },
+        {
+          "url": "https://garagefarm.net/blog/stylized-rendering-in-3d-a-guide-to-artistic-expression-beyond-realism",
+          "title": "Stylized Rendering in 3D: A Guide to Artistic Expression Beyond Realism",
+          "kind": "rendering_technique",
+          "note": "已阅读全文：强调清晰轮廓、简化形体、手绘纹理、分段明暗、彩色阴影与全场景一致性。配方将这些原则转写为可见结果，不声称使用特定着色器。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/semi-real-cg.jpg",
+      "source_preview_sha256": "d7a5a7dab96210084311839cc95098323819f95debd683b6fc73d4dae592e7e0",
+      "preview_sha256": "9fc235d1cb41fc6c987dcb4f01f4489eb1dfe5fdd2d1d05058855a14c7a6c0e0"
+    },
+    {
+      "id": "feature-animation",
+      "source_name": "皮克斯3D卡通渲染风",
+      "category": "3D",
+      "display_name": "圆润动画电影3D",
+      "aliases": [
+        "皮克斯3D卡通渲染风",
+        "Pixar-like 3D cartoon",
+        "feature animation"
+      ],
+      "summary": "清楚的大形与轮廓、略夸张的眼睛和手势、柔和立体材质，适合温暖叙事与角色表演。",
+      "image_style_prompt_zh": "三维动画电影视觉；已有主体采用圆润、简化但有体积的形体，清晰剪影与负空间，细节服务大形。人物或动物存在时才适度夸张头身比例、眼神与动作，静物不自动拟人化；根据原有材质采用柔和精简的表面表现。宽软主光、温暖反弹光与彩色柔影，协调明快配色，具有叙事感的画面层次。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Feature-animation 3D aesthetics: rounded simplified yet dimensional forms, strong readable silhouettes and negative space, with detail subordinate to major shapes. Use moderate proportion and expression exaggeration only for existing people or animals; do not anthropomorphize objects automatically. Soften and simplify the materials already present. Broad soft key light, warm bounce, colored soft shadows and a harmonious cheerful palette with clear narrative staging. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "现实人类照片脸",
+        "恐怖谷皮肤细节",
+        "硬质乙烯基玩具质感",
+        "细碎高频纹理",
+        "所有角色统一大圆头"
+      ],
+      "video_motion": "已有角色可先蓄势再完成一个清晰动作，加入克制挤压拉伸和自然跟随；物品可仅通过稳定中景、轻缓跟拍或镜头侧移展示，不自动增加表情或肢体。",
+      "video_consistency": [
+        "锁定主体比例；有角色时保持头身比与眼睛形状",
+        "保持圆润几何与同一套材质简化程度",
+        "动作不改变原有部件数量和体积",
+        "各镜头沿用同一主色和阴影色"
+      ],
+      "sources": [
+        {
+          "url": "https://garagefarm.net/blog/stylized-rendering-in-3d-a-guide-to-artistic-expression-beyond-realism",
+          "title": "Stylized Rendering in 3D: A Guide to Artistic Expression Beyond Realism",
+          "kind": "rendering_technique",
+          "note": "已阅读全文：强调清晰轮廓、简化形体、手绘纹理、分段明暗、彩色阴影与全场景一致性。配方将这些原则转写为可见结果，不声称使用特定着色器。",
+          "accessed_date": "2026-10-18"
+        },
+        {
+          "url": "https://docs.blender.org/manual/en/latest/render/shader_nodes/shader/principled.html",
+          "title": "Principled BSDF — Blender Manual",
+          "kind": "official_material_documentation",
+          "note": "已读官方说明：粗糙度决定反射清晰度；金属、漫反射、次表面散射和透射分属不同材质分量；coat表现清漆，sheen表现微小纤维。配方采用材质观感描述，不把提示词当作真实渲染参数。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/feature-animation.jpg",
+      "source_preview_sha256": "62de1dee3567f2d737b23455a88cbec28c2f6f957074e44e2021772fd3d2a72b",
+      "preview_sha256": "f1d6a41ab8e30019b3973e0616906b3b047f3af56a2243e7916c01779a8ba8f9"
+    },
+    {
+      "id": "chinese-fantasy-cg",
+      "source_name": "国漫3D高清渲染风",
+      "category": "3D",
+      "display_name": "国风奇幻精致3D",
+      "aliases": [
+        "国漫3D高清渲染风",
+        "国风3D",
+        "Chinese fantasy CG"
+      ],
+      "summary": "修长人物、层叠衣袍、丝绸金属玉石分层，结合山水式空间与含蓄体积光。",
+      "image_style_prompt_zh": "精致国风奇幻三维CG，以流动但清楚的轮廓、克制纹样和精细材质层次表现已有主体；人物存在时保持修长自然比例，已有衣袍、发束或飘带才作分层处理。按实际表面区分丝绸柔亮、玉石温润、古金锐亮或木石质感，不自动补入这些物件。玉青、象牙和古金构成默认色盘，远近层次与柔和光线保持主体清楚；薄雾和体积光仅在适合的已有环境中使用。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Refined Chinese-fantasy 3D CGI expressed through flowing readable contours, restrained ornament and finely differentiated existing materials. Keep slender natural proportions when people are present; layer robes, hair or ribbons only if already part of the subject. Distinguish silk sheen, warm jade, aged gold, wood or stone where actually present, without adding those objects. A default jade, ivory and antique-gold palette, layered depth and gentle lighting keep the subject clear; atmospheric mist and volumetric shafts apply only when appropriate to the specified environment. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "未要求时改变已有服饰的文化身份",
+        "堆满金纹的塑料材质",
+        "夸张大眼Q版",
+        "已有发丝衣带数量不断变化",
+        "浓雾遮挡主体",
+        "满画面发光粒子"
+      ],
+      "video_motion": "4—6秒侧向缓移或轻微推进，以近景到中景展示材质；已有角色可缓慢转身，已有柔性部件按同一风向轻摆，静物不新增衣袖或发带。",
+      "video_consistency": [
+        "固定主体结构、纹样位置和已有装饰数量",
+        "锁定各类已有材质的反射特征",
+        "若有柔性部件，保持风向与连接点一致",
+        "不同镜头保持原有环境与主体主轮廓"
+      ],
+      "sources": [
+        {
+          "url": "https://80.lv/articles/a-stunning-3d-character-inspired-by-chinese-folklore",
+          "title": "A Stunning 3D Character Inspired by Chinese Folklore",
+          "kind": "character_visual_reference",
+          "note": "已读案例介绍：古代中国角色的服饰、毛发与材质表达是重点，制作由2D概念图发展为3D模型。仅借鉴文化服饰与材质分层思路，不复制该穆桂英造型。",
+          "accessed_date": "2026-10-18"
+        },
+        {
+          "url": "https://docs.blender.org/manual/en/latest/render/shader_nodes/shader/principled.html",
+          "title": "Principled BSDF — Blender Manual",
+          "kind": "official_material_documentation",
+          "note": "已读官方说明：粗糙度决定反射清晰度；金属、漫反射、次表面散射和透射分属不同材质分量；coat表现清漆，sheen表现微小纤维。配方采用材质观感描述，不把提示词当作真实渲染参数。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/chinese-fantasy-cg.jpg",
+      "source_preview_sha256": "6c59b6961f9c82de009153f238c5d013d352ed4fb3f4c8904781e1aa7eb385e1",
+      "preview_sha256": "ccc4b3bdb84169145c51a9e3221ac6dbc8699abac232862bd05a0237804c6314"
+    },
+    {
+      "id": "miniature-diorama",
+      "source_name": "3D卡通微缩景观",
+      "category": "3D",
+      "display_name": "卡通微缩景观",
+      "aliases": [
+        "3D卡通微缩景观",
+        "diorama",
+        "isometric miniature"
+      ],
+      "summary": "像摆在桌上的完整小世界：可见底座、清楚层次、微型道具和柔和材质，镜头从斜上方看全布局。",
+      "image_style_prompt_zh": "三维卡通微缩景观，将用户指定的主体与场景呈现为可放在桌上的小布景；近似等距的三分之四俯视，紧凑清楚的几何块面，原有物件略作卡通概括。底座和空间切面仅在原图已有或用户允许展示设计时呈现，不补入其他道具。粉彩哑光材质、适度简化的已有表面纹理和柔和倒角；侧上方大柔光、局部焦点光和细腻接触阴影，干净背景与清楚空间层次。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Stylized 3D miniature-diorama aesthetics applied to the requested subject and scene, with a three-quarter elevated near-isometric view and compact readable volumes. Simplify the objects already present. Show a base or cutaway only if already present or permitted as presentation design; do not add props. Soft pastel matte surfaces, simplified existing textures and gently beveled edges, a broad angled key, a localized focal light and delicate contact shadows against an uncluttered backdrop. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "实景照片外观",
+        "极广角透视畸变",
+        "已有底座被意外裁切",
+        "黑色粗描边",
+        "大量噪声细节",
+        "已有物件尺度关系失衡"
+      ],
+      "video_motion": "固定俯角下缓慢环绕10—20度或轻微推进；只让用户场景已有且可动的少量元素循环，固定其余结构，不补入烟、树叶或风车。",
+      "video_consistency": [
+        "保持原有场景布局与已有底座外形不变",
+        "现有物件与结构数量不增减",
+        "锁定微缩尺度与近等距镜头",
+        "接触阴影与光源方向一致"
+      ],
+      "sources": [
+        {
+          "url": "https://80.lv/articles/dreamy-room-stylized-diorama-breakdown",
+          "title": "Dreamy Room: Stylized Diorama Breakdown",
+          "kind": "artist_process",
+          "note": "已读作者访谈：先用blockout确定比例、构图和焦点，再补道具；柔和粉彩纹理与窗侧强光建立焦点，作者移除压倒柔和气氛的黑描边。用于微缩景观的层级和材质设计。",
+          "accessed_date": "2026-10-18"
+        },
+        {
+          "url": "https://garagefarm.net/blog/stylized-rendering-in-3d-a-guide-to-artistic-expression-beyond-realism",
+          "title": "Stylized Rendering in 3D: A Guide to Artistic Expression Beyond Realism",
+          "kind": "rendering_technique",
+          "note": "已阅读全文：强调清晰轮廓、简化形体、手绘纹理、分段明暗、彩色阴影与全场景一致性。配方将这些原则转写为可见结果，不声称使用特定着色器。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/miniature-diorama.jpg",
+      "source_preview_sha256": "19b6b0b76699596aff0a4f6cb61f0b22e251864b9e5904d412e8f994f58b2681",
+      "preview_sha256": "491695f8c851b90254ffbab5218c26ff1a9f74f825a4ec34dd0f04b8066b6fb5"
+    },
+    {
+      "id": "digital-sculpture",
+      "source_name": "3D数字雕刻风格",
+      "category": "3D",
+      "display_name": "单色数字雕塑",
+      "aliases": [
+        "3D数字雕刻风格",
+        "digital clay",
+        "sculpture render"
+      ],
+      "summary": "全体单一石膏或陶土色，靠大形转折、刻痕和侧光呈现立体感，不以彩色贴图制造细节。",
+      "image_style_prompt_zh": "将已有主体转化为单色数字雕塑展示，统一未上釉的暖灰石膏或陶土材质，具有重量感的大形与清晰平面转折，少量工具刻痕和细微颗粒；以轮廓、负空间、凹槽和真实体积表现结构。侧上方主光形成深而可读的阴影，弱补光保留暗部，深炭灰背景；底座只在原有或用户允许时出现。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Present the existing subject as a monochrome digital sculpture in uniform unglazed warm-gray plaster or clay. Weighty primary forms, deliberate plane changes, restrained tool marks and fine grain; express structure through silhouette, negative space, grooves and volume. A side-above key produces deep readable recesses, minimal fill and a charcoal backdrop. Include a plinth only if already present or permitted. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "真人皮肤与彩色虹膜",
+        "光滑镀铬",
+        "盲盒涂装",
+        "粘土玩具的糖果色",
+        "纹理噪声掩盖体积",
+        "雕塑变成活人"
+      ],
+      "video_motion": "已有雕塑主体保持静止，镜头在5秒内缓慢环绕15—25度，以侧光展示平面转折；转台只有在用户需要产品展示时采用。不自动加入生命动作。",
+      "video_consistency": [
+        "全镜头固定单一材质；已有底座保持稳定",
+        "保持原有凹槽、刻痕和缺口的位置",
+        "不自动增加皮肤色或眼球材质",
+        "移动机位时维持主光的空间位置"
+      ],
+      "sources": [
+        {
+          "url": "https://www.zbrushcentral.com/t/5-minutes-digital-clay-light-and-bpr-render-setup/358909",
+          "title": "5 Minutes Digital Clay Light and BPR render setup",
+          "kind": "artist_process",
+          "note": "已读作者帖子：用雕塑练习展示ZBrush内的电影感BPR渲染与布光。该帖子确证数字雕塑展示路线；具体灰石材质、侧光和构图是本配方原创设计，未观看嵌入视频。",
+          "accessed_date": "2026-10-18"
+        },
+        {
+          "url": "https://docs.blender.org/manual/en/latest/render/shader_nodes/shader/principled.html",
+          "title": "Principled BSDF — Blender Manual",
+          "kind": "official_material_documentation",
+          "note": "已读官方说明：粗糙度决定反射清晰度；金属、漫反射、次表面散射和透射分属不同材质分量；coat表现清漆，sheen表现微小纤维。配方采用材质观感描述，不把提示词当作真实渲染参数。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/digital-sculpture.jpg",
+      "source_preview_sha256": "049e853d61a712b08f59b96387d0438e128c7634ddcdd4c36494a1a832db9231",
+      "preview_sha256": "a72e1c8d79d26db2a664ba3e1f4962f07bf3b8d803338a4314941c66cbbf6119"
+    },
+    {
+      "id": "painted-vinyl-toy",
+      "source_name": "3D盲盒涂装风",
+      "category": "3D",
+      "display_name": "盲盒潮玩涂装",
+      "aliases": [
+        "3D盲盒涂装风",
+        "vinyl art toy",
+        "blind box"
+      ],
+      "summary": "圆润短肢的大头小公仔，硬质乙烯基或树脂表面，分区涂装干净，呈现棚拍收藏品质感。",
+      "image_style_prompt_zh": "收藏级盲盒潮玩式三维表现，将已有主体概括为圆润、可制模的整体形体；人物或动物存在时才使用大头短肢和简洁涂装五官，普通物品保持物品身份，配件仅保留已有部分。光滑硬质PVC或树脂，主体哑光、少量亮面点缀，分色边界整齐；大柔光箱与克制条形高光，纯净无缝背景和柔和接触阴影，主体完整可读。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Collectible vinyl art-toy aesthetics applied to the existing subject through rounded manufacturable forms. Use an oversized head, short limbs and simple painted features only for people or animals already present; keep ordinary objects inanimate and retain only existing accessories. Smooth hard PVC or resin, mostly matte coating with restrained glossy accents and crisp color-mask boundaries. Broad softbox lighting, subtle strip highlights, a seamless clean background and a soft contact shadow. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "真实毛发",
+        "皮肤毛孔",
+        "布料自然褶皱覆盖塑料玩具",
+        "黏土指纹",
+        "塑料部件无故融化"
+      ],
+      "video_motion": "4—6秒小角度环绕展示，主体保持刚性；若用户已指定带关节角色，可做一次简短点头。使用棚拍式稳定灯光，不给物品新增头部或肢体。",
+      "video_consistency": [
+        "保持涂装边界和已有细节、配件数量；有脸时固定眼嘴位置",
+        "相同主体尺寸与比例；已有底座尺寸固定",
+        "高光随视角变化但不能变成透明果冻",
+        "现有硬质部件保持刚性，不自动增加皮肤和毛发"
+      ],
+      "sources": [
+        {
+          "url": "https://www.robotimeonline.com/blogs/all-blogs/the-creative-process-behind-blind-box-art-toys",
+          "title": "The Creative Process Behind Blind Box Art Toys: From Ideas to Display",
+          "kind": "manufacturer_craft_reference",
+          "note": "已阅读全文：盲盒常用PVC、vinyl、ABS或树脂；圆润角色适合光滑PVC/vinyl，细节可用哑光、亮光、金属或半透明涂层。系列一致性来自比例、配色与配件规则，涂装边界和表情需准确。",
+          "accessed_date": "2026-10-18"
+        },
+        {
+          "url": "https://docs.blender.org/manual/en/latest/render/shader_nodes/shader/principled.html",
+          "title": "Principled BSDF — Blender Manual",
+          "kind": "official_material_documentation",
+          "note": "已读官方说明：粗糙度决定反射清晰度；金属、漫反射、次表面散射和透射分属不同材质分量；coat表现清漆，sheen表现微小纤维。配方采用材质观感描述，不把提示词当作真实渲染参数。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/painted-vinyl-toy.jpg",
+      "source_preview_sha256": "07f7f1c12e2c2eea03e6fdfab020ca22433d7555b6c1495f8b20b54fb1a6e46c",
+      "preview_sha256": "8e83b05e24a0b7579131b8c421f005237e4edefdf735c53e706def5ad23fcbc0"
+    },
+    {
+      "id": "anime-cel-3d",
+      "source_name": "动漫三渲二风格",
+      "category": "3D",
+      "display_name": "动漫三渲二",
+      "aliases": [
+        "动漫三渲二风格",
+        "cel shading",
+        "3D toon"
+      ],
+      "summary": "看起来是二维动画，但空间与视角有三维稳定性；硬边分段阴影、简化高光与可控描边。",
+      "image_style_prompt_zh": "动漫三渲二视觉；已有主体采用稳定的三维透视与简化动漫造型，人物存在时才处理分块发束和简化面部。细而稳定的轮廓线，材质以平涂底色和两到三档硬边明暗表达，已有反光表面的高光归纳成清楚色块；单一主光方向、干净阴影边界和图形化构图，保持二维动画读感。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Anime cel-shaded 3D aesthetics for the existing subject, with stable volumetric perspective and simplified stylized forms. Group hair and simplify facial features only when characters are present. Fine consistent contour lines, flat base colors, two or three hard-edged value bands and graphic highlight shapes on existing reflective surfaces. One readable key-light direction, clean shadow boundaries and strong graphic staging preserve the appearance of drawn animation. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "连续柔焦写实阴影",
+        "塑料皮肤高光",
+        "细密毛发和皮肤纹理",
+        "脏乱速写线",
+        "描边粗细随机跳动",
+        "变成全平面无空间透视"
+      ],
+      "video_motion": "已有可动主体可经过短暂预备后完成一个清晰动作；静物使用平缓横移或小角度环绕。优先保持轮廓线与分段阴影稳定，避免高速模糊或增添角色。",
+      "video_consistency": [
+        "轮廓线粗细与颜色一致",
+        "明暗分段数不随镜头任意变化",
+        "保持主体阴影规则；有角色时锁定脸部和发束设计",
+        "同一背景透视结构不漂移"
+      ],
+      "sources": [
+        {
+          "url": "https://garagefarm.net/blog/stylized-rendering-in-3d-a-guide-to-artistic-expression-beyond-realism",
+          "title": "Stylized Rendering in 3D: A Guide to Artistic Expression Beyond Realism",
+          "kind": "rendering_technique",
+          "note": "已阅读全文：强调清晰轮廓、简化形体、手绘纹理、分段明暗、彩色阴影与全场景一致性。配方将这些原则转写为可见结果，不声称使用特定着色器。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/anime-cel-3d.jpg",
+      "source_preview_sha256": "8ffcdc25dde9161dba026452e5dcd0168beef9f0ed6212b9bd36c3385b6fc755",
+      "preview_sha256": "474bf9f2dfbc29c479e2024bd9ca91d00fa696f9e01367da789e9232adaf9047"
+    },
+    {
+      "id": "physical-cg",
+      "source_name": "3D真实感PBR渲染风格",
+      "category": "3D",
+      "display_name": "真实材质PBR渲染",
+      "aliases": [
+        "3D真实感PBR渲染风格",
+        "PBR",
+        "physically based rendering"
+      ],
+      "summary": "根据真实世界区分金属、木石、玻璃与织物，用反射、粗糙度和磨损建立可信度。",
+      "image_style_prompt_zh": "真实材质三维PBR观感，真实尺度、结构厚度、倒角与原有接缝可信；根据已有材质明确区分金属反射、非金属漫反射、玻璃透射或织物纤维，不添加额外材质或部件。粗糙度自然变化，磨损只在用户已有或明确要求时表现；真实方向的主光、可信间接反弹与接触阴影，曝光克制，细节不靠过度锐化。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Photorealistic physically based 3D rendering with believable real-world scale, thickness, bevels and existing joints. Distinguish metallic reflections, dielectric diffuse response, glass transmission or woven fibers according to materials actually present, without adding materials or parts. Roughness varies coherently; show wear only when already present or requested. Realistic light direction, natural indirect bounce, contact shadows, controlled exposure and restrained sharpening. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "所有表面都像镜面",
+        "无理由大面积锈蚀",
+        "不真实发光边缘",
+        "卡通头身比",
+        "错误反射与投影",
+        "过强锐化和HDR光晕"
+      ],
+      "video_motion": "相机4—6秒平缓平移或推进，以移动视角展示已有材质反射；刚性物品保持刚性，其他主体仅执行用户要求的动作，首轮避免快速变焦。",
+      "video_consistency": [
+        "不同视角保持已有材质粗糙度身份",
+        "镜面反射随空间变化而非贴在表面",
+        "已有接缝、零件、玻璃厚度和磨损位置固定，不新增细节",
+        "曝光和白平衡不要逐帧漂移"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.blender.org/manual/en/latest/render/shader_nodes/shader/principled.html",
+          "title": "Principled BSDF — Blender Manual",
+          "kind": "official_material_documentation",
+          "note": "已读官方说明：粗糙度决定反射清晰度；金属、漫反射、次表面散射和透射分属不同材质分量；coat表现清漆，sheen表现微小纤维。配方采用材质观感描述，不把提示词当作真实渲染参数。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/physical-cg.jpg",
+      "source_preview_sha256": "7ba76fb1b50dca977176b12e022013a2e8c8d979f5bd3f5e0067ddb036bd09da",
+      "preview_sha256": "3626b0cdc50655b25724f15a8cb74038094b8fca4292310a1e9d265a8e7758ee"
+    },
+    {
+      "id": "handmade-clay",
+      "source_name": "粘土动画风格",
+      "category": "3D",
+      "display_name": "手作粘土动画",
+      "aliases": [
+        "粘土动画风格",
+        "黏土动画",
+        "clay animation",
+        "claymation"
+      ],
+      "summary": "能看到揉捏、指纹、拼接缝的彩色黏土小世界，布景有实体微缩模型感。",
+      "image_style_prompt_zh": "将已有主体表现为手工彩色黏土动画造型，圆润且略不对称的手捏形体，已有结构像独立黏土块拼接；保留适度指纹、压痕、接缝和微蜡质哑光表面。已有背景和道具可采用微缩手工布景质感，低机位摄影构图、柔和定向棚光与真实接触阴影，温暖克制配色；普通物品不自动添加五官或配件。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Render the existing subject as handmade colored-clay animation, with rounded slightly asymmetrical hand-shaped forms and existing structures assembled from separate clay pieces. Retain subtle fingerprints, pressed marks, joins and a softly waxy matte surface. Existing backgrounds and props may take on practical-miniature craft textures. Low-level photographic framing, soft directional studio light, real contact shadows and a warm restrained palette; do not automatically give objects faces or accessories. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "光滑无瑕数字塑料",
+        "逼真皮肤毛孔",
+        "流动液体式融化",
+        "过度光泽",
+        "毛绒玩具替代粘土",
+        "默认长出真人手指"
+      ],
+      "video_motion": "使用动作分明且略有停顿的定格节奏；固定相机，仅拍摄用户已有主体适合的一个小动作，静物可保持不动。允许细微手工位置变化，避免流体般丝滑变形。",
+      "video_consistency": [
+        "锁定指纹密度和黏土块拼接结构",
+        "保持已有主体体积与部件数量",
+        "维持哑光或微蜡质表面",
+        "已有布景与主体尺度一致",
+        "定格节奏不等同于随机抖屏"
+      ],
+      "sources": [
+        {
+          "url": "https://blog.scienceandmediamuseum.org.uk/surprising-stories-about-aardman-animations/",
+          "title": "10 Surprising Stories About Aardman Animations",
+          "kind": "museum_craft_reference",
+          "note": "已读博物馆文章：模型可由黏土、塑料、金属骨架及硅胶组合；动画师会保留指纹以维持手工感，作者称之为thumbiness。这里只提取工艺特征，不复制片中角色。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/handmade-clay.jpg",
+      "source_preview_sha256": "783f3c67198e22bbe75ae52eaf5bdd3c4a15a1393be5530d7063fcbae31a200b",
+      "preview_sha256": "5161c31fae8374eeb5f253dddfe0675f04777346ffd4592dbe59f7b886fc65d5"
+    },
+    {
+      "id": "translucent-jelly",
+      "source_name": "3D果冻状塑料风格",
+      "category": "3D",
+      "display_name": "半透明果冻塑料",
+      "aliases": [
+        "3D果冻状塑料风格",
+        "jelly plastic",
+        "translucent soft resin"
+      ],
+      "summary": "圆润实体呈半透明软树脂或果冻塑料，内部透光与亮边清楚，色彩轻盈且具有产品视觉感。",
+      "image_style_prompt_zh": "半透明果冻状软塑料三维视觉，圆润鼓起且连续的实体形状，厚实边缘与少量简洁结构；有色软树脂表面光滑、内部轻微柔雾，厚处颜色更浓，薄边透亮，具有温和折射与透光；大面积侧后柔光与弱正面补光，柔亮反射和淡淡有色投影，纯净棚景与轻盈配色。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Translucent jelly-like soft-plastic 3D rendering, smooth inflated continuous solid forms with thick rounded edges and simple readable structure. Colored soft resin with a glossy surface and gently hazy interior; richer color in thick areas, luminous thinner edges, mild refraction and transmission. A broad side-back soft light with weak frontal fill, soft reflected highlights and a faint colored transmitted shadow, clean studio staging and airy colors. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "完全不透明橡皮",
+        "空心玻璃杯式薄壁",
+        "液态融化成水",
+        "锐利金属高光",
+        "强烈焦散遮挡主体",
+        "无厚度的透明轮廓"
+      ],
+      "video_motion": "静止镜头或缓慢环绕展示已有主体的内部透光；仅在用户允许软体运动且结构适合时做一次小幅弹动并回弹，保持质量和体积，不添加新部件。",
+      "video_consistency": [
+        "维持整体体积；若有形变，保持可恢复",
+        "颜色随厚度变化但不能逐帧换色",
+        "保持半透明柔雾内部，不变成玻璃或金属",
+        "已有不透明嵌件保持位置，不补入眼睛等细节"
+      ],
+      "sources": [
+        {
+          "url": "https://docs.blender.org/manual/en/latest/render/shader_nodes/shader/principled.html",
+          "title": "Principled BSDF — Blender Manual",
+          "kind": "official_material_documentation",
+          "note": "已读官方说明：粗糙度决定反射清晰度；金属、漫反射、次表面散射和透射分属不同材质分量；coat表现清漆，sheen表现微小纤维。配方采用材质观感描述，不把提示词当作真实渲染参数。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/translucent-jelly.jpg",
+      "source_preview_sha256": "73808bdf6bffff9f2c47c89cf6a36af9ef909523d33309a7702a23c3c773fe25",
+      "preview_sha256": "0ea81f4e4ca0dfdcf6fed1f2a1afa1b44d0600832de534bc2d2ea3f675a9eaa9"
+    },
+    {
+      "id": "painterly-3d",
+      "source_name": "3D厚涂风格",
+      "category": "3D",
+      "display_name": "笔触厚涂3D",
+      "aliases": [
+        "3D厚涂风格",
+        "painterly 3D",
+        "hand-painted 3D"
+      ],
+      "summary": "三维造型有重量，但表面、明暗和背景像经过手绘厚涂；笔触沿结构走向，阴影带色。",
+      "image_style_prompt_zh": "笔触厚涂式三维风格化渲染，清楚且有重量的三维大形，略夸张的平面转折与软硬交替边缘；可见宽笔触和层叠色块沿形体走向，材质差异由画出的高光、边缘和色温表现；暖主光与冷色阴影建立大块明暗，焦点处细、背景概括，保留绘画痕迹而非全表面写实纹理。保留用户指定的主体、内容与必要文字，仅改变视觉表现；未出现或未要求的题材元素不补入。",
+      "image_style_prompt_en": "Painterly 3D rendering with weighty readable volumes, slightly exaggerated plane breaks and a deliberate mix of hard and soft edges. Visible broad brush marks and layered color patches follow the forms; material identity comes from painted highlights, edge treatment and color temperature. Warm key light against cool colored shadows, clear value masses, refined focal detail and broadly painted backgrounds; preserve brushwork instead of photoreal surface noise. Preserve the user's specified subjects, content and required text; change visual treatment only and do not invent unrequested scene elements.",
+      "avoid": [
+        "抛光塑料表面",
+        "每处同样密集细笔触",
+        "纯二维无体积平涂",
+        "均匀黑描边",
+        "所有阴影都是纯黑",
+        "笔触纹理在物体表面滑动"
+      ],
+      "video_motion": "相机缓慢平移，已有可动主体完成一次克制小动作，静物保持稳定；笔触像固定于物体表面的绘制，减少纹理游移，不自动加入人物或道具。",
+      "video_consistency": [
+        "笔触尺度与方向随表面结构稳定",
+        "固定暖光冷影关系与主要色块",
+        "保持三维体积，不逐帧塌成平面插画",
+        "各镜头统一边缘软硬与细节密度"
+      ],
+      "sources": [
+        {
+          "url": "https://garagefarm.net/blog/stylized-rendering-in-3d-a-guide-to-artistic-expression-beyond-realism",
+          "title": "Stylized Rendering in 3D: A Guide to Artistic Expression Beyond Realism",
+          "kind": "rendering_technique",
+          "note": "已阅读全文：强调清晰轮廓、简化形体、手绘纹理、分段明暗、彩色阴影与全场景一致性。配方将这些原则转写为可见结果，不声称使用特定着色器。",
+          "accessed_date": "2026-10-18"
+        },
+        {
+          "url": "https://docs.blender.org/manual/en/latest/render/shader_nodes/shader/principled.html",
+          "title": "Principled BSDF — Blender Manual",
+          "kind": "official_material_documentation",
+          "note": "已读官方说明：粗糙度决定反射清晰度；金属、漫反射、次表面散射和透射分属不同材质分量；coat表现清漆，sheen表现微小纤维。配方采用材质观感描述，不把提示词当作真实渲染参数。",
+          "accessed_date": "2026-10-18"
+        }
+      ],
+      "preview_url": "/style-previews/painterly-3d.jpg",
+      "source_preview_sha256": "b9245f1183ec47f3595fb79a3e5597ac218791091c11c47c5edd88aab816c6a1",
+      "preview_sha256": "f97027f0ae36e0c6bcd52f0311664537ad3959faa384ffdd71b34051cf7c212f"
+    }
+  ]
+}

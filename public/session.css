@@ -1,0 +1,57 @@
+.session-user {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: none;
+  padding: 16px 0 0;
+  color: var(--text);
+}
+.session-avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--panel2);
+  color: var(--cyan);
+  font-size: 14px;
+  font-weight: 600;
+}
+.session-identity { min-width: 0; flex: 1; }
+.session-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.session-role { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; color: var(--muted); font-size: 11px; line-height: 1.5; margin-top: 3px; }
+.session-logout {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  padding: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  flex: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--muted);
+  transition: background .15s, color .15s;
+}
+.session-logout:hover { background: var(--panel2); color: var(--text); border-color: var(--line); }
+.session-logout:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+.session-logout:disabled { opacity: .45; cursor: wait; }
+.session-logout svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.sidebar-collapsed .session-user { margin-top: auto; flex-direction: column; gap: 10px; }
+.sidebar-collapsed .session-identity { display: none; }
+.session-status {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  color: var(--text);
+  font-size: 15px;
+  backdrop-filter: blur(3px);
+  cursor: wait;
+}

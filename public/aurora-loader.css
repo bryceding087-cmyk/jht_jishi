@@ -1,0 +1,53 @@
+/* Aurora loader · one seamless cycle = 2000ms · no image dependencies.
+   Markup: <div class="aurora-loader" role="status" aria-label="正在加载">
+     <span class="aurora-loader__halo" aria-hidden="true"></span>
+     <span class="aurora-loader__rotor" aria-hidden="true"></span>
+     <span class="aurora-loader__core" aria-hidden="true"></span>
+   </div>
+   Set --loader-size to scale the component. */
+.aurora-loader {
+  --loader-size: 80px;
+  --loader-cycle: 2s;
+  --loader-play: running;
+  --loader-gradient: conic-gradient(from 0deg, transparent 0deg 42deg, #8d45ff 95deg, #514dff 165deg, #008eff 225deg, #00e0f0 285deg, #affff7 323deg, transparent 332deg 360deg);
+  position: relative;
+  width: var(--loader-size);
+  height: var(--loader-size);
+  flex: none;
+  isolation: isolate;
+}
+.aurora-loader__rotor,
+.aurora-loader__halo {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  animation: aurora-orbit var(--loader-cycle) linear infinite;
+  animation-play-state: var(--loader-play);
+}
+.aurora-loader__rotor::before,
+.aurora-loader__halo::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--loader-gradient);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+}
+.aurora-loader__halo { filter: blur(5px); opacity: .65; }
+.aurora-loader__core {
+  position: absolute;
+  inset: 20%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #4d75ff18 0, #474bff08 44%, transparent 72%);
+  animation: aurora-breathe var(--loader-cycle) ease-in-out infinite;
+  animation-play-state: var(--loader-play);
+}
+@keyframes aurora-orbit { to { transform: rotate(360deg); } }
+@keyframes aurora-breathe {
+  0%,100% { transform: scale(.85); opacity: .45; }
+  50% { transform: scale(1.15); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aurora-loader__rotor,.aurora-loader__halo,.aurora-loader__core { animation: none; }
+}

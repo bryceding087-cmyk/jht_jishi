@@ -1,0 +1,23 @@
+{
+  "example_only": true,
+  "description": "v0.2.0 质量检查对存在时长风险、尚未试读的分镜返回待复核结果；示例 ID 均非真实产物，不表示所有分镜必须等待正式音频才能审阅。",
+  "result": {
+    "skill_id": "quality-review",
+    "status": "blocked",
+    "summary": "分镜包含核心台词，但自然语速能否容纳在计划时长内尚未验证。",
+    "artifacts": [],
+    "checks": [
+      {"name": "dialogue_coverage", "result": "pass", "evidence": "示例分镜文本已逐条列出台词"},
+      {"name": "speech_duration", "result": "not_checked", "evidence": "尚未生成或试读正式台词音频"}
+    ],
+    "issues": [
+      {"code": "TIMING_UNVERIFIED", "blocking": true, "targets": ["shot_03"], "message": "该独立配音镜头存在具体时长风险；应先核对台词与停顿，修正分镜和计划时间线，再制作 BGM 及提交视频。"}
+    ],
+    "pending_tasks": [],
+    "state_patch": {"expected_run_revision": 4, "mark_for_review": ["shot_03"]},
+    "next_actions": [
+      {"type": "skill", "skill_id": "voice-production", "purpose": "获取正式台词的可用时长依据"},
+      {"type": "skill", "skill_id": "storyboard-planning", "purpose": "依据声音时长调整并复核该段"}
+    ]
+  }
+}

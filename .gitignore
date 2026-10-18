@@ -1,0 +1,49 @@
+# Local application data includes saved model API keys, projects and media.
+/data/
+/uploads/
+/work/
+/outputs/
+/.runtime/
+
+# Credentials and machine-specific environment settings.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# Installed dependencies and Python caches.
+/node_modules/
+/.venv/
+/venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Local databases, logs and generated test artifacts.
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.log
+/coverage/
+.coverage
+/htmlcov/
+/test-results/
+/playwright-report/
+/tests/*-check.png
+
+# Editor and operating system files.
+/.idea/
+/.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.tmp

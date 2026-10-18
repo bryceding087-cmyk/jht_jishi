@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0e4196">
+  <title>登录 · 建绘通 AI 视频创作平台</title>
+  <link rel="icon" href="/favicon.ico?v=brand-1" sizes="any">
+  <link rel="icon" href="/icon-32.png?v=brand-1" type="image/png" sizes="32x32">
+  <link rel="icon" href="/icon-16.png?v=brand-1" type="image/png" sizes="16x16">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=brand-1" sizes="180x180">
+  <link rel="stylesheet" href="/login.css?v=loading-4">
+  <script src="/login.js?v=market-sdk-3" type="module"></script>
+  <link rel="stylesheet" href="/brand.css?v=brand-1">
+</head>
+<body>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+  <main class="login-shell">
+    <section class="form-panel" aria-labelledby="loginTitle">
+      <a class="brand" href="/login" aria-label="建绘通登录首页">
+        <img class="brand-symbol" src="/icon-128.png?v=brand-1" width="45" height="45" alt="建绘通 Logo">
+        <span><strong>建绘通<span class="brand-ai">AI</span></strong><small>湖南建投 · AI 视频创作平台</small></span>
+      </a>
+
+      <div class="form-content">
+        <div class="eyebrow"><span></span> 开启你的创作时刻</div>
+        <h1 id="loginTitle">欢迎回来<span class="heading-dot">.</span></h1>
+        <p class="form-intro">登录建绘通，让每一个灵感成为影像。</p>
+
+        <form id="loginForm" novalidate>
+          <div class="field">
+            <label for="username">账号</label>
+            <div class="input-wrap">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20v-1a7 7 0 0 1 14 0v1"/></svg>
+              <input id="username" name="username" type="text" placeholder="请输入账号" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="80" required aria-describedby="loginError">
+            </div>
+          </div>
+          <div class="field">
+            <label for="password">密码</label>
+            <div class="input-wrap">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg>
+              <input id="password" name="password" type="password" placeholder="请输入密码" autocomplete="current-password" maxlength="256" required aria-describedby="loginError capsLockHint">
+              <button class="password-toggle" id="passwordToggle" type="button" aria-label="显示密码" aria-pressed="false"><svg class="eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18M10.6 5.1 12 5c6.5 0 10 7 10 7a20 20 0 0 1-3.3 4.3M6.1 6.1A23 23 0 0 0 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.8-1.2M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button>
+            </div>
+            <p id="capsLockHint" class="caps-hint" hidden>大写锁定已开启</p>
+          </div>
+          <div class="form-options"><label class="remember-label"><input id="remember" type="checkbox" name="remember"><span>7 天内保持登录</span></label><button class="help-button" id="helpButton" type="button" aria-expanded="false" aria-controls="helpText">登录遇到问题？</button></div>
+          <p id="helpText" class="help-text" hidden>请联系平台管理员确认账号或重置密码。</p>
+          <div id="loginError" class="login-error" role="alert" hidden></div>
+          <button id="loginButton" class="login-button" type="submit"><span class="button-label">登录平台</span><svg class="button-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg><span class="spinner" aria-hidden="true" hidden><svg width="27" height="27" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none" role="img" aria-labelledby="triangle-flow-title">
+ <title id="triangle-flow-title">圆角三角流线加载动画，2 秒循环</title>
+ <defs>
+  <path id="triangle-flow-route" d="M32 34 Q32 20 44 27 L98 58 Q109 64 98 70 L44 101 Q32 108 32 94 Z" pathLength="300"/>
+  <linearGradient id="triangle-flow-color" x1="32" y1="25" x2="93" y2="98" gradientUnits="userSpaceOnUse"><stop stop-color="#20e8e4"/><stop offset=".48" stop-color="#1687ff"/><stop offset="1" stop-color="#a151ff"/></linearGradient>
+ </defs>
+ <style>
+  .triangle-flow-track{stroke:url(#triangle-flow-color);stroke-width:2;opacity:.13}
+  .triangle-flow-line{stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:62 238;animation:triangle-flow-chase 2s linear infinite,triangle-flow-reach 2s ease-in-out infinite;animation-play-state:var(--triangle-flow-play,running)}
+  .triangle-flow-cyan{stroke:#25dbed;--start:0}
+  .triangle-flow-blue{stroke:#318cff;--start:-100}
+  .triangle-flow-purple{stroke:#a170fa;--start:-200}
+  @keyframes triangle-flow-chase{from{stroke-dashoffset:var(--start)}to{stroke-dashoffset:calc(var(--start) - 300)}}
+  @keyframes triangle-flow-reach{0%,100%{stroke-dasharray:62 238}50%{stroke-dasharray:88 212}}
+  @media(prefers-reduced-motion:reduce){.triangle-flow-line{animation:none;stroke-dashoffset:var(--start)}}
+ </style>
+ <use href="#triangle-flow-route" class="triangle-flow-track"/>
+ <use href="#triangle-flow-route" class="triangle-flow-line triangle-flow-cyan"/>
+ <use href="#triangle-flow-route" class="triangle-flow-line triangle-flow-blue"/>
+ <use href="#triangle-flow-route" class="triangle-flow-line triangle-flow-purple"/>
+</svg>
+</span></button>
+          <p class="login-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 3v6c0 5-8 9-8 9S4 17 4 12V6l8-3Z"/><path d="m8 12 3 3 5-6"/></svg>企业内部平台 · 仅限授权账号访问</p>
+        </form>
+      </div>
+      <div class="form-footer"><span class="footer-line"></span><span>为建造者，构筑灵感</span></div>
+    </section>
+
+    <section class="visual-panel" aria-labelledby="visualTitle">
+      <svg class="panel-curve" viewBox="0 0 150 720" preserveAspectRatio="none" aria-hidden="true"><path d="M0 0H150C35 135 100 535 0 720Z" fill="white"/></svg>
+      <div class="visual-orbit orbit-one" aria-hidden="true"></div><div class="visual-orbit orbit-two" aria-hidden="true"></div>
+      <div class="visual-top"><span>HUNAN CONSTRUCTION INVESTMENT</span><span class="access-badge"><i></i> 安全访问</span></div>
+      <div class="visual-copy"><p class="visual-kicker">建投智慧 · 影像新生</p><h2 id="visualTitle">让创意生长<br>让建造<span>被看见</span></h2><p class="visual-description">从一段灵感，到每一帧精彩。<br>与你一起，记录建设的力量。</p></div>
+      <img class="creation-art" src="/login-art.svg" alt="蓝色立体创作空间：建筑、视频画面与灵感节点相连" width="660" height="430" fetchpriority="high">
+      <div class="visual-bottom"><div class="capabilities"><span>灵感成文</span><i></i><span>画面成像</span><i></i><span>一键成片</span></div><span class="visual-index" aria-hidden="true">AI STUDIO</span></div>
+    </section>
+  </main>
+  <footer class="page-footer"><span>© <span id="currentYear">2026</span> 建绘通</span><span class="footer-separator">/</span><span>湖南建投 · AI 视频创作平台</span></footer>
+</body>
+</html>

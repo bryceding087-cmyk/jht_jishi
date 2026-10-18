@@ -1,0 +1,69 @@
+/* The selected-node composer and asset toolbar share LibTV's compact surfaces. */
+.node-context-toolbar { width: max-content; max-width: none; }
+.canvas-active .floating-editor { border-radius: 16px; max-height: min(520px,calc(100% - 160px)); }
+.canvas-active .floating-editor-head { padding: 8px 14px 0 18px; justify-content: flex-end; font-size: 12px; }
+.canvas-active .floating-editor .inspector-content { padding: 10px 18px 18px; }
+/* Generation composers share their first row with the close control. */
+.canvas-active .floating-editor:is([data-node-type="video"], [data-node-type="image"], [data-node-type="audio"]) .floating-editor-head { position: absolute; top: 12px; right: 14px; z-index: 1; padding: 0; }
+.canvas-active .floating-editor:is([data-node-type="video"], [data-node-type="image"], [data-node-type="audio"]) .inspector-content { padding-top: 12px; }
+.canvas-active .floating-editor .composer-reference-row,
+.canvas-active .floating-editor .inline-composer-tools { padding-right: 32px; }
+.canvas-active .floating-editor #promptInput { font-size: 14px; height: 112px; min-height: 88px; line-height: 1.8; margin: 10px 0 16px; }
+.canvas-active .composer-reference-row { flex-wrap: wrap; gap: 6px; }
+.canvas-active .composer-reference-row button { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 6px 10px; font-weight: 400; }
+.composer-reference-row .ui-icon { width: 15px; height: 15px; }
+.canvas-active .floating-editor .prompt-source { font-size: 11px; color: #858585; }
+.canvas-active .floating-editor .composer-parameters { padding-right: 120px; gap: 4px; min-height: 38px; }
+.canvas-active .floating-editor .composer-native-select { display: none !important; }
+.composer-option { display: inline-flex; align-items: center; gap: 5px; height: 34px; max-width: 170px; padding: 6px 8px; border-radius: 7px; color: #c7c7c7; font-size: 12px; background: #303030; }
+.composer-option > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.composer-option .ui-icon { width: 14px; height: 14px; flex-shrink: 0; }
+.composer-option .ui-icon-chevronDown { width: 10px; }
+.composer-option:hover, .composer-option[aria-expanded="true"] { background: #3c3c3c; color: #fff; }
+.composer-option:disabled { opacity: .45; cursor: default; }
+.canvas-active .floating-editor #generateBtn { width: 110px; height: 38px; min-height: 38px; margin-top: -38px; border-radius: 9px; font-size: 12px; }
+.canvas-active .floating-editor #generateBtn .generate-icon { width: 15px; height: 15px; }
+.node-context-toolbar { display: flex; align-items: center; gap: 2px; padding: 5px; background: #262626; border: 1px solid #3b3b3b; border-radius: 11px; box-shadow: 0 5px 20px #0004; overflow-x: auto; scrollbar-width: none; }
+.node-context-toolbar[hidden], .node-option-popover[hidden] { display: none; }
+.node-context-toolbar button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 9px; flex-shrink: 0; border-radius: 7px; color: #c4c4c4; font-size: 12px; white-space: nowrap; }
+.node-context-toolbar button:hover { color: #fff; background: #3b3b3b; }
+.node-context-toolbar button:disabled { opacity: .4; cursor: wait; }
+.node-context-toolbar .ui-icon { width: 16px; height: 16px; }
+.node-option-popover { width: 290px; max-width: none; max-height: 360px; overflow: auto; padding: 14px; border: 1px solid #3b3b3b; border-radius: 14px; background: #262626; box-shadow: 0 8px 32px #0005; z-index: 19; }
+.node-option-heading { font-size: 12px; color: #909090; margin-bottom: 10px; }
+.node-option-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.node-option-grid button { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 35px; padding: 8px 10px; border: 1px solid #414141; background: #303030; border-radius: 8px; color: #aaa; font-size: 12px; }
+.node-option-grid button[aria-selected="true"] { color: #fff; border-color: #888; background: #444; }
+.node-option-grid button:hover { color: #fff; background: #3b3b3b; }
+.node-option-grid button:disabled { opacity: .4; cursor: default; }
+.node-option-grid .ui-icon { width: 13px; height: 13px; }
+.node-option-popover[data-option-kind="modelSelect"] { width: 320px; }
+.node-option-popover[data-option-kind="modelSelect"] button { width: 100%; justify-content: space-between; text-align: left; }
+.node-option-popover[data-option-kind="ratioSelect"] button { flex-direction: column; min-width: 72px; height: 70px; position: relative; }
+.node-option-popover[data-option-kind="ratioSelect"] .ui-icon { position: absolute; right: 5px; top: 5px; }
+.ratio-outline { display: block; aspect-ratio: var(--ratio); height: 20px; max-width: 42px; border: 1px solid currentColor; border-radius: 3px; }
+.canvas-active .floating-editor .media-file-meta { background: #202020; border-color: #393939; padding: 10px; border-radius: 8px; }
+.canvas-active .floating-editor .media-file-meta span, .canvas-active .floating-editor .media-file-meta small { color: #888; }
+.canvas-active .floating-editor .media-file-meta strong { color: #ccc; }
+.canvas-active .floating-editor .media-detail-preview { margin: 10px 0; }
+.canvas-active .floating-editor .media-node-image { display: none; }
+.canvas-active .floating-editor .media-node-video { height: 150px; background: #191919; }
+.canvas-active .floating-editor .media-detail-actions button, .canvas-active .floating-editor .media-detail-actions a { background: #343434; color: #ddd; border-color: #454545; font-size: 12px; border-radius: 8px; }
+.canvas-active .floating-editor .media-detail-actions .primary { background: #eee; color: #222; border-color: #eee; }
+.canvas-active .floating-editor .media-video-tools { background: #222; border-color: #3a3a3a; }
+.canvas-active .floating-editor .media-video-step button { background: #333; color: #ccc; border-color: #444; }
+.canvas-active .floating-editor .media-video-step output { color: #ccc; }
+.canvas-active .floating-editor .media-detail-empty { background: #222; border-color: #3b3b3b; color: #aaa; min-height: 85px; }
+.canvas-active .floating-editor .node-selected-chip { display: none; }
+.canvas-active .floating-editor #detailPromptInput { background: transparent; border: 0; padding: 6px 0; font-size: 14px; line-height: 1.8; }
+.canvas-active .floating-editor #detailNegativeInput,
+.canvas-active .floating-editor label[for="detailNegativeInput"] { display: none; }
+.node-context-toolbar button, .composer-option, .node-option-grid button { transition: color 150ms, background-color 150ms; }
+@media(prefers-reduced-motion:reduce) { .node-context-toolbar button, .composer-option, .node-option-grid button { transition: none; } }
+
+.canvas-active .node-video-frames{display:flex;gap:8px;padding:8px 5px 12px;order:1}
+.canvas-active .node-video-frames[hidden]{display:none}
+.canvas-active .node-first-last #selectedAssets{display:none}
+.canvas-active .composer-parameters>.home-preference-trigger{display:inline-flex;width:auto;max-width:220px;height:34px;gap:6px;padding:7px 10px;border:0;border-radius:8px;background:#333;color:#bbb;font:12px var(--font-ui)}
+.canvas-active .composer-parameters>.home-preference-trigger .ui-icon{width:15px;height:15px}
+.canvas-active .composer-parameters>.home-preference-trigger span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

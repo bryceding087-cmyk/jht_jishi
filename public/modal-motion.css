@@ -1,0 +1,6 @@
+/* Native dialog backdrops live in the top layer. */
+@keyframes modal-backdrop-enter { from { opacity: 0; } to { opacity: 1; } }
+dialog[open]::backdrop { animation: modal-backdrop-enter 220ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  dialog[open]::backdrop { animation: none; }
+}

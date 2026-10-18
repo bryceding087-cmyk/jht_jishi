@@ -1,0 +1,58 @@
+import assert from 'node:assert/strict';
+import { createCanvasHistory } from '../public/canvas-history.js';
+
+const state = { project: { id: 'first' }, nodes: [{ id: 'a', x: 20, y: 40, title: 'A' }, { id: 'b', x: 400, y: 40, title: 'B' }],
+  edges: [{ from: 'a', to: 'b' }], groups: [], selectedNodeIds: new Set(['a', 'b']), selectedNodeId: 'a', selectedGroupId: null,
+  zoom: 1.7, panX: -120, panY: 350, nodeTasks: { b: { status: 'running' } } };
+let restored = 0;
+const history = createCanvasHistory({ state, onRestore: () => { restored++; history.record(); } });
+const step = async mutation => { mutation(); history.record(); await Promise.resolve(); };
+await step(() => state.groups.push({ id: 'g', node_ids: ['a', 'b'], title: 'Group 1' }));
+await step(() => { state.nodes[0].x = 80; });
+await step(() => { state.nodes = state.nodes.filter(n => n.id !== 'b'); state.edges = []; state.groups[0].node_ids = ['a']; });
+await step(() => { state.nodes = []; state.groups = []; });
+assert.equal(history.undo(), true);
+assert.deepEqual(state.nodes.map(n => n.id), ['a']);
+assert.equal(history.undo(), true);
+assert.deepEqual(state.nodes.map(n => n.id), ['a', 'b']);
+assert.deepEqual(state.edges, [{ from: 'a', to: 'b' }]);
+assert.deepEqual(state.groups[0].node_ids, ['a', 'b']);
+assert.equal(state.nodes[0].x, 80);
+state.nodeTasks.b.status = 'done';
+state.nodes[0].mediaWidth = 900;
+state.nodes[0].mediaHeight = 1600;
+assert.equal(history.undo(), true);
+assert.equal(state.nodes[0].x, 20);
+assert.equal(state.nodes[0].mediaWidth, 900, 'do not undo asynchronous media metadata');
+assert.equal(state.nodeTasks.b.status, 'done', 'do not undo task progress');
+assert.equal(history.undo(), true);
+assert.equal(state.groups.length, 0);
+assert.equal(history.undo(), false);
+for (let i = 0; i < 4; i++) assert.equal(history.redo(), true);
+assert.equal(state.nodes.length, 0);
+assert.equal(history.redo(), false);
+assert.equal(state.zoom, 1.7);
+assert.equal(state.panX, -120);
+assert.equal(state.panY, 350);
+assert.equal(history.undo(), true);
+await step(() => { state.nodes[0].title = 'New branch'; });
+assert.equal(history.redo(), false, 'a new edit clears redo');
+history.undo();
+assert.equal(state.nodes[0].title, 'A');
+history.reset();
+// Nested saves in one operation form a single history entry.
+state.nodes.push({ id: 'c', x: 800, y: 40 }); history.record();
+state.edges.push({ from: 'a', to: 'c' }); history.record();
+await Promise.resolve();
+history.undo();
+assert.equal(state.nodes.some(n => n.id === 'c'), false);
+assert.equal(state.edges.some(e => e.to === 'c'), false);
+assert.equal(history.undo(), false);
+history.redo();
+history.reset();
+state.nodes[0].mediaWidth = 1200; history.record(); await Promise.resolve();
+assert.equal(history.undo(), false, 'metadata updates do not create entries');
+state.project = { id: 'second' }; state.nodes = []; state.edges = []; history.record(); await Promise.resolve();
+assert.equal(history.undo(), false, 'history does not cross projects');
+assert.ok(restored > 8);
+console.log('PASS: chronological mixed undo/redo, repeated deletions, graph integrity/order, redo branches, atomic node+edge edits, metadata/tasks/viewport preserved, project isolation.');

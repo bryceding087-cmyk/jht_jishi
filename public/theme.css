@@ -1,0 +1,18 @@
+/* Shared dark appearance, typography and control sizing. */
+:root { color-scheme: dark; }
+
+.header-right { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; }
+
+/* All outline icons are one step larger than their neighbouring labels. */
+.ui-icon { width: 20px; height: 20px; }
+.ui-icon-sm { width: 17px; height: 17px; }
+.ui-icon-lg { width: 23px; height: 23px; }
+.new-btn .ui-icon,
+.sidebar nav i .ui-icon,
+.header-actions > button > .ui-icon { width: 20px; height: 20px; }
+.canvas-tools button .ui-icon { width: 18px; height: 18px; }
+.node-icon .ui-icon { width: 17px; height: 17px; }
+.palette-card > .ui-icon { width: 25px; height: 25px; }
+.canvas-dock > button > svg { width: 23px; height: 23px; }
+.canvas-dock > .dock-add > svg { width: 28px; height: 28px; }
+.tool-picker > button > svg { width: 22px; height: 22px; }

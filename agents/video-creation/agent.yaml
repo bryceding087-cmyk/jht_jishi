@@ -1,0 +1,97 @@
+format: jianhuitong-agent-definition/v1
+id: video-creation
+name: 建绘通视频创作助手
+version: 0.3.0
+status: implemented
+host: jianhuitong
+entrypoint: AGENT.md
+execution_enabled: true
+description: 通过导演审查与用户主动润色入口，将故事推进到时长分析、创意、素材、分镜、整片配乐、视频片段及完整视频交付。
+loading:
+  strategy: main_plus_relevant_skills
+  skill_execution: shared_controller_context
+  tool_dispatch: jianhuitong_internal_business_tools
+  note: agent_runtime.py 读取本清单与相关 Skill；主控以确定性阶段调度调用内部业务函数，模型仅返回创作 JSON。
+runtime:
+  controller: agent_runtime.py
+  renderer: agent_media.py
+  api_prefix: /api/agent
+  frontend: public/agent-chat.js
+  execution: in_process_single_worker
+  provider_cost_query: unavailable
+  automatic_lip_sync: false
+  tool_transport: internal_python_functions
+contracts:
+  workflow: contracts/workflow.yaml
+  tools: contracts/tools.yaml
+  runtime: contracts/runtime.md
+  artifacts: contracts/artifacts.md
+  conversation: contracts/conversation.md
+defaults:
+  language: zh-CN
+  interaction_mode: guided
+  story_polishing: user_initiated
+  music_generation_order: after_storyboard_before_video
+  ratio: null
+  target_duration_seconds: null
+  budget_limit: null
+  model_selection: project_default_if_compatible
+  max_parallel_media_tasks: 1
+  max_automatic_retries_after_confirmed_failure: 0
+  paid_retry_requires_remaining_authorized_budget: true
+  publish_destination: project_library
+  note: v0.3 顺序提交媒体，失败需用户主动重试；原有任务先恢复查询。费用未知时不做虚构预算拦截。
+controller_tools:
+  - jht_run_load
+  - jht_run_checkpoint
+  - jht_ui_present
+  - jht_delivery_package
+skills:
+  - id: project-context
+    path: skills/project-context/SKILL.md
+    tools: [jht_project_context, jht_project_create, jht_run_load]
+  - id: director
+    path: skills/director/SKILL.md
+    tools: [jht_document_save]
+  - id: story-polishing
+    path: skills/story-polishing/SKILL.md
+    tools: [jht_story_polish, jht_document_save]
+  - id: model-budget
+    path: skills/model-budget/SKILL.md
+    tools: [jht_models_list, jht_budget_estimate]
+  - id: story-analysis
+    path: skills/story-analysis/SKILL.md
+    tools: [jht_document_save]
+  - id: creative-design
+    path: skills/creative-design/SKILL.md
+    tools: [jht_document_save]
+  - id: visual-assets
+    path: skills/visual-assets/SKILL.md
+    tools: [jht_assets_search, jht_assets_import, jht_characters_save, jht_images_generate, jht_images_query]
+  - id: storyboard-planning
+    path: skills/storyboard-planning/SKILL.md
+    tools: [jht_script_generate, jht_script_save]
+  - id: prompt-composition
+    path: skills/prompt-composition/SKILL.md
+    tools: [jht_script_generate, jht_script_save]
+  - id: video-generation
+    path: skills/video-generation/SKILL.md
+    tools: [jht_video_generate, jht_video_query, jht_video_cache, jht_video_save_asset]
+  - id: voice-production
+    path: skills/voice-production/SKILL.md
+    tools: [jht_assets_search, jht_voice_prepare, jht_speech_generate, jht_audio_query]
+  - id: music-production
+    path: skills/music-production/SKILL.md
+    tools: [jht_assets_search, jht_music_generate, jht_audio_query]
+  - id: video-editing
+    path: skills/video-editing/SKILL.md
+    tools: [jht_media_inspect, jht_subtitles_align, jht_timeline_save, jht_render_submit, jht_render_query]
+  - id: quality-review
+    path: skills/quality-review/SKILL.md
+    tools: [jht_media_inspect]
+  - id: canvas-management
+    path: skills/canvas-management/SKILL.md
+    tools: [jht_project_context, jht_canvas_apply, jht_canvas_expand_storyboard]
+  - id: revision-recovery
+    path: skills/revision-recovery/SKILL.md
+    tools: [jht_run_load, jht_video_query, jht_images_query, jht_audio_query, jht_render_query, jht_run_control]

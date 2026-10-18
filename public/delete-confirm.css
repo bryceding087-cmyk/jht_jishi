@@ -1,0 +1,89 @@
+/* Shared confirmation surface for projects and the asset library. */
+.modal.delete-confirm-modal {
+  width: min(460px, calc(100vw - 32px));
+  padding: 28px;
+  border: 1px solid #ffffff14;
+  border-radius: 18px;
+  background: #232323;
+  box-shadow: 0 24px 80px #0009;
+}
+.delete-confirm-modal .modal-close {
+  top: 14px;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  border-radius: 7px;
+  color: #929292;
+}
+.delete-confirm-modal .modal-close:hover { background: #ffffff0d; color: #eee; }
+.delete-confirm-heading { display: flex; align-items: flex-start; gap: 14px; padding-right: 18px; }
+.delete-confirm-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #ef858522;
+  border-radius: 13px;
+  background: #ed777712;
+  color: #ed9999;
+}
+.delete-confirm-icon .ui-icon { display: block; width: 23px; height: 23px; }
+.delete-confirm-modal h2 { margin: 0 0 6px; color: #f2f2f2; font-size: 18px; line-height: 1.5; font-weight: 600; }
+.delete-confirm-modal .delete-confirm-heading p { margin: 0; color: #a1a1a1; font-size: 13px; line-height: 1.7; }
+.delete-confirm-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin-top: 22px;
+  padding: 13px 14px;
+  border: 1px solid #ffffff0a;
+  border-radius: 10px;
+  background: #1b1b1b;
+  color: #d1d1d1;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.delete-confirm-item .ui-icon { flex: 0 0 18px; width: 18px; height: 18px; color: #858585; }
+.delete-confirm-item span { min-width: 0; overflow-wrap: anywhere; }
+.delete-confirm-list { max-height: 200px; overflow-y: auto; margin-top: 22px; }
+.delete-confirm-list .delete-confirm-item { margin-top: 6px; }
+.delete-confirm-list .delete-confirm-item:first-child { margin-top: 0; }
+.delete-confirm-modal .delete-confirm-note { margin: 12px 0 0; color: #929292; font-size: 12px; line-height: 1.7; }
+.delete-confirm-modal .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 26px; }
+.delete-confirm-modal .modal-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 76px;
+  height: 38px;
+  padding: 0 15px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+.delete-confirm-modal .modal-actions .secondary { border-color: #ffffff18; background: #2b2b2b; color: #d3d3d3; }
+.delete-confirm-modal .modal-actions .secondary:hover { border-color: #ffffff30; background: #353535; }
+.delete-confirm-modal .modal-actions .danger-fill { background: #c85863; color: #fff; }
+.delete-confirm-modal .modal-actions .danger-fill:hover { background: #da6570; }
+.delete-confirm-modal .modal-actions .ui-icon { flex: 0 0 16px; width: 16px; height: 16px; }
+.delete-confirm-modal button:focus-visible { outline: 2px solid #b1b1b1; outline-offset: 3px; }
+.delete-confirm-modal button:disabled { opacity: .5; cursor: wait; }
+.delete-confirm-modal button[hidden] { display: none; }
+.delete-confirm-modal .al-error { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 480px) {
+  .modal.delete-confirm-modal { padding: 24px 20px 20px; }
+  .delete-confirm-heading { gap: 12px; }
+  .delete-confirm-modal .modal-actions { margin-top: 22px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .delete-confirm-modal .modal-actions button { transition: none; }
+}

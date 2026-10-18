@@ -1,0 +1,1536 @@
+{
+  "created_date": "2026-10-18",
+  "source_directory": "D:\\coding\\projects\\jainhuitong",
+  "archive_root": "jainhuitong",
+  "scope": "Source code and static resources only; business data and local environment excluded.",
+  "root_directories_excluded": [
+    ".git",
+    ".idea",
+    ".runtime",
+    ".venv",
+    ".vscode",
+    "coverage",
+    "data",
+    "htmlcov",
+    "node_modules",
+    "outputs",
+    "playwright-report",
+    "test-results",
+    "uploads",
+    "venv",
+    "work"
+  ],
+  "file_count": 302,
+  "files": [
+    {
+      "path": ".env.example",
+      "bytes": 725,
+      "sha256": "4eef483b451f140c1bf99026812b7375d71aa86bd15bedcc71d23e3c05e225c5"
+    },
+    {
+      "path": ".gitattributes",
+      "bytes": 287,
+      "sha256": "0d8c14a2a9af74b4aa833be519c0fe9c0704fe725609af362253589d577aaee8"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 687,
+      "sha256": "76bdf6358971e44b368e81eb3d7c42bca2d637cd4f5693c7dc1c9009cb77a4c6"
+    },
+    {
+      "path": "README.md",
+      "bytes": 27291,
+      "sha256": "d794b887ae019f8b43b88489c97154eeb74857ed765f375852c78631efcb9db9"
+    },
+    {
+      "path": "agent_canvas.py",
+      "bytes": 9729,
+      "sha256": "3296570e8f86a6a4c11b54f4fe3e4af04aaff839b4be502fb00fa9fc7fcf333a"
+    },
+    {
+      "path": "agent_dialogue.py",
+      "bytes": 15425,
+      "sha256": "1337cf78476e75382534bf34cc06a73ec84dc6c7f3b4c1e3302502d5329ea4e0"
+    },
+    {
+      "path": "agent_media.py",
+      "bytes": 9719,
+      "sha256": "0bd7c139bf16080e861467105786511f6d6994a3008e279182269a25ac1f156e"
+    },
+    {
+      "path": "agent_planning.py",
+      "bytes": 7370,
+      "sha256": "0a96a06b808cd7064b02a67d5ff82476298f36f21af21f26ba147e0b0287a20a"
+    },
+    {
+      "path": "agent_runtime.py",
+      "bytes": 101486,
+      "sha256": "c8f50e2de3c2f3a353f7d09dcee4c026f021883b51db63fdfa28518cff01d100"
+    },
+    {
+      "path": "agents/video-creation/AGENT.md",
+      "bytes": 12494,
+      "sha256": "ee433a8ae1e6351d46b47466dfd245a71b3536512455b444cb4a06f15374c100"
+    },
+    {
+      "path": "agents/video-creation/README.md",
+      "bytes": 12041,
+      "sha256": "0053cf84f8bd59092b93f9c2e59264886f2a1b38602fe325f995eebf86abc809"
+    },
+    {
+      "path": "agents/video-creation/REVIEW.md",
+      "bytes": 8473,
+      "sha256": "a980368db28eeecf9a3b9d51ada4f99306cd411ab947fb7784a9517a508b3a77"
+    },
+    {
+      "path": "agents/video-creation/agent.yaml",
+      "bytes": 3893,
+      "sha256": "f41db97b7c61137e0dc015028f6ce1db2823f9d0bc5ac4b2c04250d23f20a38b"
+    },
+    {
+      "path": "agents/video-creation/contracts/artifacts.md",
+      "bytes": 9873,
+      "sha256": "0f737b7ac6d1dea6ed4c0ee19401c64a8abac0ebe7d75cb7e80bf07e7a7927fa"
+    },
+    {
+      "path": "agents/video-creation/contracts/conversation.md",
+      "bytes": 6937,
+      "sha256": "8059efcc78b984fd23aead97eedbaeea0a194d20bcd38f649b50a93afe986251"
+    },
+    {
+      "path": "agents/video-creation/contracts/runtime.md",
+      "bytes": 10907,
+      "sha256": "0dacf6d7c53b8e95c3bbcbb06a890eb62358460f8ef6b74aadbed5ce975276bc"
+    },
+    {
+      "path": "agents/video-creation/contracts/tools.yaml",
+      "bytes": 20433,
+      "sha256": "46cd507c7d6479b9e4f4bb216442d0f2a9216ea216f0b64358eb4a1d0ce0a6b7"
+    },
+    {
+      "path": "agents/video-creation/contracts/workflow.yaml",
+      "bytes": 9985,
+      "sha256": "876aa59d1d2774cf09764184c0a759e9b816fbacfa65c28c9b2b3b1b6149c23a"
+    },
+    {
+      "path": "agents/video-creation/examples/run-snapshot.json",
+      "bytes": 1830,
+      "sha256": "f814a229fba950e1097a5195811a4c80829631c8adb6502a151dbaeb993b9a0c"
+    },
+    {
+      "path": "agents/video-creation/examples/skill-result.json",
+      "bytes": 1296,
+      "sha256": "c6be6deadb9b11a4621225709050d3f4d358a2ccca2d35449028dd2289052823"
+    },
+    {
+      "path": "agents/video-creation/examples/story-decisions.md",
+      "bytes": 2811,
+      "sha256": "d0c211b91f36932543eaf5da5243f2cded090573ee64105ec748f4f8889b2975"
+    },
+    {
+      "path": "agents/video-creation/skills/canvas-management/SKILL.md",
+      "bytes": 3259,
+      "sha256": "ad507f17fc7fb308e154f779638bfbf16d774144967b383b226b344e0e712d47"
+    },
+    {
+      "path": "agents/video-creation/skills/creative-design/SKILL.md",
+      "bytes": 2604,
+      "sha256": "d88237f28e5a2f61ca8b3061a26935466d2fa76a6b6f74afd1a05487d0792d3a"
+    },
+    {
+      "path": "agents/video-creation/skills/director/SKILL.md",
+      "bytes": 3086,
+      "sha256": "723319546bbbe3c73327efda240a26ba28edf5a3a871294a9a54227bf3d96600"
+    },
+    {
+      "path": "agents/video-creation/skills/model-budget/SKILL.md",
+      "bytes": 1949,
+      "sha256": "98929029812b289c8b0f7a105bc7585df7dcdae7f397c05a0ce7374dc00feeaa"
+    },
+    {
+      "path": "agents/video-creation/skills/music-production/SKILL.md",
+      "bytes": 2715,
+      "sha256": "17b94e2990b3a27b9bb19f5c421c62077019ee1ddf1d6fad48ff9eb3b70f172c"
+    },
+    {
+      "path": "agents/video-creation/skills/project-context/SKILL.md",
+      "bytes": 1977,
+      "sha256": "6a647e1a5d0c75eb2f4e447090bd75062526d3cbb4b500d45164a704bbb9948c"
+    },
+    {
+      "path": "agents/video-creation/skills/prompt-composition/SKILL.md",
+      "bytes": 1960,
+      "sha256": "154a2fd13b4cc137620360445311e6eb3841c0a8b8d1f5afd2399e238c8c3911"
+    },
+    {
+      "path": "agents/video-creation/skills/quality-review/SKILL.md",
+      "bytes": 2363,
+      "sha256": "6763720c16f1b9510d6fce23c25d806a0c85490514be2096ec5000b2897b9498"
+    },
+    {
+      "path": "agents/video-creation/skills/revision-recovery/SKILL.md",
+      "bytes": 3395,
+      "sha256": "5ca4c90b878f4e3f0f71371b5a014c077629562c257f3c076c41355cd573e142"
+    },
+    {
+      "path": "agents/video-creation/skills/story-analysis/SKILL.md",
+      "bytes": 2088,
+      "sha256": "6814fd98b045f56aeffcadf614103fb174c4a4fbe70e03f4fe85b0a9e3d05267"
+    },
+    {
+      "path": "agents/video-creation/skills/story-polishing/SKILL.md",
+      "bytes": 2327,
+      "sha256": "f7b8c86cba298b707ac498a9695d9a93b39e8a0f823d4b0b5c4417e3449d40e3"
+    },
+    {
+      "path": "agents/video-creation/skills/storyboard-planning/SKILL.md",
+      "bytes": 2453,
+      "sha256": "0becac7ad58d0b68540c18613a102004680dd819283ac06890295e4a2e8e6ba9"
+    },
+    {
+      "path": "agents/video-creation/skills/video-editing/SKILL.md",
+      "bytes": 2492,
+      "sha256": "c109df0b332431a52198617cdf3beb3c54d2924c93c79e048179a7936840e2bf"
+    },
+    {
+      "path": "agents/video-creation/skills/video-generation/SKILL.md",
+      "bytes": 2189,
+      "sha256": "afdd0bdad7c46e82f90c4376bb8f68801324a927393ded3e01f7077f8d7ae677"
+    },
+    {
+      "path": "agents/video-creation/skills/visual-assets/SKILL.md",
+      "bytes": 2400,
+      "sha256": "afe9ca2a379475fe6ae5ba1c853125cfedad17d83d4829d73defcd4a27dffd69"
+    },
+    {
+      "path": "agents/video-creation/skills/voice-production/SKILL.md",
+      "bytes": 2889,
+      "sha256": "25bb3743326603e29c4fba0d1ca9b288d8beacd690f055eaa2adbd01a3ca9c19"
+    },
+    {
+      "path": "agents/video-creation/templates/creative-brief.md",
+      "bytes": 3001,
+      "sha256": "43891496cd234733c2a4e698a8c3c098a98ae6edd4832ba0d8bf209b6d895c70"
+    },
+    {
+      "path": "agents/video-creation/templates/music-brief.md",
+      "bytes": 1746,
+      "sha256": "9f1cd9469ec216253caddfde8ff62c39a1e05f9d993b15997956054d8cbd0368"
+    },
+    {
+      "path": "agents/video-creation/templates/shot-prompt.md",
+      "bytes": 1151,
+      "sha256": "eab6d87aa1ecfeb10542fbda3df8e29ac2de3d6270b86c992360f68999b72cdc"
+    },
+    {
+      "path": "agents/video-creation/templates/story-analysis.md",
+      "bytes": 1883,
+      "sha256": "a77a7c6722275402041d0663d9abdbf3c05d5a9f7ae6667b3ae9b57b950791f9"
+    },
+    {
+      "path": "agents/video-creation/templates/story-review.md",
+      "bytes": 1417,
+      "sha256": "5034a0d9f704ef489535583c366db218756484d795d457c8b14b86a01c2d430c"
+    },
+    {
+      "path": "agents/video-creation/templates/storyboard.md",
+      "bytes": 2252,
+      "sha256": "3e46272c5e05aa24a48fe16fe7737a2fd8777c503025d7b9fb6c2165ac18994b"
+    },
+    {
+      "path": "app.py",
+      "bytes": 145444,
+      "sha256": "783e65f52347217aa8c12132fb5b72edf2e44aaa11589281e9d18abd91f60100"
+    },
+    {
+      "path": "asset_service.py",
+      "bytes": 8628,
+      "sha256": "67e31c526e6aa0b4dd75d51f357761902aa88bd1a827ea8addbd24e59ef13e40"
+    },
+    {
+      "path": "audio_service.py",
+      "bytes": 13023,
+      "sha256": "577261ccc8893da9856a710d5749cffc170d135c438375700371567d9b10a0b8"
+    },
+    {
+      "path": "auth_service.py",
+      "bytes": 15444,
+      "sha256": "b2eb415601dab240059edf40431a7f3971228052d28fb009f2267d5e3f4f9488"
+    },
+    {
+      "path": "content_errors.py",
+      "bytes": 1613,
+      "sha256": "b71c71f237705e5e67d2bcc083cedb3913751e6b493b24bc485d2db28ab99c2f"
+    },
+    {
+      "path": "conversation_generation.py",
+      "bytes": 8238,
+      "sha256": "76d823735b229f1b5d970990648614e11e85dc19dd54ec65c694476018648306"
+    },
+    {
+      "path": "conversation_service.py",
+      "bytes": 14952,
+      "sha256": "f3c6d64913e46d99330ce3b7f01bcdd3249b5fa64ca07ee271cee45c4752a2fa"
+    },
+    {
+      "path": "creator_metadata.py",
+      "bytes": 785,
+      "sha256": "2f41a42e0f31dbfd8f25bd21d9770e8dcdfee87d5cd5ffa12c9b15d9d610a92c"
+    },
+    {
+      "path": "data_access.py",
+      "bytes": 4874,
+      "sha256": "15736eaa34ce71ac7b4936c454fa4e0c396b3999456781faccfd0d31e0647c69"
+    },
+    {
+      "path": "docs/aimarket-sdk.md",
+      "bytes": 11559,
+      "sha256": "a2c46c33bef769ad67c15fdec0bf20e876f4d0657ab5a9353ff5a0cb71115d56"
+    },
+    {
+      "path": "docs/aimarket-url-agent-gap-review-2026-10-18.md",
+      "bytes": 11202,
+      "sha256": "de0d0552d0680a6da99cf79f1a86ac02abc59fb3f09888096e24ebbbfd3a34ec"
+    },
+    {
+      "path": "docs/canvas-info-and-creators.md",
+      "bytes": 3872,
+      "sha256": "73f9743133024cf4cb50b0fdde4b86c9169b09f7fc7e2547e685fb4a65ea927f"
+    },
+    {
+      "path": "docs/conversation-generation.md",
+      "bytes": 1741,
+      "sha256": "4711e3401696156b28fa0343964766ca618a168157bf2292aa43667215a8cfcf"
+    },
+    {
+      "path": "docs/database-deployment.md",
+      "bytes": 6730,
+      "sha256": "6b7a5487ea93b66dec34294ae784b60f4e770bf95a6b209737abe5154ca362ea"
+    },
+    {
+      "path": "docs/legacy-cleanup.md",
+      "bytes": 4632,
+      "sha256": "ea4ba0f9a32e36e4f6c503b53b653fed5f1bde0be014042bc13a98634ae3eb8c"
+    },
+    {
+      "path": "docs/liblib-canvas-redesign.md",
+      "bytes": 14295,
+      "sha256": "04361a04b56e2492fbe43a1ffac579c79a1df2b8d96dbc3f058e98336c04a101"
+    },
+    {
+      "path": "docs/loading-states.md",
+      "bytes": 2941,
+      "sha256": "f9d0fbe2340b96b6dd4907fb50a26af3bc659edee97de2b178cf4163090faa45"
+    },
+    {
+      "path": "docs/modal-motion.md",
+      "bytes": 1825,
+      "sha256": "071e6b3179e2e0e45dd0d9406375feab3ed422079960312db8087c724330bcd4"
+    },
+    {
+      "path": "docs/production-readiness-review-2026-10-18.md",
+      "bytes": 12662,
+      "sha256": "e8553dab4464eac83ea3c94081e0cd68841668df638caa8bd259dc9bc016c75a"
+    },
+    {
+      "path": "docs/user-isolation.md",
+      "bytes": 5968,
+      "sha256": "f6eb9b7a21ccdf63c3fe370c2cf6aa10ed8e0c3e314e20a79fc0698bead4e8bf"
+    },
+    {
+      "path": "docs/video-generation-agent/README.md",
+      "bytes": 1121,
+      "sha256": "367d60eddab1c0c1bcad4a8478be1f248c3386f7a541469fd11974ec51438620"
+    },
+    {
+      "path": "docs/video-generation-agent/SKILL.md",
+      "bytes": 680,
+      "sha256": "1c9dd3784d02677e54c783063ba6b190585acff0d07b071f954d6bd42468afb3"
+    },
+    {
+      "path": "docs/visual-styles.md",
+      "bytes": 3423,
+      "sha256": "8f8b6e11533eb00d911ab7b4e6dddc9394848fe2253cfa74326b7163584b43d6"
+    },
+    {
+      "path": "group_service.py",
+      "bytes": 1955,
+      "sha256": "6853601d043807d340201d3c7dbd16321d9f329d84ba4e889a3b7cf6e1b8b998"
+    },
+    {
+      "path": "image_service.py",
+      "bytes": 5074,
+      "sha256": "a69f4adc2210b02a9cbd1a304b9f1c4fef78529bcd359e3e48cca68e7f6f8ef5"
+    },
+    {
+      "path": "market_service.py",
+      "bytes": 13461,
+      "sha256": "a847b7ad160b4e4adedf19730f305e289d3f1d1ac86fe91536c6e0404b37b537"
+    },
+    {
+      "path": "media_library.py",
+      "bytes": 6225,
+      "sha256": "23525d1f7dba0226100221fb4361869289941f28860b1248584faefc05e3f1f0"
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 215,
+      "sha256": "38de436d31824d24eee2c5ffe5a714d8715f8e6bf8685ce208c9cfd1f07f0d47"
+    },
+    {
+      "path": "package.json",
+      "bytes": 196,
+      "sha256": "ca9f40667cf07a55cfd33cdcd69ff755de2ae1a6a3d60f0a78242db7907d5010"
+    },
+    {
+      "path": "provider_adapters.py",
+      "bytes": 10779,
+      "sha256": "1bc821a6c5f04a4a79d68daf4aa68ce70393052a8a10e0f5ec2ba3f44d157c8c"
+    },
+    {
+      "path": "public/agent-chat.css",
+      "bytes": 23554,
+      "sha256": "55bad8a8dee5da1a05f1b42f3bd4e6d724f2c0e4b607be81bd2797a9c7745352"
+    },
+    {
+      "path": "public/agent-chat.js",
+      "bytes": 33597,
+      "sha256": "8a0cbd60a7394798ea195ebc8d1f22e812e5cac3250cf49d52d8886c48979c44"
+    },
+    {
+      "path": "public/agent-conversation.css",
+      "bytes": 5558,
+      "sha256": "309fcf31a4f36be199e0a657a70c54ce5b06964d317690e3af49313f7d6e35d0"
+    },
+    {
+      "path": "public/app.js",
+      "bytes": 208008,
+      "sha256": "107a2e49e446a432895625a709fd6888e93596c7d481d95d8d2435ab299d9647"
+    },
+    {
+      "path": "public/apple-touch-icon.png",
+      "bytes": 37423,
+      "sha256": "652c1d2ba8d8b998df128181dc517e8e453c324a6ea77fec37115a4247a07c5f"
+    },
+    {
+      "path": "public/asset-history.css",
+      "bytes": 6480,
+      "sha256": "21031d7cf8e59b9a5d60af079edc79e98284c0a62ee14f86a8b859a4c007fc6d"
+    },
+    {
+      "path": "public/asset-library.css",
+      "bytes": 11274,
+      "sha256": "a62737d259f1b0258a1a4f630deeee1f69166c9958c138f8428236e4d6102440"
+    },
+    {
+      "path": "public/asset-library.js",
+      "bytes": 47121,
+      "sha256": "3ffa29f0f0b061e654cbb6f8abe0b44e8c6443c59dad363f49071cc0539c65ac"
+    },
+    {
+      "path": "public/asset-mentions.css",
+      "bytes": 8044,
+      "sha256": "9b02373083bb624f084f4f861e5d10c677e19ebbc09c2c0736c3448c8a5b8e32"
+    },
+    {
+      "path": "public/asset-mentions.js",
+      "bytes": 16990,
+      "sha256": "5b60eff569f22fb80ddb96a6d64b1211424996ce894c5cc641baf9afb962fece"
+    },
+    {
+      "path": "public/asset-preview.css",
+      "bytes": 5520,
+      "sha256": "fea4581b18295ad1a4eae460a87a063a2e8ab59fe30d7cce029a608cd2f9f577"
+    },
+    {
+      "path": "public/audio-generation.css",
+      "bytes": 7091,
+      "sha256": "cae06a44430e2e441d6dedc5a777938a78b38583d3b240cdeaad022a543fc47e"
+    },
+    {
+      "path": "public/audio-generation.js",
+      "bytes": 22255,
+      "sha256": "234530adff87bade5b98f05f21a803d9e4c765db62c3ca722a8f2268fa3e14cc"
+    },
+    {
+      "path": "public/aurora-loader.css",
+      "bytes": 2036,
+      "sha256": "83e3de37fa74aa082bd018c5ae186d398165b47afaeb9280b4b12c0b316da506"
+    },
+    {
+      "path": "public/brand-logo-transparent.png",
+      "bytes": 496345,
+      "sha256": "568e83949a26b401390505d58dc92b1eb391e0271155d7580430b90ab42e25e2"
+    },
+    {
+      "path": "public/brand-wordmark.svg",
+      "bytes": 8604,
+      "sha256": "8df33b6b8b9913ee174655ee4f0f71bff6ae4cf09e451f5f3687f06d45cf4c43"
+    },
+    {
+      "path": "public/brand.css",
+      "bytes": 11765,
+      "sha256": "221fd25afeb5dae9c493f5fafc9213066eef1229b7f264ecf0f9f37b8251a362"
+    },
+    {
+      "path": "public/canvas-agent.css",
+      "bytes": 5655,
+      "sha256": "d98a504199313447d6ccc5724e526bd98777b27fb2e452a5b220ab78d8bd1e10"
+    },
+    {
+      "path": "public/canvas-agent.js",
+      "bytes": 7023,
+      "sha256": "452e69a47d7a4f6e3da87df517af0fb8ce94c9bd0b3d3551c4643cb92d9a6570"
+    },
+    {
+      "path": "public/canvas-chrome.css",
+      "bytes": 12738,
+      "sha256": "be5200edb22bb652dfb24a0dec867e40fa564de3ed13406c777fe404fe297566"
+    },
+    {
+      "path": "public/canvas-connections.css",
+      "bytes": 3619,
+      "sha256": "942f5aba37efd2d1c5d724b50b488b0e44937054aa6d24c33885e0b54f1f5702"
+    },
+    {
+      "path": "public/canvas-connections.js",
+      "bytes": 8699,
+      "sha256": "fe63fc3f86d32f96fb380a17fa819de916ca54b47579d6ef51e7a3f17f7d038a"
+    },
+    {
+      "path": "public/canvas-groups.css",
+      "bytes": 3613,
+      "sha256": "bf2fb780888665db4cd395c1a8671ca7e69b3259e007687d5f1afb7e714b042d"
+    },
+    {
+      "path": "public/canvas-groups.js",
+      "bytes": 18551,
+      "sha256": "aaf1e8bd96d4bd329e0df75737e71e937092724dcaa445eb3e4fd8aafcd4833c"
+    },
+    {
+      "path": "public/canvas-history.js",
+      "bytes": 4499,
+      "sha256": "af977f9a2b3e4e9c2a6caf843bfed72666978db05990f2e5f3b3fa48b3ed1657"
+    },
+    {
+      "path": "public/canvas-motion.js",
+      "bytes": 1678,
+      "sha256": "8fe997d7c959e98edfb9943786ffbd2a2bb61680f50ef76c45d1c90832f95994"
+    },
+    {
+      "path": "public/canvas-reference-icons.js",
+      "bytes": 12489,
+      "sha256": "f3c105f1637a7a04b325a6b787afb2907f43db7a2d1329d21562097bbab1ea1e"
+    },
+    {
+      "path": "public/canvas-ui.css",
+      "bytes": 19903,
+      "sha256": "b1f6e92e41437b2099a230527adc77dcf6787bfaa1c150f73de15119427a5a0d"
+    },
+    {
+      "path": "public/canvas-workspace.css",
+      "bytes": 38027,
+      "sha256": "e37d0ccaaa85c95b9a0ba64e4bf386d2523a3ba778c22d2fa4b6bfa381d88896"
+    },
+    {
+      "path": "public/canvas-workspace.js",
+      "bytes": 25598,
+      "sha256": "25da2aa607d103c8c852cee13bc0fad3995f1e513dcc4f89cda5003983b1ce9a"
+    },
+    {
+      "path": "public/delete-confirm.css",
+      "bytes": 3493,
+      "sha256": "bb955ab1c332fc50d091b2e176b57753495b8e8dd204f2710772dcd7402a4a37"
+    },
+    {
+      "path": "public/dream-home.css",
+      "bytes": 25808,
+      "sha256": "cd9759068589928c546e1bde3ff63ea28445fbb01da6fa5009d3ef303948c4c3"
+    },
+    {
+      "path": "public/favicon.ico",
+      "bytes": 106493,
+      "sha256": "158bd3fd4a2b46dbec4f6a24dce787dce2d1c140afe005618528ec75435a88b4"
+    },
+    {
+      "path": "public/favicon.svg",
+      "bytes": 285,
+      "sha256": "92cc9a04a835339ab07cb9863e6250670a3b66acdbbb92d8e0db7116d390014c"
+    },
+    {
+      "path": "public/generation-conversation.css",
+      "bytes": 14135,
+      "sha256": "2c107d35738b6d82eb833ba48e035746a8c297e12e1e31f109fc1633278758a4"
+    },
+    {
+      "path": "public/generation-request.js",
+      "bytes": 1453,
+      "sha256": "1a901bae85c26a4c6db98df584b122f9cedde4826f8848aaead6b52e75900d47"
+    },
+    {
+      "path": "public/generation-state.js",
+      "bytes": 3727,
+      "sha256": "71b325dadabce92b89b7fdd106009ebe719ac212a7cc98a93b3d1c8746ad9b19"
+    },
+    {
+      "path": "public/home-composer.css",
+      "bytes": 15696,
+      "sha256": "1352c7c6d8cba9f774a07a89e823e1c75baf0f8bad800da3e6515d290f2d59ff"
+    },
+    {
+      "path": "public/home-composer.js",
+      "bytes": 44714,
+      "sha256": "f83746034787380298ddb0cf0a5d882d2f88f02bedcde460e7f662841aab063a"
+    },
+    {
+      "path": "public/home-hub.js",
+      "bytes": 8483,
+      "sha256": "6bd636a67296b09dbf42cbb6172d763406f6b2bb1765600d5f439b23ddd0629f"
+    },
+    {
+      "path": "public/home-preferences.js",
+      "bytes": 6393,
+      "sha256": "2f16d60b626ac8df2588cb99d9987f12a747e9379700afa2eb99a662baf723cc"
+    },
+    {
+      "path": "public/home-tabs.css",
+      "bytes": 5510,
+      "sha256": "1717cc03b536a4226fff0fa7dbba00c8d7935e968a19c78182a2464695a79898"
+    },
+    {
+      "path": "public/icon-128.png",
+      "bytes": 19324,
+      "sha256": "aecc8022d5a7b527831103dfad6845dec9bd5a747856217014580675cfbe0d4c"
+    },
+    {
+      "path": "public/icon-16.png",
+      "bytes": 708,
+      "sha256": "b46669bb9877a07cdeee2fdd9e1a9937f95e5c5d9ec9585c3db30ee1f7a53e04"
+    },
+    {
+      "path": "public/icon-192.png",
+      "bytes": 42613,
+      "sha256": "5679eb598e65b152e6e3ccfb41a6ede8d4bb838fcb576b98ef43c8dfd1fbc71b"
+    },
+    {
+      "path": "public/icon-32.png",
+      "bytes": 1755,
+      "sha256": "d0158393df1c19dde7458113d575ca77057b4a13252e3ee659d2e44ed934e9e4"
+    },
+    {
+      "path": "public/icon-512.png",
+      "bytes": 296994,
+      "sha256": "6f9f819ee34d41f283364475f0c67becd666ccec68e7b03898e90104e3950cc9"
+    },
+    {
+      "path": "public/iconography.js",
+      "bytes": 5312,
+      "sha256": "a3de25d07b9ae318ddd2b047137d7d58541addfe5afc420b987c914cc5d622a4"
+    },
+    {
+      "path": "public/image-generation.css",
+      "bytes": 9153,
+      "sha256": "42af8f2a8cd85fa0fb1614c30551807cfdcd983cd37d4c0f312fec7de127e8c2"
+    },
+    {
+      "path": "public/image-generation.js",
+      "bytes": 19167,
+      "sha256": "38e4fefd7da9076923dc7453389fca7c358a9705ccb28521ce3fae1d2c5f30e6"
+    },
+    {
+      "path": "public/image-lightbox.css",
+      "bytes": 1249,
+      "sha256": "d5eb08ead7c710fa1a6ab4de8f84ee7157f3ce90af75a10b5766f612d21cb4f8"
+    },
+    {
+      "path": "public/image-lightbox.js",
+      "bytes": 2304,
+      "sha256": "70a9b340733af4ab4b72fa9ccf377c3ade7fa58d861955b9ffdec962c392e0a8"
+    },
+    {
+      "path": "public/index.html",
+      "bytes": 17806,
+      "sha256": "e532c43fa831e39a7bb2e1009359e9b7ae6460c66e6e212c329383f5f8c3896f"
+    },
+    {
+      "path": "public/inline-node-media.css",
+      "bytes": 7696,
+      "sha256": "a551cbb38d212727ceb2043bb8b6e63c500aa4e3768073f57f857f72c34cd064"
+    },
+    {
+      "path": "public/inline-node-media.js",
+      "bytes": 22456,
+      "sha256": "d990b80a7a82e4e724dd57d24bb75c045ac3e17c2b70373dc0b34050acd23a69"
+    },
+    {
+      "path": "public/loading-state.css",
+      "bytes": 1793,
+      "sha256": "d7564a56ce546358e010a408993dba2c387683b8a54b1e1d10aae3f2d297aa13"
+    },
+    {
+      "path": "public/loading-state.js",
+      "bytes": 3054,
+      "sha256": "e5e2c0d99b871ccb76bba949f9b9fa27a1297700616d87e330e31ac62c408f70"
+    },
+    {
+      "path": "public/login-art.svg",
+      "bytes": 6398,
+      "sha256": "3fd138899f16b2b0ddc9d4c35c29ab7879e7dc886f7c1eebdf51d1f6a14f2106"
+    },
+    {
+      "path": "public/login.css",
+      "bytes": 10938,
+      "sha256": "6ff48fe4bd4c3f6d8bcf5da6f380e8c7a478a2d1036459c4e0b898458c7b9f4c"
+    },
+    {
+      "path": "public/login.html",
+      "bytes": 7595,
+      "sha256": "ff28e018a55098751fbdcc1ac2a2f3ebbbb53e0d45cf8d1a06b298b2df3d553e"
+    },
+    {
+      "path": "public/login.js",
+      "bytes": 4942,
+      "sha256": "b2cd05339d48dce1909945f18f3131c1a4c9f1f029c4bed748e026e3f98d70c3"
+    },
+    {
+      "path": "public/markdown.js",
+      "bytes": 1863,
+      "sha256": "a03e3bb12e7db836abc8c223e8296a584ed6615f746f4546cc8dc09b37b01e3c"
+    },
+    {
+      "path": "public/market-session.js",
+      "bytes": 13453,
+      "sha256": "09d1fefcb525c0c8432585a61bd0dfd0b1e679dd71f020b5c40ccdf33eb781bc"
+    },
+    {
+      "path": "public/market.css",
+      "bytes": 1682,
+      "sha256": "6a772e05d9a5a9f5b22b77c28349b999ac231755cbc9932876d7e792fae37fc6"
+    },
+    {
+      "path": "public/media-nodes.css",
+      "bytes": 13462,
+      "sha256": "3fe146c0cff51142ffc3b4f92626bea22906ab737961dccb12664e3101a7fc42"
+    },
+    {
+      "path": "public/media-nodes.js",
+      "bytes": 14263,
+      "sha256": "e2d529f9af1ea1ce891f9d7fe2e15c9ac59dbff91fb2727a17378e565e65e2ae"
+    },
+    {
+      "path": "public/mention-editor.js",
+      "bytes": 8611,
+      "sha256": "cc0aede6a03faf2d9f8230ceacb3f3f2df1e6215529a762887e487390ebba205"
+    },
+    {
+      "path": "public/modal-motion.css",
+      "bytes": 294,
+      "sha256": "11b52aa5747399aaf067fea4c13f7de9cd11222f43c0c2241930b24a86df9e57"
+    },
+    {
+      "path": "public/modal-motion.js",
+      "bytes": 4887,
+      "sha256": "befdf391f2691cc4611370b821a084d61cd129f3a651582aa8279901b4db5a4a"
+    },
+    {
+      "path": "public/model-manager.css",
+      "bytes": 11211,
+      "sha256": "f95c8811b7e14f401701fa3ffbec0be22b0c785f754a997a83db3f7d87f13d99"
+    },
+    {
+      "path": "public/model-manager.js",
+      "bytes": 18268,
+      "sha256": "607741e4995ab602b8200df212eb785d99c21338d81cc0457b0c668c0cacf9d0"
+    },
+    {
+      "path": "public/node-context.css",
+      "bytes": 7364,
+      "sha256": "de8060b5566ed0641248f86cdc4c61612f1a46b69a5eebd9374059617131905b"
+    },
+    {
+      "path": "public/node-context.js",
+      "bytes": 11201,
+      "sha256": "568dc10d20998643f8be63e5327d7f931319d56b6e9dbc1f91f60673df59a125"
+    },
+    {
+      "path": "public/node-inputs.js",
+      "bytes": 7045,
+      "sha256": "caed135eb6bcfdec34d6a9eb75fca175d6eb538ac9405e51a4ffdaeddfe9f000"
+    },
+    {
+      "path": "public/node-player.css",
+      "bytes": 5987,
+      "sha256": "94051d0c408b3da20ae052d1b8a5523d4638ea8b5c8a023ae9ed55c4f4409fbf"
+    },
+    {
+      "path": "public/node-player.js",
+      "bytes": 12611,
+      "sha256": "7ce38756ff112129244ccb76f0649741c3cec504def9225242c9f8fe1441378c"
+    },
+    {
+      "path": "public/node-video-controls.js",
+      "bytes": 5139,
+      "sha256": "4d810229cb8d8cfd0ed87daeebf838ec3d8c13bbcbec6b44e3f176ebb7345dff"
+    },
+    {
+      "path": "public/overlay-scrollbar.js",
+      "bytes": 3288,
+      "sha256": "6d5a6368dcb7924011ef3aa19e041b0bd953014061d0c23dbaeb7659660dd6d1"
+    },
+    {
+      "path": "public/platform-theme.css",
+      "bytes": 4563,
+      "sha256": "40f4887c333ad9205738f8c87ea8f550d61df76358c8352441cd3a8cf4995c98"
+    },
+    {
+      "path": "public/project-library.css",
+      "bytes": 8670,
+      "sha256": "45944a85921376cd4a14b3e3a0577ad98418595483d957e1a1296835538995fa"
+    },
+    {
+      "path": "public/project-library.js",
+      "bytes": 13677,
+      "sha256": "99f604597ba2ce07f423deb63091dbd2986a2b9ba98e8871007aa9465cccad91"
+    },
+    {
+      "path": "public/reference-video.js",
+      "bytes": 1805,
+      "sha256": "17ce5847f19823474fe7640fb83ae6548b04bd0fd38c9a8b419924d4bb298952"
+    },
+    {
+      "path": "public/script-resource-graph.js",
+      "bytes": 6694,
+      "sha256": "c5f914cdceeff81164a3e4f3a23e7b7e48066798ee128247fe6115a503f70e50"
+    },
+    {
+      "path": "public/script-resources.js",
+      "bytes": 1876,
+      "sha256": "c4012ddfd33432dffb0af71512ba569d6bb74cbe5e3c6d229cec84e4721f85fb"
+    },
+    {
+      "path": "public/session.css",
+      "bytes": 1650,
+      "sha256": "89191344015275cae434acdc66359daf1842d2bbf01d6844952ae70e79b0616c"
+    },
+    {
+      "path": "public/session.js",
+      "bytes": 4309,
+      "sha256": "e4deaaecf9a985186e6e67dbaa0d9b14980f94f758acc55cf6f038b825497a29"
+    },
+    {
+      "path": "public/sidebar-scrollbar.js",
+      "bytes": 137,
+      "sha256": "f1a0b1e3671475c14dcef639cb4e27db6ba8b9f1a06a7ecd33521ea643846d21"
+    },
+    {
+      "path": "public/style-previews/anime-cel-3d.jpg",
+      "bytes": 97051,
+      "sha256": "474bf9f2dfbc29c479e2024bd9ca91d00fa696f9e01367da789e9232adaf9047"
+    },
+    {
+      "path": "public/style-previews/chinese-fantasy-cg.jpg",
+      "bytes": 73371,
+      "sha256": "ccc4b3bdb84169145c51a9e3221ac6dbc8699abac232862bd05a0237804c6314"
+    },
+    {
+      "path": "public/style-previews/chinese-folklore-night.jpg",
+      "bytes": 53593,
+      "sha256": "04f72767749d592776adf5b0c46f70ea55e1c08acf7b70463e28c1ac5e6f0d71"
+    },
+    {
+      "path": "public/style-previews/city-pop-summer.jpg",
+      "bytes": 80776,
+      "sha256": "dfc78bba10e17032c9343fa34422bac676004c274afd400520a56667aba5a81b"
+    },
+    {
+      "path": "public/style-previews/classic-monochrome-noir.jpg",
+      "bytes": 68179,
+      "sha256": "d2fb2067f5ad67ac8e936632da0b0440889daf87b0ec9ff61603df03e189b11d"
+    },
+    {
+      "path": "public/style-previews/cool-realistic-suspense.jpg",
+      "bytes": 70524,
+      "sha256": "95a137ccc463e8107dcf5301651f1c6dd69198d14e2344317233def4f7ed67fb"
+    },
+    {
+      "path": "public/style-previews/dark-fantasy-concept.jpg",
+      "bytes": 53817,
+      "sha256": "48d214149758006cd4ca5c87f96155b890c6e71882761077a545c7c14f9623a8"
+    },
+    {
+      "path": "public/style-previews/digital-sculpture.jpg",
+      "bytes": 40518,
+      "sha256": "a72e1c8d79d26db2a664ba3e1f4962f07bf3b8d803338a4314941c66cbbf6119"
+    },
+    {
+      "path": "public/style-previews/feature-animation.jpg",
+      "bytes": 86303,
+      "sha256": "f1d6a41ab8e30019b3973e0616906b3b047f3af56a2243e7916c01779a8ba8f9"
+    },
+    {
+      "path": "public/style-previews/flat-childrens-storybook.jpg",
+      "bytes": 52374,
+      "sha256": "2b2467aa76d27051d61229c3eb41606152153cec579660629c41f679e8666891"
+    },
+    {
+      "path": "public/style-previews/gilded-myth-illustration.jpg",
+      "bytes": 100582,
+      "sha256": "856a0ff42966577fb6349cfc47a3819bb62dcd7b96156aa45a3599b8a18eb1e1"
+    },
+    {
+      "path": "public/style-previews/golden-age-color-cinema.jpg",
+      "bytes": 63092,
+      "sha256": "eca1f9856953499ede138f5b54ad0b4f3b62db0dbbc38316ea00ea5d8dcb6763"
+    },
+    {
+      "path": "public/style-previews/handmade-clay.jpg",
+      "bytes": 63426,
+      "sha256": "5161c31fae8374eeb5f253dddfe0675f04777346ffd4592dbe59f7b886fc65d5"
+    },
+    {
+      "path": "public/style-previews/hong-kong-neon-reverie.jpg",
+      "bytes": 70910,
+      "sha256": "87f6eb98fd6b1e9626a105848899e384cd9b6d31c2cbd10814f7fa82f244c2fb"
+    },
+    {
+      "path": "public/style-previews/japanese-flat-editorial.jpg",
+      "bytes": 81820,
+      "sha256": "d60cba38fa0eb202c2059818c918f418ec3737e68bb2b606b5f97091a4ac3cd1"
+    },
+    {
+      "path": "public/style-previews/miniature-diorama.jpg",
+      "bytes": 50692,
+      "sha256": "491695f8c851b90254ffbab5218c26ff1a9f74f825a4ec34dd0f04b8066b6fb5"
+    },
+    {
+      "path": "public/style-previews/minidv-home-video.jpg",
+      "bytes": 71409,
+      "sha256": "5722b8c89a6f7ffc1be4dc86d728f2c285acca31353e3074bbd54e38714803a5"
+    },
+    {
+      "path": "public/style-previews/monochrome-ink-manga.jpg",
+      "bytes": 168164,
+      "sha256": "4ffb1fcabef096373b147429fafe7b12ef8f7947207d7a922409ead6e44abb51"
+    },
+    {
+      "path": "public/style-previews/monochrome-ink-wash.jpg",
+      "bytes": 92178,
+      "sha256": "8f7092c86194e12804d1be97c06464633ca6d038cb8daa6cb6c8c7a68f4b02a5"
+    },
+    {
+      "path": "public/style-previews/monochrome-street-grain.jpg",
+      "bytes": 71835,
+      "sha256": "31667a1bf7c06a47e1a46bc645c6eedcf3839baf9bdaeaabbe4539028f919e75"
+    },
+    {
+      "path": "public/style-previews/muted-documentary-film.jpg",
+      "bytes": 84908,
+      "sha256": "2d1dc49205b92a770ea48fdce8825f5c961ccaaf2c9891dc1b46e452b6eaf91f"
+    },
+    {
+      "path": "public/style-previews/painted-vinyl-toy.jpg",
+      "bytes": 27567,
+      "sha256": "8e83b05e24a0b7579131b8c421f005237e4edefdf735c53e706def5ad23fcbc0"
+    },
+    {
+      "path": "public/style-previews/painterly-3d.jpg",
+      "bytes": 81740,
+      "sha256": "f97027f0ae36e0c6bcd52f0311664537ad3959faa384ffdd71b34051cf7c212f"
+    },
+    {
+      "path": "public/style-previews/period-romance-softlight.jpg",
+      "bytes": 63722,
+      "sha256": "5b9067176b0e976daec3745056932a62e73758c634a3ace622e1e4938236e8e6"
+    },
+    {
+      "path": "public/style-previews/period-war-bleachbypass.jpg",
+      "bytes": 80681,
+      "sha256": "fb96511adb4466def3aaa0bb37122f89b056483b3409626de5c104813ff9806b"
+    },
+    {
+      "path": "public/style-previews/physical-cg.jpg",
+      "bytes": 75472,
+      "sha256": "3626b0cdc50655b25724f15a8cb74038094b8fca4292310a1e9d265a8e7758ee"
+    },
+    {
+      "path": "public/style-previews/pixel-art-diorama.jpg",
+      "bytes": 55547,
+      "sha256": "b3d7f43fdc9593c5f261c5eb52f533c14a9c728e7e2b660e2ee27b378847ec3d"
+    },
+    {
+      "path": "public/style-previews/poetic-wuxia-landscape.jpg",
+      "bytes": 104387,
+      "sha256": "ad15ef2e1d9e66f2ea4e232540d6eb56b9f96a08a2b22651730b752924c24fa6"
+    },
+    {
+      "path": "public/style-previews/pop-art-print.jpg",
+      "bytes": 102843,
+      "sha256": "3e2de53720fe4cee4839d9c55c597c6f19a1a8e550a9741a2f5b55b6ca7d0bbe"
+    },
+    {
+      "path": "public/style-previews/retro-cel-anime.jpg",
+      "bytes": 97682,
+      "sha256": "f565e7f8fb48b88f6903dda72b53185e834461b6cbb0255ced2c2973acd46748"
+    },
+    {
+      "path": "public/style-previews/rural-period-realism.jpg",
+      "bytes": 90596,
+      "sha256": "31c8d1685d0df5d6d182ec5c11194c911763396a5064d9c1c621453fced4dfb2"
+    },
+    {
+      "path": "public/style-previews/semi-real-cg.jpg",
+      "bytes": 68228,
+      "sha256": "9fc235d1cb41fc6c987dcb4f01f4489eb1dfe5fdd2d1d05058855a14c7a6c0e0"
+    },
+    {
+      "path": "public/style-previews/shadow-puppet-illustration.jpg",
+      "bytes": 120270,
+      "sha256": "59d07d617d11e0bc5a2b5511d74d88d244498d384bf956f9dbb39653ecd1727a"
+    },
+    {
+      "path": "public/style-previews/translucent-jelly.jpg",
+      "bytes": 30820,
+      "sha256": "0ea81f4e4ca0dfdcf6fed1f2a1afa1b44d0600832de534bc2d2ea3f675a9eaa9"
+    },
+    {
+      "path": "public/style-previews/urban-natural-realism.jpg",
+      "bytes": 71421,
+      "sha256": "2519eb35d900dbc17e3f37bf0a96c571e52049d0dae08b8e63253c9660ff34db"
+    },
+    {
+      "path": "public/style-previews/vaporwave-collage.jpg",
+      "bytes": 54150,
+      "sha256": "65e008db002470826f5c4ba9520e379827ef9e8fbcd911a5eb47a63c8572273a"
+    },
+    {
+      "path": "public/style-previews/wax-crayon-storybook.jpg",
+      "bytes": 89237,
+      "sha256": "89b5edbece86f2cc84bb6acad76834f337a916258baca0e9bc541b845fe4a435"
+    },
+    {
+      "path": "public/style-previews/weathered-industrial-cinema.jpg",
+      "bytes": 92085,
+      "sha256": "4b0866ed564b15ccefe7f09b9151728416af0c5d57b92fb607f22bf222d8015f"
+    },
+    {
+      "path": "public/style-previews/wilderness-natural-epic.jpg",
+      "bytes": 78013,
+      "sha256": "a830e01cd461f02ceb6272991e8b97fdd4509ce27d69c882ff1679c16ab64e7b"
+    },
+    {
+      "path": "public/style-previews/y2k-digicam-flash.jpg",
+      "bytes": 86646,
+      "sha256": "5bc185b6ad99c22049e3bc84a3d2cecbe244006e803bdf5cafd426b5af8f181a"
+    },
+    {
+      "path": "public/styles.css",
+      "bytes": 41913,
+      "sha256": "9ea9c40eafceb844cbd4316ab1a2227308aedfb7e7866676d49ab56bd2591353"
+    },
+    {
+      "path": "public/task-errors.css",
+      "bytes": 1347,
+      "sha256": "998d2ea012154ab0eb42abcb4e1a0e3efd29686159aa34945947032f232acc3a"
+    },
+    {
+      "path": "public/task-errors.js",
+      "bytes": 3132,
+      "sha256": "2e95b29abd6a6935f509cb795bd1b70279fbc8013c26bf8ba6fb0815a6fad63a"
+    },
+    {
+      "path": "public/templates/storyboard-template.xlsx",
+      "bytes": 7146,
+      "sha256": "897e98fb73e249cdcbb197daa2911f99f76dcb40ce4e78f15bf1a0d6a86683df"
+    },
+    {
+      "path": "public/theme.css",
+      "bytes": 878,
+      "sha256": "3baaf3cfc384ac3b5b1ab81ac8e8c341ef604b3d83f3491c5b9fe37f83994d5b"
+    },
+    {
+      "path": "public/triangle-flow.svg",
+      "bytes": 1727,
+      "sha256": "82fa3c863679318b07a1feaf7ba77d24fe5a31e2210fda905ae73ae32ee61741"
+    },
+    {
+      "path": "public/vendor/README.md",
+      "bytes": 391,
+      "sha256": "48373766fb359966b9ca67900571eccd6d22581cb8e9dd584deda4a5244c866f"
+    },
+    {
+      "path": "public/vendor/aimarket.js",
+      "bytes": 5771,
+      "sha256": "62e734291bc42a89500528b459ef55eb5ecffe619aad1c949198df1218c6c104"
+    },
+    {
+      "path": "public/vendor/dompurify.LICENSE",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "public/vendor/marked.LICENSE",
+      "bytes": 2942,
+      "sha256": "8e3a3f82f59a60958f56ca08f445647c32a4733dc7ca6c2c46f6eb898471ab9c"
+    },
+    {
+      "path": "public/vendor/marked.js",
+      "bytes": 46345,
+      "sha256": "054d73b676031dc8e60e247ef228044fbeebe10af14bac1a6e53852f80f826e5"
+    },
+    {
+      "path": "public/vendor/purify.js",
+      "bytes": 84443,
+      "sha256": "c44274a7959cfdd4da871fa78a5d5fbbef55db68d118c5c0833bc4b5cf9633ad"
+    },
+    {
+      "path": "public/video-hover-preview.js",
+      "bytes": 2496,
+      "sha256": "c95a6b68fd16a0c676a3020cd34155ab11ff51aa9cf1126c1aaa9b671677560b"
+    },
+    {
+      "path": "public/viewport-media.js",
+      "bytes": 1113,
+      "sha256": "81512db0ce262e7589a1bc2dd6baed1174420fb79d2237e512947a66b40fc8ce"
+    },
+    {
+      "path": "public/visual-style-picker.css",
+      "bytes": 6147,
+      "sha256": "847c027019ba0c1d55c5350dcd023a4aa95b4ff283d9b6a5fea4276f9cf759e7"
+    },
+    {
+      "path": "public/visual-style-picker.js",
+      "bytes": 10917,
+      "sha256": "4a6c9d421b8cb9d4802453eb626d6041205a0e8735d6a086f781c9fcf30e73a1"
+    },
+    {
+      "path": "requirements.txt",
+      "bytes": 231,
+      "sha256": "d32d79194e72e4a1df4fe732b17ce6847ef3ea32069b4b1d0f6bf9e0075ffc24"
+    },
+    {
+      "path": "resources/visual-styles.json",
+      "bytes": 126550,
+      "sha256": "c20b26b69b49365804e60f8c5ba44698b96e10852138065bea622a4c0b3b6bfa"
+    },
+    {
+      "path": "script_excel.py",
+      "bytes": 10142,
+      "sha256": "b18975bf4187f5b983a84986fe8f48de02b9f36df06a4926f7c37e61e1216122"
+    },
+    {
+      "path": "scripts/backup_local_postgres.ps1",
+      "bytes": 1541,
+      "sha256": "02bcf8d27afa8b921f92ef37447e1ef7cb5283822bbc6f5f8956c7d2a50c7251"
+    },
+    {
+      "path": "scripts/migrate_sqlite.py",
+      "bytes": 1302,
+      "sha256": "b65505284d36936fcc159ed45df4c172666ac846d3471994b9552fd2fe7cebfa"
+    },
+    {
+      "path": "scripts/postgres_common.ps1",
+      "bytes": 5287,
+      "sha256": "9e70d5597fa31ac8b99ad38e095bbdcd02d0df6ad3c0b27ac243430c04797ce1"
+    },
+    {
+      "path": "scripts/run_migration.py",
+      "bytes": 510,
+      "sha256": "ba201987797d4be32d55f381face483a1f41da020a85e7cc8c89c4671fd64a6c"
+    },
+    {
+      "path": "scripts/setup_local_postgres.ps1",
+      "bytes": 8364,
+      "sha256": "ed09883e9890b67a97d1d436f17709879fa6a1845d651a4a4d7481e6081c187a"
+    },
+    {
+      "path": "scripts/start_local_postgres.ps1",
+      "bytes": 99,
+      "sha256": "c56ad479d44c9929aba04e6a4b1d2ebc764de71e6e4c388f9d88cec339e31895"
+    },
+    {
+      "path": "server.js",
+      "bytes": 2277,
+      "sha256": "0d4518eb530e8c6a6bc7f03c4a861b99a833bc392a907e840de8f648ff0883c5"
+    },
+    {
+      "path": "server.py",
+      "bytes": 5986,
+      "sha256": "137158006de94395c112a7813101c238d06a55019f3a1c110a6df03f7fcddfb6"
+    },
+    {
+      "path": "storage/__init__.py",
+      "bytes": 161,
+      "sha256": "a668cad5be81a3b7ad56abf6dc128a687c698fdb92858a12ff322b911d7a7460"
+    },
+    {
+      "path": "storage/backup.py",
+      "bytes": 603,
+      "sha256": "70e0ce8413cb51502e8fff5d23b242b365740ae5091f02bcaaad4b00acb1ca10"
+    },
+    {
+      "path": "storage/database.py",
+      "bytes": 12958,
+      "sha256": "71594561621cf1cdc607cd95b10a46bb8558b59deaeae26819dbaa0c295fe0f4"
+    },
+    {
+      "path": "storage/migrate.py",
+      "bytes": 6394,
+      "sha256": "cf4f8194a5ad4e15e9a95d3ab0bbc384987339806f11cc395adbe5c24e39e665"
+    },
+    {
+      "path": "storage/records.py",
+      "bytes": 3714,
+      "sha256": "159e08daab3f2db115d3d41c8de9c3a06e320012fa9ba0167e9ef71fc9790e3d"
+    },
+    {
+      "path": "storage/schema.py",
+      "bytes": 2795,
+      "sha256": "609e94de321b77df576ee2994991190c4662d0b8d16b6de873fdf4796f71f4fb"
+    },
+    {
+      "path": "tests/agent_canvas_inputs.test.mjs",
+      "bytes": 6358,
+      "sha256": "418ef8f7db246f890714f5c185c8dc91e7c3793e12b90dee40f62c906fac30c3"
+    },
+    {
+      "path": "tests/browser_fixture.cjs",
+      "bytes": 1524,
+      "sha256": "4f98885c88b43a310f7c2bc9a24c10689a6c831e1f42d77eeb00b4a8f1f912d2"
+    },
+    {
+      "path": "tests/canvas_connections.test.mjs",
+      "bytes": 11583,
+      "sha256": "695e57955cf8529b3026456ab2886212ff70f077667c9323bca079c5b71a0ccf"
+    },
+    {
+      "path": "tests/canvas_groups.test.mjs",
+      "bytes": 1039,
+      "sha256": "1b19569f3c154ace03bbb69ec7165793f4bae48e4e5754957d2c2d97e9c1a7dc"
+    },
+    {
+      "path": "tests/canvas_history.test.mjs",
+      "bytes": 3197,
+      "sha256": "4fd2587a7f3214d15f770697e0885c9bbf4deb81b692628a622f5e94002058e0"
+    },
+    {
+      "path": "tests/content_errors.test.mjs",
+      "bytes": 1069,
+      "sha256": "ff7e9a4d0858cdaf1e011abb195e5eeeef01f27888b6255ea2f3afcd437793c0"
+    },
+    {
+      "path": "tests/content_rejection_cases.json",
+      "bytes": 1732,
+      "sha256": "fa401e2970c9aae7e8d440f37edbe23cc7fe3acce3dd81c277018f9e2c8b5071"
+    },
+    {
+      "path": "tests/dom-fixture.mjs",
+      "bytes": 4760,
+      "sha256": "2a1c23b35e26087c99097c06d7a6f8d2f62a5d77eaa658d2fce47f95163e17aa"
+    },
+    {
+      "path": "tests/generation_request.test.mjs",
+      "bytes": 3583,
+      "sha256": "02d4983d3a2e8af369f53671748276453c8a1fd1a6fec350a12b53a39e8605f1"
+    },
+    {
+      "path": "tests/generation_state.test.mjs",
+      "bytes": 9972,
+      "sha256": "2aa7e9f5f9c29a98520e84be2baced3349235380bd1cc84bdd5a32b55fbbbcb7"
+    },
+    {
+      "path": "tests/home_results.test.mjs",
+      "bytes": 35386,
+      "sha256": "0aac7d698dc68d8cbeb3e517b3e03b090f57163f4c381383885c02dc536a784f"
+    },
+    {
+      "path": "tests/image_lightbox.test.mjs",
+      "bytes": 3370,
+      "sha256": "896fa9f0580827caaa15f37d49a26f3f5d73dc3bb3d3a183265fcc67724d568f"
+    },
+    {
+      "path": "tests/isolation_fixture.py",
+      "bytes": 1289,
+      "sha256": "1cb32226a16aed7b9d44d0028012e4c11f23a11d8d00f5a178ec3d04cf89c770"
+    },
+    {
+      "path": "tests/market_entry.test.mjs",
+      "bytes": 8141,
+      "sha256": "2c3aaa4f2e807508b5745af65f36835e6a9dcb9e4e89c4aa1d0f0684d2341723"
+    },
+    {
+      "path": "tests/market_session.test.mjs",
+      "bytes": 16473,
+      "sha256": "8f682954a7958a9e8ce9408a4facaa2c1e3dad9e87c0a16d64539ccf631e1b7a"
+    },
+    {
+      "path": "tests/postgres_fixture.py",
+      "bytes": 1114,
+      "sha256": "f02af037ac13311bc519b9dca9f8a4b763eaf1138cdd1c825aed9ece5bedd5c3"
+    },
+    {
+      "path": "tests/test_agent_bgm.py",
+      "bytes": 8917,
+      "sha256": "63dc3ffc5980bac0ae31e20e5024c2c0f999cf30cbfbf67c8a98aaabc491affa"
+    },
+    {
+      "path": "tests/test_agent_canvas.py",
+      "bytes": 9694,
+      "sha256": "3afbf08724189a2c1d0b31993b767066defaba42b17b62e70536bbf099bdb5e5"
+    },
+    {
+      "path": "tests/test_agent_dialogue.py",
+      "bytes": 8674,
+      "sha256": "78b0022fa0d26a087ded1cb12d5314b73059f0282dd31db972b4277ee8b900c9"
+    },
+    {
+      "path": "tests/test_agent_input_guard.py",
+      "bytes": 12514,
+      "sha256": "dc38d89e9258b337e6a3d8a3ff19a43f8426355b4f7b6a71dd9a28533c86bf19"
+    },
+    {
+      "path": "tests/test_agent_model_constraints.py",
+      "bytes": 17576,
+      "sha256": "87c834064d9a8e0eaa1d5f2cf49725743bef76a465cd2af72f5a93a21d52d526"
+    },
+    {
+      "path": "tests/test_agent_planning.py",
+      "bytes": 5337,
+      "sha256": "547ac0a8fc64e963728052688d878e3851ad2bb1313b05108733b6ac4b0f94ee"
+    },
+    {
+      "path": "tests/test_agent_runtime.py",
+      "bytes": 39275,
+      "sha256": "a50f76a04e5ed412e3cf9cc154a2d31a3802092de85939e6e3332455d65b5fb5"
+    },
+    {
+      "path": "tests/test_asset_preview.py",
+      "bytes": 2343,
+      "sha256": "8cbab28fe2cdc95485799a5ffbe21ed663c97c489ba477a747983b9749281add"
+    },
+    {
+      "path": "tests/test_audio_generation.py",
+      "bytes": 13382,
+      "sha256": "61593d531c577767a6b8ce38203b5a40f8fded16d35e30334a3a9873a71d4b1c"
+    },
+    {
+      "path": "tests/test_auth.py",
+      "bytes": 14760,
+      "sha256": "c213a4b63734f10297ec6c55dd4989e8e002b1e4f4e6aa461fbd0672c2d02ff7"
+    },
+    {
+      "path": "tests/test_canvas_groups.py",
+      "bytes": 3523,
+      "sha256": "6588925414b287fb63e16b0024801fecddb672a9bf31156c27c00ddfa2a1d714"
+    },
+    {
+      "path": "tests/test_content_errors.py",
+      "bytes": 4376,
+      "sha256": "be829c85e6417d6226732c3bbd97b299a8e095f435cf14e16af6848140dcac0f"
+    },
+    {
+      "path": "tests/test_conversation_covers.py",
+      "bytes": 2178,
+      "sha256": "b614835c7470b49adc9caa2617a9b598b8bfb733ab8c5aefd1408cbba0d50c7c"
+    },
+    {
+      "path": "tests/test_conversation_generation.py",
+      "bytes": 15484,
+      "sha256": "0665a0f06c39378ca3bb2989d25c985bcd949119c93fbed047987fdea36f0f77"
+    },
+    {
+      "path": "tests/test_conversation_turn_actions.py",
+      "bytes": 4847,
+      "sha256": "11c24f3a9d9443f63074d740e494eed33363a499e4465c46183ca34a81d51eec"
+    },
+    {
+      "path": "tests/test_creator_metadata.py",
+      "bytes": 9314,
+      "sha256": "35233e0fedbb3b58fe95ec65a1f7a8e9e498129b1a30868cad9f0986303db607"
+    },
+    {
+      "path": "tests/test_first_last_frames.py",
+      "bytes": 4342,
+      "sha256": "290b3733847bf66a1f6e3541c02426ca4ff017c7d1eb2100448f74f8bca31e9b"
+    },
+    {
+      "path": "tests/test_image_generation_options.py",
+      "bytes": 6533,
+      "sha256": "16562d6da3679e9d572355727a465ac0b092061e16bbd7ebbd66b42fec9b2974"
+    },
+    {
+      "path": "tests/test_image_upload.py",
+      "bytes": 4974,
+      "sha256": "f03847ebae3387d1515d3796f1ba68cef31de9a61e593b7345a9f00556e50bab"
+    },
+    {
+      "path": "tests/test_market_integration.py",
+      "bytes": 20886,
+      "sha256": "55e3711c54a2e138c4fe788359397faf18ca8b5c72f411d006eb01661ceefcbf"
+    },
+    {
+      "path": "tests/test_media_library.py",
+      "bytes": 4759,
+      "sha256": "9dfb09fd92335beaefb1d083473763ec28fcda5c8bdc316c6d1e8e5f57e7a573"
+    },
+    {
+      "path": "tests/test_postgres_conversation_generation.py",
+      "bytes": 1000,
+      "sha256": "3716f1eb41af6c5a4c6028cf58fd587bfbfc66e179bb363e318fcfad160368b0"
+    },
+    {
+      "path": "tests/test_postgres_isolation.py",
+      "bytes": 3313,
+      "sha256": "c9811fa6bcfa0deaece1261035e090456695d97432b123f2f236d97b8d36fa78"
+    },
+    {
+      "path": "tests/test_postgres_storage.py",
+      "bytes": 929,
+      "sha256": "5539c12e1757c608b79f3afad5906b8030cf0478a51e01d32b9ea65843143574"
+    },
+    {
+      "path": "tests/test_project_folders.py",
+      "bytes": 2683,
+      "sha256": "0a83aa343d2a0ddf1f9523d3a290eaf7126cef51328985682410fcb82a8b457c"
+    },
+    {
+      "path": "tests/test_provider_adapters.py",
+      "bytes": 22427,
+      "sha256": "4d582423b61603a8cbf1f12b37b71b1d595c68c2025d60bb26d2f2f6ab97bdc6"
+    },
+    {
+      "path": "tests/test_recent_deletion.py",
+      "bytes": 2769,
+      "sha256": "2cb629013739aeb168225a17fd8383e83bb13aff989304967aaac053e15ee2b6"
+    },
+    {
+      "path": "tests/test_sidebar_metadata.py",
+      "bytes": 5025,
+      "sha256": "a9f61c4f10aea4359983e08fd7e0f1d1cd5a8af7949f118501035c85679c7455"
+    },
+    {
+      "path": "tests/test_sql_storage.py",
+      "bytes": 8936,
+      "sha256": "62a08434d923efedbf78505eb3d9ddd5b980ca0ed00843063a7c76134ee6477a"
+    },
+    {
+      "path": "tests/test_user_isolation.py",
+      "bytes": 24748,
+      "sha256": "7f925c6587fb0632fa1f7a1a779f1d45c1373a494bf3f5ffec2772867a15f6e3"
+    },
+    {
+      "path": "tests/test_video_audio_references.py",
+      "bytes": 7840,
+      "sha256": "78b4660ec8e1cf3d7088d7a8e2309f95dff0184cd5739017105727587cd0cfbb"
+    },
+    {
+      "path": "tests/test_visual_styles.py",
+      "bytes": 7815,
+      "sha256": "90aacb6064947c55e81608fb2950df5c4873cf980a48c921ae16ad3d2e71cf9e"
+    },
+    {
+      "path": "tests/verify_agent_appearance.py",
+      "bytes": 13923,
+      "sha256": "5bca36c3ae72a9c88a9c19b624896088a43e8abce2d2fabccd80b9cf4e86535f"
+    },
+    {
+      "path": "tests/verify_agent_ui.py",
+      "bytes": 14684,
+      "sha256": "3d5e6f82d6861d6699e146b3e520a5ab9b67abfa89c6c56c8aa4eb7a58fd5d02"
+    },
+    {
+      "path": "tests/verify_asset_history.py",
+      "bytes": 9749,
+      "sha256": "323894da89d146ad78100a496be04b8e9cee695eb5ed1195da04c5c135496bfc"
+    },
+    {
+      "path": "tests/verify_canvas_agent.py",
+      "bytes": 7727,
+      "sha256": "cbf9eeea34603c6cc68441067eeee0fda7939d1a5262daf34fe45c5b0018d830"
+    },
+    {
+      "path": "tests/verify_canvas_groups.py",
+      "bytes": 10738,
+      "sha256": "5791b6b6dbff3cef4a2c6c3ee32b91e30139cb61d7edb551d248dd3b337f1d23"
+    },
+    {
+      "path": "tests/verify_canvas_viewport.cjs",
+      "bytes": 15430,
+      "sha256": "942131f79d16b0e1216f7da10e599068f4a570fe8aea398be2536ef58266e491"
+    },
+    {
+      "path": "tests/verify_canvas_workspace.py",
+      "bytes": 46943,
+      "sha256": "6e4cee2f03d44524b16ef83f55cc95a6a586b8b58f5a013d3d9d2dcfe1f34a09"
+    },
+    {
+      "path": "tests/verify_conversation_actions.py",
+      "bytes": 6958,
+      "sha256": "ed32a549a4a9b81f34495aa269aae619b92a579cc346d0ba767da6d2230fb2c7"
+    },
+    {
+      "path": "tests/verify_home_composer.py",
+      "bytes": 17730,
+      "sha256": "d7b16ff94d6036c16f904d3d7b01206068d07cb5c88697d81e1ba01ca44015d6"
+    },
+    {
+      "path": "tests/verify_home_hub.py",
+      "bytes": 12062,
+      "sha256": "5fbe3bb79bc992bf7589e84d67a6660b4e99842a54e4c096499740fdc8239c01"
+    },
+    {
+      "path": "tests/verify_loading_states.cjs",
+      "bytes": 10518,
+      "sha256": "ff926ae4da4b855c50766875cafe974ffdc5a24a4f97bbd08ad71264730f65ad"
+    },
+    {
+      "path": "tests/verify_node_players.py",
+      "bytes": 19458,
+      "sha256": "8af98498f1c3afddcdb1fd029b86aa3744485aedcc2e250558cf2242eb32fa0e"
+    },
+    {
+      "path": "tests/verify_node_rename.py",
+      "bytes": 4089,
+      "sha256": "ad46b760d8352d6493fe71ddb46e485bf59353138454146b18e335176faa58a6"
+    },
+    {
+      "path": "tests/verify_project_library.py",
+      "bytes": 9012,
+      "sha256": "98523dcdb020b0a28cb58845fa592da7c83e9664155a9edba90237e059be342c"
+    },
+    {
+      "path": "tests/verify_reference_menu.py",
+      "bytes": 9855,
+      "sha256": "c6ab5e752ada7055c13a08b747e8c465c6819aa928e53c7003b201ceccd26d9f"
+    },
+    {
+      "path": "tests/verify_regeneration.cjs",
+      "bytes": 6718,
+      "sha256": "b868c087c56cce52a438633dc1136795a6ac6b5936f388e65e8c6f947c2599c5"
+    },
+    {
+      "path": "tests/video_hover_preview.test.mjs",
+      "bytes": 3719,
+      "sha256": "d57ba4bc5d6fad87b03ede19942aa3c9fd4de21f6556ab5201bacb3126efa5aa"
+    },
+    {
+      "path": "tests/viewport_fixture.py",
+      "bytes": 4808,
+      "sha256": "c265654ae30db9615a271c205ec3971d340c190fc37454853d9a0b18b4dc1350"
+    },
+    {
+      "path": "tests/visual_style_picker.test.mjs",
+      "bytes": 7575,
+      "sha256": "ab40da4b1f1b8e5d3aecb31b65c7a430d106e0af462905f972930dae992a076f"
+    },
+    {
+      "path": "video_service.py",
+      "bytes": 3878,
+      "sha256": "3bd13562e4565e4eeba2b982a47431242ce2e9f6a7d67be52b2f433b017df2a2"
+    },
+    {
+      "path": "visual_styles.py",
+      "bytes": 4650,
+      "sha256": "806a64a7cb0878b8e9f6cafac1137c4cbe0afb8ee47c2e531aae9bd1cb2f0d89"
+    }
+  ]
+}

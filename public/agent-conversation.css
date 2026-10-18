@@ -1,0 +1,29 @@
+/* Standalone Agent production shares the media conversation feed. */
+body:has(.has-agent-conversation.active-view[data-home-mode=agent]:not(.agent-docked))>main{grid-template-rows:0 1fr}
+body:has(.has-agent-conversation.active-view[data-home-mode=agent]:not(.agent-docked))>main>header{display:none}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked){height:100dvh!important;background:#111213;overflow:hidden}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked)>.agent-topbar{height:44px;min-height:44px;padding:0 32px;border:0;background:transparent}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked)>.agent-scroll{flex:1;min-height:0;overflow:auto;padding:12px 32px 30px}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-messages{display:flex;flex-direction:column;width:100%;max-width:none;margin:0;gap:26px}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-message{width:100%;max-width:none;margin:0;align-self:flex-start;overflow:visible;border-radius:0}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-messages>.agent-message,.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-messages>.agent-step,.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-messages>.agent-review-card{animation:home-feed-enter 300ms ease both}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-message.agent-artifact-message{width:min(600px,100%);max-width:100%;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-artifact-message>.agent-artifact{width:100%;max-width:100%}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-message.agent-issue{width:fit-content;max-width:100%;border-radius:14px;overflow-wrap:anywhere}
+@media(prefers-reduced-motion:reduce){.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-messages>.agent-message,.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-messages>.agent-step,.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-messages>.agent-review-card{animation:none}}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-user{display:flex;justify-content:flex-start;text-align:left}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-user-bubble{padding:0;border:0;border-radius:0;background:transparent;color:#eee;max-width:900px;white-space:pre-wrap;font-size:14px;line-height:1.8}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-media-card{border:0;border-radius:0;background:transparent;max-width:min(660px,100%);box-shadow:none}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-media-card>div{background:transparent;border:0;border-radius:6px;overflow:hidden}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-media-card img,.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-media-card video{display:block;width:100%;max-height:440px;object-fit:contain;border-radius:6px}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-media-card footer{padding:12px 0;color:#8b9093;font-size:12px}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-prose{max-width:1000px;font-size:14px;line-height:1.9}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-run-controls{margin:0 0 22px;padding:8px 0;border:0;background:transparent}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked)>.agent-composer-wrap{width:calc(100% - 64px);margin:8px 32px 18px;border:1px solid #ffffff10;border-radius:26px}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .home-mode-tabs,.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .home-conversation-mode{display:none!important}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-composer{border:0;background:transparent;box-shadow:none;border-radius:inherit;padding:20px}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-compose-tools{padding-top:12px;border:0;gap:8px}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-central-tools{order:initial;width:auto;margin-right:auto;padding:0;justify-content:flex-start;gap:8px}
+.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .mention-editor{min-height:74px;max-height:150px;font-size:14px;line-height:1.8}
+.creation-home .agent-composer-note{display:none!important}
+@media(max-width:760px){.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked)>.agent-scroll{padding:12px 14px 24px}.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked)>.agent-topbar{padding-inline:14px}.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked)>.agent-composer-wrap{width:calc(100% - 24px);margin:8px 12px 12px}.creation-home.has-agent-conversation[data-home-mode=agent]:not(.agent-docked) .agent-composer{padding:14px}}

@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 430" fill="none">
+ <defs>
+  <linearGradient id="top" x1="180" y1="100" x2="440" y2="380" gradientUnits="userSpaceOnUse"><stop stop-color="#a4dcff"/><stop offset="1" stop-color="#378eea"/></linearGradient>
+  <linearGradient id="front" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#488fe0"/><stop offset="1" stop-color="#0e3f98"/></linearGradient>
+  <linearGradient id="screen" x1="230" y1="110" x2="400" y2="280" gradientUnits="userSpaceOnUse"><stop stop-color="#184994"/><stop offset="1" stop-color="#092969"/></linearGradient>
+  <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#c1eaff" stop-opacity=".9"/><stop offset="1" stop-color="#509dff" stop-opacity=".1"/></linearGradient>
+  <linearGradient id="light" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#7ad8ff" stop-opacity=".24"/><stop offset="1" stop-color="#7ad8ff" stop-opacity="0"/></linearGradient>
+  <filter id="glow"><feGaussianBlur stdDeviation="4"/></filter>
+  <filter id="shadow" x="-30%" y="-40%" width="160%" height="200%"><feGaussianBlur stdDeviation="13"/></filter>
+ </defs>
+ <!-- Isometric creative network, built as a crisp local vector illustration. -->
+ <ellipse cx="358" cy="330" rx="206" ry="52" fill="#062a7c" opacity=".3" filter="url(#shadow)"/>
+ <g stroke="#64afff" stroke-opacity=".23">
+  <path d="m107 296 231-128 244 138-228 128Z"/>
+  <path d="m142 317 230-129m-186 155 229-130m-184 155 230-130m-185 156 229-130M152 271l243 139M198 245l243 140M244 219l243 140M289 194l244 139"/>
+ </g>
+ <g stroke="#66caff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="m213 238-50 28 79 45 50-29m142-92 67 38-71 40m-47 47 60 34 80-45" stroke-dasharray="5 6" opacity=".7"/>
+  <path d="m209 344 74 42 82-47" opacity=".8"/>
+ </g>
+ <!-- Architectural towers -->
+ <path d="m157 181 48-28 45 26v107l-48 28-45-26Z" fill="#124eaa"/>
+ <path d="m157 181 45 26v107l-45-26Z" fill="url(#front)"/>
+ <path d="m202 207 48-28v107l-48 28Z" fill="#0c3e91"/>
+ <path d="m157 181 48-28 45 26-48 28Z" fill="url(#top)"/>
+ <path d="m168 192 22 13v13l-22-13Zm0 26 22 13v13l-22-13Zm0 26 22 13v13l-22-13Zm0 26 22 13v13l-22-13Z" fill="#67bdff" opacity=".85"/>
+ <path d="m212 213 27-16v5l-27 16Zm0 26 27-16v5l-27 16Zm0 26 27-16v5l-27 16Z" fill="#3d86d9"/>
+ <path d="m187 130 26-15 26 15v39l-26 15-26-15Z" fill="#1f65bd"/>
+ <path d="m187 130 26 15v39l-26-15Z" fill="#4e9cef"/>
+ <path d="m187 130 26-15 26 15-26 15Z" fill="#a9dfff"/>
+ <path d="m194 141 12 7v17l-12-7Z" fill="#96d4ff"/>
+ <!-- Main editing stage -->
+ <path d="m241 267 111-64 115 65v20l-111 64-115-66Z" fill="#10469c"/>
+ <path d="m241 267 115 66v19l-115-66Z" fill="#2d79d7"/>
+ <path d="m356 333 111-65v20l-111 64Z" fill="#0b398a"/>
+ <path d="m241 267 111-64 115 65-111 65Z" fill="url(#top)"/>
+ <path d="m257 267 95-54 98 55-94 55Z" fill="#2572cd"/>
+ <path d="m270 271 83-48 83 47-83 48Z" stroke="#a1e8ff" stroke-opacity=".75"/>
+ <path d="m282 273 71-41 70 40-70 41Z" fill="#5ebeff" opacity=".14"/>
+ <path d="m333 275 22-13 37 21-22 13Z" fill="#153f8a"/>
+ <path d="m342 262 12-7 20 11v18l-12 7-20-11Z" fill="#76bcf4"/>
+ <!-- Floating video monitor -->
+ <path d="m269 122 9-5 137 78v100l-9 5-137-78Z" fill="#81ceff"/>
+ <path d="m269 122 137 78v100l-137-78Z" fill="#2765b5"/>
+ <path d="m278 134 119 68v79l-119-68Z" fill="url(#screen)"/>
+ <path d="m278 198 32-25 25 36 19-7 43 51v28l-119-68Z" fill="#287bc3"/>
+ <path d="m278 201 32-25 24 35 20-7 43 51v26l-119-68Z" fill="#4ea5dc" opacity=".5"/>
+ <path d="m290 199 20-16 12 22-12-10-11 10Z" fill="#9addf8" opacity=".8"/>
+ <ellipse cx="369" cy="207" rx="9" ry="12" transform="rotate(-29 369 207)" fill="#b8e6ff"/>
+ <path d="m278 259 119 68v-10l-119-68Z" fill="#0c3b85" transform="translate(0 -36)"/>
+ <path d="m286 229 60 34" stroke="#82d5ff" stroke-width="2"/>
+ <path d="m352 267 35 20" stroke="#2c80ce" stroke-width="2"/>
+ <ellipse cx="346" cy="263" rx="2.5" ry="3" fill="#d6f7ff"/>
+ <path d="m324 193 0 32 26-1Z" fill="white" opacity=".95"/>
+ <path d="m269 122 9-5 137 78-9 5Z" fill="#b4e6ff"/>
+ <!-- A light beam above the creative platform -->
+ <path d="m257 266 95-54 98 55V121l-98-55-95 54Z" fill="url(#light)" opacity=".4"/>
+ <!-- Script tile -->
+ <path d="m443 147 36-21 55 32v16l-36 21-55-32Z" fill="#11438f"/>
+ <path d="m443 147 55 32v16l-55-32Z" fill="#357cce"/>
+ <path d="m443 147 36-21 55 32-36 21Z" fill="#68b7f8"/>
+ <path d="m468 91 42 24v57l-42-24Z" fill="url(#glass)" stroke="#9ad7ff" stroke-opacity=".8"/>
+ <path d="m477 108 23 13m-23-3 23 13m-23-3 17 10m-17 0 20 12" stroke="#c6eeff" stroke-width="2.5"/>
+ <!-- Foreground image asset tiles -->
+ <path d="m143 329 47-27 48 27v8l-47 28-48-28Z" fill="#1b64c4"/>
+ <path d="m143 329 47-27 48 27-47 28Z" fill="#52acfa"/>
+ <path d="m154 329 36-20 36 20-35 21Z" fill="#124b9c"/>
+ <path d="m161 330 21-4 8-11 8 17 20-3-27 15Z" fill="#67ceee"/>
+ <path d="m229 365 30-17 29 17-29 17Z" fill="#62c9ff" opacity=".55"/>
+ <!-- Creator and small pedestal -->
+ <path d="m458 332 49-28 47 27v12l-49 29-47-28Z" fill="#0d438f"/>
+ <path d="m458 332 47 28v12l-47-28Z" fill="#3985dc"/>
+ <path d="m458 332 49-28 47 27-49 29Z" fill="#71c2ff"/>
+ <ellipse cx="505" cy="331" rx="18" ry="9" fill="#245ba8" opacity=".5"/>
+ <path d="m494 285 9 3 1 43-7 3-3-22Zm13 3 10-2-5 48-7-1 2-29Z" fill="#d7edff"/>
+ <path d="m496 330 8-1 1 5-12 3-4-2Zm9 0 7 2 5 4-2 3-11-4Z" fill="#113776"/>
+ <path d="M498 250c9-5 20 0 23 8l-6 34-23-5 1-29Z" fill="#163a83"/>
+ <path d="m503 250 4 14 5-11-5-5Z" fill="#fff"/>
+ <path d="m507 266-3 14 4 4 2-17Z" fill="#4ca9f5"/>
+ <path d="m494 255-8 14-11-4-3 5 16 8 10-12m20-6 3 17-13 4-1-5 8-4-3-11" fill="#80b6e4"/>
+ <path d="m470 260 14 7 3 11-15-8Z" fill="#d1eeff"/>
+ <path d="M500 243v9l6 4 5-7v-8Z" fill="#d8b7a7"/>
+ <ellipse cx="506" cy="235" rx="10" ry="12" fill="#f2cdb7"/>
+ <path d="M496 237c-5-18 19-22 21-7l-5 4-3-7-12 4Z" fill="#173566"/>
+ <!-- Small connected nodes and glints -->
+ <path d="m540 258 24-14 25 14-25 15Z" fill="#4cd0fc" opacity=".8"/>
+ <path d="m113 226 14-8 15 8-15 9Z" fill="#7ad4ff" opacity=".7"/>
+ <path d="m344 368 23-13 23 13-23 13Z" stroke="#6bc8ff" stroke-width="2"/>
+ <g fill="#a1eaff"><circle cx="260" cy="104" r="2"/><circle cx="553" cy="203" r="2"/><circle cx="426" cy="121" r="2"/><circle cx="416" cy="367" r="2"/></g>
+ <path d="M437 216v10m-5-5h10M158 139v8m-4-4h8M550 306v8m-4-4h8" stroke="#8be1ff" stroke-width="1.5" opacity=".8"/>
+</svg>

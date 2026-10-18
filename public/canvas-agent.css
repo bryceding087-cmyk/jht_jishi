@@ -1,0 +1,49 @@
+.canvas-agent-panel{position:fixed;inset:64px 16px 16px auto;width:var(--canvas-agent-width,400px);z-index:32;background:#222;border:1px solid #414141;border-radius:24px;overflow:hidden;color:#eee;box-shadow:0 12px 48px #0005}
+.canvas-agent-panel[hidden]{display:none}
+.canvas-agent-panel #agentView{display:flex;flex-direction:column;width:100%;height:100%;background:#222}
+.canvas-agent-close{position:absolute;right:10px;top:10px;z-index:2;width:30px;height:30px;display:grid;place-items:center;border:0;border-radius:8px;color:#aaa;background:transparent;cursor:pointer;transition:background 150ms,color 150ms}
+.canvas-agent-close:hover{color:white;background:#383838}
+.canvas-agent-close .ui-icon{width:18px;height:18px}
+.canvas-agent-resizer{position:absolute;inset:24px auto 24px 0;width:6px;z-index:4;cursor:col-resize;outline-offset:-3px}
+.canvas-agent-resizer:hover{background:#62cce82b}
+body.canvas-agent-resizing{cursor:col-resize;user-select:none}
+.agent-docked .agent-topbar{height:52px;padding:0 46px 0 16px;gap:8px;border-bottom:1px solid #ffffff06}
+.agent-docked .agent-topbar>div{gap:2px}
+.agent-docked .agent-topbar .agent-quiet{font-size:0;width:31px;height:31px;padding:6px;gap:0}
+.agent-docked .agent-location{font-size:13px;max-width:65%;gap:8px;min-width:0}
+.agent-docked .agent-scroll,.agent-docked:not(.has-conversation) .agent-scroll{flex:1;min-height:0;overflow:auto;padding:14px 16px 24px;scrollbar-gutter:auto;display:flex;flex-direction:column}
+.agent-docked .agent-welcome{display:none}
+.agent-dock-welcome{margin:auto 0;text-align:center;padding:30px 0;animation:agent-dock-enter 240ms ease both}
+.agent-dock-welcome[hidden],.agent-docked.has-conversation .agent-dock-welcome{display:none}
+.agent-dock-orb{display:inline-block;width:44px;height:44px;border-radius:50%;background:radial-gradient(ellipse at 40% 25%,#25f3e7 0%,#19d9dd 25%,#00a3e5 56%,#37daee 72%,#5df4ea 92%);box-shadow:inset 0 1px 5px #b6fff8,0 0 24px #13d7ed18}
+.agent-dock-welcome h2{font-size:17px;font-weight:500;margin:18px 0 30px;color:#f2f2f2}
+.agent-dock-starters{display:grid;gap:9px;text-align:left}
+.agent-dock-starters button{display:flex;align-items:center;gap:11px;border:1px solid #414141;border-radius:12px;padding:13px 14px;background:#282828;color:#c5c5c5;transition:background 150ms,border-color 150ms,transform 150ms;font-size:13px;animation:agent-dock-enter 280ms ease both}
+.agent-dock-starters button:nth-child(2){animation-delay:40ms}.agent-dock-starters button:nth-child(3){animation-delay:80ms}.agent-dock-starters button:nth-child(4){animation-delay:120ms}
+.agent-dock-starters button:hover{background:#333;border-color:#686868;transform:translateY(-1px);color:white}
+.agent-dock-starters button>.ui-icon{width:17px;height:17px}.agent-dock-starters button>.ui-icon:last-child{margin-left:auto;width:14px;height:14px;opacity:.5}
+.agent-docked .agent-composer-wrap,.agent-docked.has-conversation .agent-composer-wrap{width:calc(100% - 20px);margin:0 10px 8px;flex-shrink:0}
+.agent-docked .agent-composer,.agent-docked.has-conversation .agent-composer{border-radius:18px;background:#2b2b2b;border:1px solid #454545;padding:12px}
+.agent-docked .agent-composer:focus-within{border-color:#6f8589}
+.agent-docked .agent-composer textarea,.agent-docked .agent-composer .mention-editor{font-size:13px;line-height:1.75;min-height:90px;max-height:160px;padding:2px 0}
+.agent-docked .agent-compose-tools{padding-top:10px;gap:6px;flex-wrap:wrap}
+.agent-docked .agent-tool-group{gap:2px}
+.agent-docked .agent-compose-tools>.agent-tool-group:last-child{margin-left:auto}
+.agent-docked .agent-central-tools{order:3;width:100%;justify-content:space-between;border-top:1px solid #ffffff09;padding-top:7px}
+.agent-docked .agent-pill{padding:5px 7px;font-size:11px!important;background:transparent;gap:4px}
+.agent-docked .agent-mode-label{font-size:11px;padding:7px 5px;gap:3px}
+.agent-docked #agentModelLabel,.agent-docked .agent-divider,.agent-docked .agent-canvas-switch{display:none}
+.agent-docked .agent-icon{width:30px;height:30px}
+.agent-docked .agent-send{width:32px;height:32px;background:#eee;color:#222}
+.agent-docked .agent-composer-note{font-size:10px;padding:7px 3px;gap:6px}.agent-docked .agent-composer-note>span{display:none}
+.agent-docked .agent-messages{width:100%;min-width:0;margin:0}
+.agent-docked .agent-message{font-size:13px;line-height:1.8;animation:agent-dock-enter 200ms ease both}
+.agent-docked .agent-user{margin:12px 0 22px}.agent-docked .agent-user-bubble{padding:10px 13px;border-radius:15px 15px 4px 15px;max-width:92%}
+.agent-docked .agent-review-card{padding:14px;border-radius:14px}.agent-docked .agent-review-head{flex-wrap:wrap;font-size:13px}
+.agent-docked .agent-review-head>div{flex-wrap:wrap;gap:6px;white-space:normal}
+.agent-docked .agent-run-controls{flex-wrap:wrap;font-size:11px;gap:6px}
+.canvas-agent-open #workspaceAgent{box-shadow:0 0 0 1px #4de1e866,0 0 24px #03c7e326}
+@keyframes agent-dock-enter{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:759px){.canvas-agent-panel{top:64px;right:8px;bottom:8px;max-width:calc(100vw - 16px);border-radius:20px;box-shadow:0 12px 60px #0008}.canvas-agent-resizer{display:none}}
+@media(max-height:540px){.canvas-agent-panel{top:52px;bottom:8px}.agent-docked .agent-scroll{padding-top:6px;padding-bottom:10px}.agent-dock-welcome{padding:8px 0}.agent-dock-welcome h2{margin:8px 0 12px}.agent-dock-orb{width:30px;height:30px}.agent-dock-starters{gap:5px}.agent-dock-starters button{padding:8px 12px}}
+@media(prefers-reduced-motion:reduce){.canvas-agent-panel *{animation:none!important;transition:none!important}}

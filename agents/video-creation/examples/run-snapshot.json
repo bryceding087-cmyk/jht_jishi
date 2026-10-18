@@ -1,0 +1,46 @@
+{
+  "example_only": true,
+  "description": "v0.2.0 运行快照结构示例，不绑定具体故事；正文为占位内容，未进行导演评估，也没有真实项目、任务、素材或授权。",
+  "snapshot": {
+    "id": "example-run",
+    "project_id": null,
+    "revision": 1,
+    "definition_version": "0.2.0",
+    "intent": "full_video",
+    "phase": "story_review",
+    "status": "running",
+    "interaction_mode": "guided",
+    "source": {
+      "message_id": "example-source-message",
+      "revision": 1,
+      "text": "{{用户提交的完整故事正文；此处只是占位，不能作为实际评估结果}}"
+    },
+    "working_story_ref": {"id": "example-source", "type": "StorySource", "revision": 1},
+    "story_decision": {
+      "director_review_ref": null,
+      "story_ref": {"id": "example-source", "type": "StorySource", "revision": 1},
+      "assessment": null,
+      "proceed_policy": null,
+      "s0_choice": null,
+      "user_message_id": null,
+      "accepted_gaps": []
+    },
+    "spec": {
+      "aspect_ratio": {"value": null, "source": "not_provided", "confirmed": false},
+      "target_duration_seconds": {"value": null, "source": "not_provided", "confirmed": false},
+      "resolution": {"value": null, "source": "not_provided", "confirmed": false},
+      "style": {"value": null, "source": "not_provided", "confirmed": false}
+    },
+    "artifact_refs": [
+      {"id": "example-source", "type": "StorySource", "revision": 1}
+    ],
+    "approvals": [],
+    "budget": {"accounts": [], "estimate_status": "unknown", "allow_unknown_cost": false},
+    "tasks": [],
+    "pending_questions": [],
+    "issues": [],
+    "next_actions": [
+      {"type": "skill", "skill_id": "director", "operation": "assess_story", "purpose": "在内容量与台词时长分析前检查采用故事"}
+    ]
+  }
+}

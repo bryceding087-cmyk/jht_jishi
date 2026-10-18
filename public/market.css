@@ -1,0 +1,40 @@
+.market-banner {
+  position: fixed;
+  z-index: 10010;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 1;
+  transition: transform .3s ease, opacity .3s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: min(620px, calc(100vw - 28px));
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 1px solid var(--line, #dce6f2);
+  border-radius: 10px;
+  background: var(--panel, #ffffff);
+  color: var(--text, #294261);
+  box-shadow: 0 6px 24px #00000018;
+  font: 12px/1.5 "Microsoft YaHei", "PingFang SC", sans-serif;
+}
+.market-banner[data-dismissing="true"] { transform: translate(-50%, -12px); opacity: 0; pointer-events: none; }
+.market-banner[hidden], .market-banner [hidden] { display: none !important; }
+.market-indicator { width: 6px; height: 6px; flex: none; border-radius: 50%; background: #7995b6; }
+.market-banner[data-state="connected"] .market-indicator,
+.market-banner[data-state="login-required"] .market-indicator { background: #43a795; }
+.market-banner[data-state="error"] .market-indicator { background: #c67d49; }
+.market-message { min-width: 0; overflow-wrap: anywhere; }
+.market-retry, .market-standalone { flex: none; font: inherit; color: var(--cyan, #2568ba); }
+.market-retry { border: 0; border-radius: 5px; padding: 3px 5px; background: transparent; cursor: pointer; }
+.market-retry:hover { background: var(--panel2, #edf4fc); }
+.market-standalone { text-decoration: none; white-space: nowrap; }
+.market-standalone:hover { text-decoration: underline; }
+.market-retry:focus-visible, .market-standalone:focus-visible { outline: 2px solid var(--cyan, #2568ba); outline-offset: 3px; }
+@media (max-width: 620px) {
+  .market-banner { flex-wrap: wrap; gap: 6px 9px; padding: 8px 10px; }
+  .market-message { flex: 1; min-width: 170px; }
+  .market-standalone { margin-left: auto; }
+}

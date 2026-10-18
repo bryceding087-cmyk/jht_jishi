@@ -1,0 +1,47 @@
+/* Fixed hit regions; only the visible + responds to pointer attraction. */
+.canvas-active #canvas .node .port {
+  width: 64px; height: 132px; top: 50%; padding: 0; border: 0; border-radius: 0;
+  background: transparent; box-shadow: none; color: #999; transform: translateY(-50%);
+  pointer-events: auto; touch-action: none; user-select: none; cursor: crosshair;
+}
+.canvas-active #canvas .node .port.in { left: -54px; }
+.canvas-active #canvas .node .port.out { right: -54px; }
+.canvas-active #canvas .node .port::before, .canvas-active #canvas .node .port::after { content: none; display: none; }
+.canvas-active #canvas .node .port-mark {
+  position: absolute; display: block; left: 50%; top: 50%; width: 22px; height: 22px;
+  border: 1px solid #757575; border-radius: 50%; background: #1a1a1ae6; font-size: 0;
+  pointer-events: none; transform: translate(calc(-50% + var(--port-x,0px)),calc(-50% + var(--port-y,0px)));
+  transition: transform 110ms ease-out, border-color 150ms ease, background-color 150ms ease;
+}
+.canvas-active #canvas .node .port-mark::before, .canvas-active #canvas .node .port-mark::after {
+  content: ''; position: absolute; display: block; background: currentColor; border-radius: 1px;
+}
+.canvas-active #canvas .node .port-mark::before { left: 5px; top: 9.5px; width: 10px; height: 1px; }
+.canvas-active #canvas .node .port-mark::after { left: 9.5px; top: 5px; width: 1px; height: 10px; }
+.canvas-active #canvas .node .port:hover, .canvas-active #canvas .node .port:focus-visible,
+.canvas-active #canvas .node .port.port-active { opacity: 1; color: #eee; }
+.canvas-active #canvas .node .port:hover .port-mark, .canvas-active #canvas .node .port:focus-visible .port-mark,
+.canvas-active #canvas .node .port.port-active .port-mark { border-color: #ddd; background: #303030; }
+.canvas-active #canvas .node .port:focus-visible { outline: none; }
+.canvas-active #canvas .node .port:focus-visible .port-mark { outline: 2px solid #91cfff; outline-offset: 3px; }
+.canvas-active #canvas.wire-connecting .node .port { opacity: .7; }
+.canvas-active #canvas .node .frame-canvas {
+  transform-origin: center; transition: transform 160ms ease-out, border-color 160ms ease, box-shadow 180ms ease;
+}
+.canvas-active #canvas .node.connection-target .frame-canvas {
+  transform: perspective(900px) rotateX(var(--connection-rx,0deg)) rotateY(var(--connection-ry,0deg)) rotateZ(var(--connection-rz,0deg));
+  border-color: #d4e7f5; box-shadow: 0 0 0 1px #badfff38, 0 5px 24px #0003;
+}
+.canvas-active #canvas .node:not(.visual-frame).connection-target { border-color: #d4e7f5; box-shadow: 0 0 0 1px #badfff38; }
+.canvas-active #canvas .node > .frame-head { transition: transform 160ms ease-out; }
+.canvas-active #canvas .node.connection-target > .frame-head { transform: rotateZ(var(--connection-rz,0deg)); }
+.canvas-active #canvas .edge-draft { stroke: #49bfff; stroke-width: 1.6; stroke-dasharray: none; filter: none; pointer-events: none; }
+.canvas-active #canvas .connection-landed .frame-canvas { animation: connection-land 360ms ease-out; }
+@keyframes connection-land { 0% { transform: scale(1.012); border-color: #91d9ff; box-shadow: 0 0 0 2px #70caff55; } 100% { transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .canvas-active #canvas .node .port-mark, .canvas-active #canvas .node .frame-canvas,
+  .canvas-active #canvas .node > .frame-head { transition: none; }
+  .canvas-active #canvas .node.connection-target .frame-canvas,
+  .canvas-active #canvas .node.connection-target > .frame-head { transform: none; }
+  .canvas-active #canvas .connection-landed .frame-canvas { animation: none; }
+}
