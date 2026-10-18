@@ -29,8 +29,8 @@ Agent 在理解故事、设计创意、确认分镜和续作时，会结合当�
 Windows（首次本地数据库安装使用 PowerShell 7）：
 
 ```powershell
-git clone https://github.com/bryceding087-cmyk/jianhuitong.git
-cd jianhuitong
+git clone https://github.com/bryceding087-cmyk/jht_jishi.git
+cd jht_jishi
 py -3 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 pwsh -NoProfile -File .\scripts\setup_local_postgres.ps1
@@ -45,8 +45,8 @@ npm start
 macOS / Linux：
 
 ```bash
-git clone https://github.com/bryceding087-cmyk/jianhuitong.git
-cd jianhuitong
+git clone https://github.com/bryceding087-cmyk/jht_jishi.git
+cd jht_jishi
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 cp .env.example .env
