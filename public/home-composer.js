@@ -18,7 +18,7 @@ const VIDEO_RATIOS=['16:9','9:16','1:1','4:3','3:4','21:9'];
 
 export function createHomeComposer({api,json,escapeHtml:esc,icon,toast,state,onConversations,onAssets,onModels,onConversation,onModeChange,onPreviewAsset,onSaveAsset,onSaveTask,onRetryFile}) {
   const root=document.querySelector('#agentView'),wrap=root.querySelector('.agent-composer-wrap');
-  let kind='agent',models=[],visible=false,pollTimer=null,polling=null,statePollError=false,loading=null,uploading=false,contentAnimations=[],navigationRevision=0;
+  let kind='image',models=[],visible=false,pollTimer=null,polling=null,statePollError=false,loading=null,uploading=false,contentAnimations=[],navigationRevision=0;
   const drafts=Object.fromEntries(TYPES.filter(([key])=>key!=='agent').map(([key])=>[key,{generationScope:'draft:'+crypto.randomUUID(),prompt:'',visual_style:null,references:[],model:'',ratio:'16:9',imageRatio:'adaptive',imageSize:'2K',count:1,resolution:'768p',duration:4,videoMode:'all',frames:[null,null],audioMode:'sfx',format:'wav',speechRate:0,busy:false,requestId:null,conversationId:null}]));
   const preferences=createHomePreferences({root,icon,escapeHtml:esc});
   const stylePicker=createVisualStylePicker({api,escapeHtml:esc,icon,onError:toast});
@@ -29,11 +29,11 @@ export function createHomeComposer({api,json,escapeHtml:esc,icon,toast,state,onC
   const welcome=root.querySelector('.agent-welcome');
   welcome.innerHTML='<span class="home-eyebrow">建绘通 · AI 创作平台</span><h1>你好，今天想要<span>创作</span>什么？</h1><p>让一个想法，成为看得见、听得到的作品。</p>';
   const tabs=document.createElement('div');tabs.className='home-mode-tabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','首页创作功能');
-  tabs.innerHTML=TYPES.map(([key,glyph,label])=>`<button type="button" role="tab" id="homeTab-${key}" data-home-mode="${key}" aria-selected="${key==='agent'}" tabindex="${key==='agent'?0:-1}">${icon(glyph)}<span>${label}</span></button>`).join('');wrap.prepend(tabs);
+  tabs.innerHTML=TYPES.map(([key,glyph,label])=>`<button type="button" role="tab" id="homeTab-${key}" data-home-mode="${key}" aria-selected="${key===kind}" tabindex="${key===kind?0:-1}">${icon(glyph)}<span>${label}</span></button>`).join('');wrap.prepend(tabs);
   const thumb=document.createElement('i');thumb.className='home-mode-thumb';thumb.setAttribute('aria-hidden','true');tabs.prepend(thumb);
   function moveThumb(){const active=tabs.querySelector('[aria-selected=true]');if(active){thumb.style.width=active.offsetWidth+'px';thumb.style.height=active.offsetHeight+'px';thumb.style.transform=`translate(${active.offsetLeft}px,${active.offsetTop}px)`;}}
   new ResizeObserver(moveThumb).observe(tabs);document.fonts.ready.then(moveThumb);
-  const form=document.createElement('form');form.id='homeMediaComposer';form.className='home-media-composer';form.hidden=true;
+  const form=document.createElement('form');form.id='homeMediaComposer';form.className='home-media-composer';form.hidden=kind==='agent';
   form.innerHTML=`<div id="homeReferences" class="home-references"></div><label class="sr-only" for="homePrompt">生成描述</label><textarea id="homePrompt" rows="4" maxlength="4000"></textarea><div class="home-media-tools"><button type="button" class="home-upload" aria-label="上传参考素材" title="上传参考素材">${icon('plus')}</button><button type="button" class="home-mention" aria-label="引用素材" title="引用素材">@</button><label class="home-model-control"><span class="sr-only">生成模型</span>${icon('cube')}<select id="homeModel" aria-label="生成模型"></select></label><div id="homeParameters" class="home-parameters"></div><button type="submit" class="home-send" aria-label="开始生成" disabled>${icon('arrowUp')}</button></div><div class="home-generation-error" role="status" hidden></div><input id="homeMediaUpload" type="file" multiple hidden></form>`;
   root.querySelector('#agentComposer').after(form);
   const results=document.createElement('section');results.className='home-results';results.hidden=true;results.setAttribute('aria-label','生成结果');wrap.after(results);
@@ -390,7 +390,7 @@ export function createHomeComposer({api,json,escapeHtml:esc,icon,toast,state,onC
     e.preventDefault();e.stopImmediatePropagation();drafts[kind]=newDraft(draft());state.activeConversationId=null;select(kind,true);onConversations();
   },true);
   return {
-    resetHome(){navigationRevision++;preferences.close();mentions.close();if(details.open)details.close();for(const [key,d] of Object.entries(drafts)){if(d.viewConversationId||d.conversationId||d.busy||generation.isBlocked(generationScope(d)))drafts[key]=newDraft(d);}select('agent');state.activeConversationId=null;onModeChange?.();root.scrollTop=0;},
+    resetHome(){navigationRevision++;preferences.close();mentions.close();if(details.open)details.close();for(const [key,d] of Object.entries(drafts)){if(d.viewConversationId||d.conversationId||d.busy||generation.isBlocked(generationScope(d)))drafts[key]=newDraft(d);}select('image');state.activeConversationId=null;onModeChange?.();root.scrollTop=0;},
     async show(){visible=true;generation.requireRefresh(generationScope());renderRecent();if(!loading)loading=api('/api/model-registry').then(data=>{models=data.models||[];drawModel();}).catch(err=>toast(err.message)).finally(()=>{loading=null;drawModel();});drawModel();await Promise.all([loading,poll(),onConversations().then(()=>{if(visible)renderRecent();}).catch(err=>toast(err.message))]);},
     hide(){stylePicker.close();recentVideoPreview.stop();visible=false;clearTimeout(pollTimer);preferences.close();if(details.open)details.close();mentions.close();results.querySelectorAll('video,audio').forEach(el=>el.pause());},
     async openConversation(id,isCurrent=()=>true){
