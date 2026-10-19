@@ -2,6 +2,8 @@
 
 此目录为 AI 集市接入版本。默认文本模型为 `deepseek-v4-flash-vision-exp-0817`，图片模型为 `doubao-seedream-5.0-pro`，视频模型为 `minimax-h3`；三者使用 AI 集市网关及 SDK 下发的当前会话 Key。音频使用火山引擎 `seed-audio-1.0` 和独立服务端 Key。部署入口、环境变量、接口映射及验证边界见 [AI 集市版本部署说明](docs/aimarket-jishi-deployment.md)。
 
+通过 `npm start` / `server.py` 本地启动时，文本、图片和视频模型默认使用 `https://aimarket.hncig.cn:4090`；Docker 镜像和容器入口默认使用服务器内网网关 `http://192.168.241.202:4091`。配置项为 `JIANHUITONG_MARKET_MODEL_ORIGIN`，显式进程环境变量优先于 `.env`。默认模型、AI Market 服务商预设及保存过的这两个网关地址会在读取时统一到当前环境；其他自定义地址和音频接口保持各自配置。
+
 建绘通是湖南建投内部使用的 AI 视频创作平台，使用 Python / FastAPI 提供后端服务，正式运行使用 PostgreSQL 和 SQLAlchemy 保存账号、会话、项目、任务及素材元数据。媒体文件保存在 `data/uploads/`；SQLite 仅保留为旧数据迁移来源和隔离测试数据库。正式启动缺少 PostgreSQL 配置时会明确报错，不会自动回退到 SQLite。
 
 ## 对话式视频创作 Agent
@@ -67,7 +69,7 @@ npm start -- --reload
 
 ## 视觉风格
 
-图片、视频和 Agent 创作已支持 visual-style-studio 风格库，可按真人／2D／3D 分类选择 40 种带参照图的风格，也可自定义或清除。每次生成保存所选风格并自动将正式配方加入模型提示词，详见[视觉风格选择与验证](docs/visual-styles.md)。
+图片、视频和 Agent 创作已支持 visual-style-studio 2.3.0 风格库，可按真人／2D／3D／建筑分类选择 152 种带参照图的风格，也可自定义或清除。每次生成保存所选风格并自动将正式配方加入模型提示词，详见[视觉风格选择与验证](docs/visual-styles.md)。
 
 ## 登录与账号
 
@@ -174,7 +176,7 @@ macOS / Linux 将 Python 路径替换为 `.venv/bin/python`。浏览器交互验
 | 配置 | 默认值 |
 | --- | --- |
 | 模型 ID | `minimax-h3` |
-| Base URL | `http://192.168.241.202:4091` |
+| Base URL | 本地 `https://aimarket.hncig.cn:4090`；Docker `http://192.168.241.202:4091` |
 | 提交路径（POST） | `/v1/video_generation` |
 | 查询路径（GET） | `/v1/query/video_generation/{task_id}` |
 

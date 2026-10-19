@@ -49,6 +49,31 @@ def conversation_covers(h, context_ids):
     return covers
 
 
+def conversation_activity(h, context_ids):
+    """Summarize persisted media jobs without submitting or polling a provider."""
+    activity = {}
+    for record_kind, kind in (('task', 'video'), ('image_task', 'image'), ('audio_task', 'audio')):
+        for task in h.listing(record_kind):
+            cid = task.get('project_id')
+            if cid not in context_ids or task.get('deleted_at'):
+                continue
+            status = task.get('status', '')
+            if (kind == 'video' and task.get('provider_task_id') and task.get('polling_interrupted')
+                    and status not in ('done', 'succeeded')):
+                status = 'running'
+            active = status in ('queued', 'running', 'waiting_tool')
+            stamp = task.get('updated_at') or task.get('created_at') or 0
+            rank = (active, task.get('created_at') or 0, stamp, task['id'])
+            previous = activity.get(cid)
+            latest = max(stamp, previous['updated_at'] if previous else 0)
+            if not previous or rank > previous['_rank']:
+                activity[cid] = {'_rank': rank, 'status': status, 'updated_at': latest,
+                    'active_task': {'id': task['id'], 'kind': kind, 'status': status} if active else None}
+            else:
+                previous['updated_at'] = latest
+    return {cid: {k: v for k, v in item.items() if k != '_rank'} for cid, item in activity.items()}
+
+
 def install_conversations(app, h):
     router=APIRouter(prefix='/api/conversations')
 
@@ -95,7 +120,12 @@ def install_conversations(app, h):
     def conversations(request:Request):
         items = [public(c) for c in h.listing('conversation') if not c.get('deleted_at') and authorized(c, request)]
         covers = conversation_covers(h, {c['id'] for c in items})
-        return sorted([{**c, 'cover': covers.get(c['id'])} for c in items], key=lambda c:c['updated_at'], reverse=True)
+        activity = conversation_activity(h, {c['id'] for c in items if c['kind'] in ('image', 'video', 'audio')})
+        for item in items:
+            generation = activity.get(item['id'], {})
+            item.update(status=generation.get('status', item['status']), active_task=generation.get('active_task'),
+                updated_at=max(item['updated_at'], generation.get('updated_at', 0)), cover=covers.get(item['id']))
+        return sorted(items, key=lambda c:c['updated_at'], reverse=True)
 
     @router.post('',status_code=201)
     def create(body:ConversationCreate,request:Request):
@@ -147,11 +177,11 @@ def install_conversations(app, h):
             for task in h.listing(kind):
                 if task.get('project_id')!=cid or task.get('deleted_at'):
                     continue
-                if kind=='image_task':item=h.image_task_public(task)
-                elif kind=='audio_task':item=h.audio_task_public(task)
+                if kind=='image_task':item=h.image_generation_status(task['id'])
+                elif kind=='audio_task':item=h.audio_generation_status(task['id'])
                 else:
                     task = h.refresh_video_task(task['id'])
-                    item={k:task.get(k) for k in ('id','status','error','video_url','params','created_at','updated_at','provider_task_id','status_message','query_paused','auto_save_video','asset_save_status','asset_id')}
+                    item={k:task.get(k) for k in ('id','status','error','video_url','params','created_at','updated_at','provider_task_id','status_message','query_paused','auto_save_video','asset_save_status','asset_id','video_cache_status','video_cache_error')}
                 settings = task.get('params') if kind == 'task' else {
                     key: task[key] for key in ('model_config_id', 'model', 'reference_asset_ids', 'size', 'aspect_ratio', 'count', 'watermark', 'mode', 'audio_config', 'speaker', 'visual_style', 'style_snapshot', 'effective_prompt') if key in task
                 }

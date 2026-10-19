@@ -1,3 +1,5 @@
+import { icon } from './iconography.js?v=library-toggle-1';
+
 // The media element remains the playback engine; all visible controls are ours.
 const glyph = name => `<svg viewBox="0 0 24 24" aria-hidden="true">${({play:'<path d="m9 5 11 7-11 7Z" fill="currentColor" stroke="none"/>',pause:'<path d="M8 5v14M16 5v14"/>',volume:'<path d="m11 5-6 4H2v6h3l6 4ZM15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/>',muted:'<path d="m11 5-6 4H2v6h3l6 4ZM16 9l6 6M22 9l-6 6"/>',fullscreen:'<path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/>'})[name]}</svg>`;
 export function playerTime(value, audio = false) {
@@ -14,6 +16,7 @@ export function installNodePlayers(root = document) {
     const audio = media.tagName === 'AUDIO';
     const player = document.createElement('div');
     player.className = `node-player ${audio ? 'node-player-audio' : 'node-player-video media-node-interactive'}`;
+    if(!audio&&media.hasAttribute('data-conversation-video'))player.classList.add('node-player-conversation');
     player.setAttribute('role', 'group');
     player.setAttribute('aria-label', media.getAttribute('aria-label') || (audio ? '音频播放器' : '视频播放器'));
     if (audio) {
@@ -30,6 +33,24 @@ export function installNodePlayers(root = document) {
     const seek = find('.np-seek'), toggle = find('.np-toggle'), status = find('.np-status');
     const abort = new AbortController();
     const on = (el, event, handler) => el.addEventListener(event, handler, {signal:abort.signal});
+    const librarySource=media.closest('[data-home-job],.agent-media-card')?.querySelector('[data-player-library]');
+    if(!audio&&librarySource){
+      const library=document.createElement('button');
+      library.type='button';library.className='np-library';
+      library.innerHTML=icon('library')+`<span class="np-library-check">${icon('check')}</span>`;
+      player.append(library);
+      const syncLibrary=()=>{
+        const saved=librarySource.dataset.librarySaved==='true',busy=librarySource.getAttribute('aria-busy')==='true';
+        library.dataset.saved=String(saved);library.disabled=librarySource.disabled;
+        library.title=busy?'正在保存…':saved?'已保存至资产库':'保存至资产库';
+        library.setAttribute('aria-label',library.title);library.setAttribute('aria-busy',String(busy));
+      };
+      on(library,'click',()=>{if(!library.disabled)librarySource.click();});
+      const libraryObserver=new MutationObserver(syncLibrary);
+      libraryObserver.observe(librarySource,{attributes:true,attributeFilter:['disabled','data-library-saved','aria-busy']});
+      abort.signal.addEventListener('abort',()=>libraryObserver.disconnect(),{once:true});
+      syncLibrary();
+    }
     const duration = () => Number.isFinite(media.duration) && media.duration > 0 ? media.duration : 0;
     const syncProgress = () => {
       const progress = duration() ? Math.max(0, Math.min(100, media.currentTime / duration() * 100)) : 0;
@@ -77,6 +98,7 @@ export function installNodePlayers(root = document) {
     on(document,'visibilitychange',() => {stopProgress();syncProgress();resetClock();if(!document.hidden)startProgress();});
     abort.signal.addEventListener('abort',stopProgress,{once:true});
     const sync = () => {
+      if(!audio&&media.videoWidth&&media.videoHeight)player.style.setProperty('--np-video-ratio',String(media.videoWidth/media.videoHeight));
       const progress = syncProgress();
       seek.value = String(progress * 10); seek.disabled = !duration();
       seek.setAttribute('aria-valuetext', `${playerTime(media.currentTime,audio)} / ${playerTime(media.duration,audio)}`);
@@ -108,6 +130,17 @@ export function installNodePlayers(root = document) {
       on(find('.np-fullscreen'),'click',async () => {
         try {if(document.fullscreenElement===player)await document.exitFullscreen();else if(player.requestFullscreen)await player.requestFullscreen();else if(media.webkitEnterFullscreen)media.webkitEnterFullscreen();}
         catch {status.textContent='当前浏览器无法进入全屏';}
+      });
+      on(player,'click',event => {
+        // Reuse the play button for fullscreen picture and letterbox clicks.
+        // Controls keep their own actions; canvas gestures stay outside fullscreen.
+        if(document.fullscreenElement===player && (event.target===media || event.target===player))toggle.click();
+      });
+      on(player,'dblclick',async event => {
+        if(document.fullscreenElement!==player || (event.target!==media && event.target!==player))return;
+        event.preventDefault();
+        try {await document.exitFullscreen();}
+        catch {status.textContent='当前浏览器无法退出全屏';}
       });
     } else {
       const wave = find('.np-wave'), svg = wave.querySelector('svg');
@@ -165,7 +198,7 @@ export function installNodePlayers(root = document) {
   }
   function scan() {
     for(const [media,dispose] of active)if(!root.contains(media)){dispose();active.delete(media);}
-    root.querySelectorAll('.node video,.node audio,.media-detail-preview video,.media-detail-preview audio,.home-results audio,.al-preview-media audio,.ag-result audio,.agent-media-card audio').forEach(enhance);
+    root.querySelectorAll('.node video,.node audio,.media-detail-preview video,.media-detail-preview audio,video[data-conversation-video],.home-results audio,.al-preview-media audio,.ag-result audio,.agent-media-card audio').forEach(enhance);
   }
   const observer=new MutationObserver(records=>{
     // Time labels and button glyphs change during playback; they do not add players.

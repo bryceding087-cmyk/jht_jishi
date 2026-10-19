@@ -22,9 +22,9 @@
   <link rel="stylesheet" href="task-errors.css?v=typography-theme-1">
   <link rel="stylesheet" href="canvas-ui.css?v=agent-canvas-clean-3">
   <link rel="stylesheet" href="asset-library.css?v=media-history-2">
-  <link rel="stylesheet" href="media-nodes.css?v=node-title-unclip-2">
+  <link rel="stylesheet" href="media-nodes.css?v=video-node-controls-1">
   <link rel="stylesheet" href="image-generation.css?v=image-ref-1">
-  <link rel="stylesheet" href="audio-generation.css?v=audio-feature-1">
+  <link rel="stylesheet" href="audio-generation.css?v=media-history-1">
   <link rel="stylesheet" href="model-manager.css?v=audio-feature-1">
   <link rel="stylesheet" href="canvas-chrome.css?v=node-title-theme-1">
   <link rel="stylesheet" href="theme.css?v=dark-only-1">
@@ -32,27 +32,27 @@
   <link rel="stylesheet" href="aurora-loader.css?v=1">
   <link rel="stylesheet" href="agent-chat.css?v=conversation-preview-1">
   <link rel="stylesheet" href="platform-theme.css?v=ui-cleanup-1">
-  <link rel="stylesheet" href="canvas-workspace.css?v=canvas-controls-cleanup-2">
+  <link rel="stylesheet" href="canvas-workspace.css?v=media-history-1">
   <link rel="stylesheet" href="canvas-connections.css?v=1">
   <link rel="stylesheet" href="canvas-agent.css?v=canvas-agent-float-2">
   <link rel="stylesheet" href="node-context.css?v=compact-editor-top-1">
   <link rel="stylesheet" href="inline-node-media.css?v=image-params-3">
   <link rel="stylesheet" href="asset-mentions.css?v=video-reference-sync-3">
-  <link rel="stylesheet" href="node-player.css?v=audio-surfaces-5">
+  <link rel="stylesheet" href="node-player.css?v=conversation-video-1">
   <link rel="stylesheet" href="canvas-groups.css?v=group-title-zoom-2">
-  <link rel="stylesheet" href="asset-history.css?v=actions-fade-1">
+  <link rel="stylesheet" href="asset-history.css?v=asset-tab-motion-1">
   <link rel="stylesheet" href="project-library.css?v=viewport-info-3">
-  <link rel="stylesheet" href="home-composer.css?v=sent-draft-clear-3">
+  <link rel="stylesheet" href="home-composer.css?v=conversation-video-1">
   <link rel="stylesheet" href="dream-home.css?v=recent-video-1">
-  <link rel="stylesheet" href="home-tabs.css?v=editor-edge-curves-7">
-  <link rel="stylesheet" href="generation-conversation.css?v=reference-lightbox-1">
+  <link rel="stylesheet" href="home-tabs.css?v=agent-tab-order-1">
+  <link rel="stylesheet" href="generation-conversation.css?v=conversation-video-1">
   <link rel="stylesheet" href="agent-conversation.css?v=compact-cards-2">
   <link rel="stylesheet" href="/brand.css?v=recent-delete-5">
   <link rel="stylesheet" href="delete-confirm.css?v=1">
   <link rel="stylesheet" href="modal-motion.css?v=1">
   <link rel="stylesheet" href="image-lightbox.css?v=1">
   <link rel="stylesheet" href="loading-state.css?v=1">
-  <link rel="stylesheet" href="asset-preview.css?v=1">
+  <link rel="stylesheet" href="asset-preview.css?v=media-history-1">
   <link rel="stylesheet" href="/visual-style-picker.css?v=2">
 </head>
 <body>
@@ -62,7 +62,7 @@
     <nav id="mainNav">
       <button data-view="home" title="首页" aria-label="首页"><i aria-hidden="true"><svg class="ui-icon nav-icon nav-icon-home" viewBox="0 0 24 24"><g class="nav-icon-motion"><path class="nav-spark" d="M12 2.5c1.3 5.8 3.7 8.2 9.5 9.5-5.8 1.3-8.2 3.7-9.5 9.5C10.7 15.7 8.3 13.3 2.5 12 8.3 10.7 10.7 8.3 12 2.5Z"/></g></svg></i><span>首页</span></button>
       <button data-view="projects" title="项目" aria-label="项目"><i aria-hidden="true"><svg class="ui-icon nav-icon nav-icon-projects" viewBox="0 0 24 24"><g class="nav-icon-motion"><path d="M3 9V6.5A2.5 2.5 0 0 1 5.5 4H9l2.3 2.5h7.2A2.5 2.5 0 0 1 21 9v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/><path class="nav-folder-lid" d="M3 10h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8Z"/></g></svg></i><span>项目</span></button>
-      <button data-view="assets" title="资产" aria-label="资产"><i aria-hidden="true"><svg class="ui-icon nav-icon nav-icon-assets" viewBox="0 0 24 24"><g class="nav-icon-motion"><rect class="nav-asset-back" x="6" y="3" width="14" height="15" rx="3"/><g class="nav-asset-front"><rect x="3" y="6" width="14" height="15" rx="3"/><circle cx="7.5" cy="10.5" r="1.2"/><path d="m4 17 3.5-3.5 3 2.5 2-2 3.5 3.5"/></g></g></svg></i><span>资产</span></button>
+      <button data-view="assets" title="资产库" aria-label="资产库"><i aria-hidden="true"><svg class="ui-icon nav-icon nav-icon-assets" viewBox="0 0 24 24"><g class="nav-icon-motion"><rect class="nav-asset-back" x="6" y="3" width="14" height="15" rx="3"/><g class="nav-asset-front"><rect x="3" y="6" width="14" height="15" rx="3"/><circle cx="7.5" cy="10.5" r="1.2"/><path d="m4 17 3.5-3.5 3 2.5 2-2 3.5 3.5"/></g></g></svg></i><span>资产库</span></button>
       <button data-view="models" title="模型管理" aria-label="模型管理"><i aria-hidden="true"><svg class="ui-icon nav-icon nav-icon-models" viewBox="0 0 24 24"><g class="nav-icon-motion"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M7 8h10M7 16h10"/><circle class="nav-model-top" cx="10" cy="8" r="2"/><circle class="nav-model-bottom" cx="14" cy="16" r="2"/></g></svg></i><span>模型管理</span></button>
     </nav>
     <div class="project-list"><div id="projectList"></div></div>
@@ -104,7 +104,7 @@
             </div>
           </div>
           <button id="dockConnect" aria-label="连接节点"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="5" height="8" rx="1.5"/><rect x="16" y="3" width="5" height="6" rx="1.5"/><rect x="16" y="15" width="5" height="6" rx="1.5"/><path d="M8 12h3a2 2 0 0 0 2-2V8a2 2 0 0 1 2-2h1M11 12a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2h1"/></svg><span class="dock-tooltip" aria-hidden="true">连接节点</span></button>
-          <button id="dockMaterial" aria-label="素材库"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="m4 18 5-5 3 3 4-5 5 6"/></svg><span class="dock-tooltip" aria-hidden="true">素材库</span></button>
+          <button id="dockMaterial" aria-label="资产库"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="m4 18 5-5 3 3 4-5 5 6"/></svg><span class="dock-tooltip" aria-hidden="true">资产库</span></button>
           <button id="dockHistory" aria-label="历史记录"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg><span class="dock-tooltip" aria-hidden="true">历史记录</span></button>
           <span class="dock-divider"></span>
           <button id="dockShortcuts" aria-label="快捷键"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 15h10"/></svg><span class="dock-tooltip" aria-hidden="true">快捷键</span></button>
@@ -134,7 +134,7 @@
         <div class="field-head"><label for="modelSelect">模型</label></div><select id="modelSelect"></select><div class="model-status" id="modelStatus">默认模型 · API Key 未配置</div>
         <div class="two-col"><div><label for="ratioSelect">画幅</label><select id="ratioSelect"></select></div><div><label for="durationSelect">时长</label><select id="durationSelect"></select></div></div>
         <label for="resolutionSelect">分辨率</label><select id="resolutionSelect"></select>
-        <div class="field-head"><label>参考素材</label><button id="chooseReferenceBtn" type="button">从素材库添加</button></div><p class="reference-hint" id="assetRequirement">由画布连接自动同步</p>
+        <div class="field-head"><label>参考素材</label><button id="chooseReferenceBtn" type="button">从资产库添加</button></div><p class="reference-hint" id="assetRequirement">由画布连接自动同步</p>
         <button class="upload" id="uploadBox"><b><svg class="ui-icon" viewBox="0 0 24 24"><path d="M12 16V4M8 8l4-4 4 4M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg></b><span>上传图片<br><small>支持 JPG、PNG、WEBP，≤20MB</small></span></button>
         <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp,audio/wav,audio/mpeg,.wav,.mp3" hidden multiple>
         <div class="asset-chips" id="selectedAssets"></div>
@@ -155,7 +155,7 @@
   <div class="session-status" id="sessionStatus" role="status" aria-live="polite" hidden></div>
   <script src="browser-runtime.js?v=http-uuid-1"></script>
   <script type="module" src="modal-motion.js?v=1"></script>
-  <script type="module" src="app.js?v=video-reliability-1"></script>
+  <script type="module" src="app.js?v=fullscreen-double-click-1"></script>
   <script type="module" src="sidebar-scrollbar.js?v=shared-overlay-2"></script>
 </body>
 </html>

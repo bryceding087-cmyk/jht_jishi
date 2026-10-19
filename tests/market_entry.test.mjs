@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { createConversationResume } from '../public/conversation-resume.js';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 const appSource = read('../public/app.js');
@@ -8,8 +9,9 @@ const sessionSource = read('../public/session.js');
 const loginSource = read('../public/login.js');
 const flush = async () => { for (let index = 0; index < 24; index++) await Promise.resolve(); };
 
-function bootHarness({ market = true, required = market, connection = { state: 'error', connected: false, message: '连接超时' } } = {}) {
-  const counters = { auth: 0, initialization: 0, data: 0, bind: 0, listeners: 0 };
+function bootHarness({ market = true, required = market, connection = { state: 'error', connected: false, message: '连接超时' },
+  conversations = [], search = '', openError } = {}) {
+  const counters = { auth: 0, initialization: 0, data: 0, bind: 0, listeners: 0, opened: [], views: [] };
   const elements = new Map();
   const $ = selector => {
     if (!elements.has(selector)) elements.set(selector, { hidden: true, textContent: '', remove() {}, classList: { add() {} } });
@@ -18,13 +20,15 @@ function bootHarness({ market = true, required = market, connection = { state: '
   const globals = {
     counters, $, URLSearchParams,
     state: {}, canvasWorkspace: null, canvasGroups: null, canvasHistory: {}, canvasAgent: {}, assetLibrary: {},
-    location: { search: '', reload() { throw new Error('A banner retry should not reload the document'); } },
+    location: { search, reload() { throw new Error('A banner retry should not reload the document'); } },
+    conversationResume: createConversationResume({storage:()=>({getItem:()=>null,removeItem(){}})}),
+    openConversation: async id => { counters.opened.push(id); if (openError) throw openError; },
     document: { documentElement: { dataset: {}, removeAttribute() {} }, body: { classList: { add() {} } } },
     window: { addEventListener() { counters.listeners++; } },
     session: { async load() { counters.auth++; return { id: 'local-member' }; } },
     isMarketEntry: () => market, isMarketSessionRequired: () => required,
     initializeMarket: async options => { counters.initialization++; globals.observer = options.onStatus; options.onStatus(connection); return connection; },
-    api: async () => { counters.data++; return []; },
+    api: async path => { counters.data++; return path === '/api/conversations' ? conversations : []; },
     createCanvasWorkspace: () => ({}), createCanvasGroups: () => ({}),
     bindCanvas: () => { counters.bind++; },
   };
@@ -36,6 +40,7 @@ function bootHarness({ market = true, required = market, connection = { state: '
     'generateFromImage', 'prepareVideoReference', 'captureSettings', 'selectAsset', 'resolveVideoAssets', 'resolveVideoInput',
     'syncNodeSelectionVisuals', 'loadNodeSettings', 'installCanvasMentions', 'showAssetPanel'];
   for (const name of noops) globals[name] = () => {};
+  globals.showView = view => counters.views.push(view);
   const sandbox = vm.createContext(globals);
   const start = appSource.indexOf('let bootInProgress = false;');
   const end = appSource.indexOf("\n$('#renameProject')", start);
@@ -71,6 +76,25 @@ for (const state of ['standalone', 'inherited']) {
   await env.run();
   assert.equal(env.counters.data, 7);
   assert.equal(env.counters.bind, 1);
+}
+// Real boot routes a fresh market entry to its persisted active conversation.
+for (const search of ['', '?view=home']) {
+  const env = bootHarness({connection:{connected:true}, search,
+    conversations:[{id:'running-chat', owner_id:'local-member', status:'running', updated_at:1}]});
+  await env.run();
+  assert.deepEqual(env.counters.opened, search ? [] : ['running-chat']);
+  await env.run();
+  assert.equal(env.counters.data, 7, 'recovery must still finish startup exactly once');
+}
+// A conversation deleted between listing and opening cannot break startup.
+{
+  const env = bootHarness({connection:{connected:true}, openError:{status:404},
+    conversations:[{id:'deleted-chat', owner_id:'local-member', status:'running'}]});
+  await env.run();
+  assert.deepEqual(env.counters.opened, ['deleted-chat']);
+  assert.deepEqual(env.counters.views, ['home']);
+  await env.run();
+  assert.equal(env.counters.data, 7);
 }
 {
   const env = bootHarness({ market: false, required: true });

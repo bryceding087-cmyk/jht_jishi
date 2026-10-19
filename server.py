@@ -11,15 +11,18 @@ from dotenv import load_dotenv
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
 import uvicorn
+from model_gateway import LOCAL_MODEL_ORIGIN, MODEL_ORIGIN_ENV
 
 
 ROOT = Path(__file__).resolve().parent
 
 
-def load_deployment_config(root=ROOT):
+def load_deployment_config(root=ROOT, *, model_origin_default=LOCAL_MODEL_ORIGIN):
     # Either explicitly supplied process variable takes precedence over .env.
     explicit_database = os.getenv('JIANHUITONG_DATABASE_URL') or os.getenv('DATABASE_URL')
     load_dotenv(Path(root) / '.env', override=False)
+    os.environ[MODEL_ORIGIN_ENV] = (os.getenv(MODEL_ORIGIN_ENV, '').strip().rstrip('/')
+                                    or model_origin_default)
     database_url = explicit_database or os.getenv('JIANHUITONG_DATABASE_URL') or os.getenv('DATABASE_URL')
     if not database_url:
         raise ValueError('未配置 PostgreSQL。请运行 scripts/setup_local_postgres.ps1，或在 .env 配置 JIANHUITONG_DATABASE_URL。')
@@ -80,7 +83,11 @@ def start_local_database(database_url, root=ROOT):
     if occupied:
         raise ValueError('端口 55432 已被其他进程占用，未停止或接管该进程。')
     logfile = root / 'data' / 'postgresql-server.log'
-    started = subprocess.run([str(pg_ctl), '-D', str(data), '-l', str(logfile), '-w', '-t', '45', 'start'], timeout=55, **options)
+    # On Windows the daemon can inherit capture pipes, keeping communicate()
+    # blocked after pg_ctl exits. Server diagnostics already go to logfile.
+    started = subprocess.run([str(pg_ctl), '-D', str(data), '-l', str(logfile), '-w', '-t', '45', 'start'],
+                             timeout=55, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL, creationflags=options['creationflags'])
     if started.returncode != 0:
         raise ValueError('项目本地 PostgreSQL 启动失败，请检查 data/postgresql-server.log。')
     print('项目本地 PostgreSQL 已启动：127.0.0.1:55432。')

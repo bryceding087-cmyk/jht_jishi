@@ -81,7 +81,7 @@ export function createNodeContext(api, canvas, inspector, refresh) {
   });
   const row=$('.composer-reference-row');
   $('#chooseReferenceBtn').innerHTML=icon('plus')+'<span>参考</span>';
-  $('#chooseReferenceBtn').title='从素材库添加图片、视频或音频参考';
+  $('#chooseReferenceBtn').title='从资产库添加图片、视频或音频参考';
   row.insertAdjacentHTML('beforeend',`<button type="button" id="composerUpload" title="上传参考图片">${icon('upload')}<span>上传</span></button>`);
   $('#composerUpload').onclick=()=>$('#fileInput').click();
   function sync() {
@@ -102,13 +102,13 @@ export function createNodeContext(api, canvas, inspector, refresh) {
     picture.getContext('2d').drawImage(video,0,0);
     let blob;
     try { blob=await new Promise(resolve=>picture.toBlob(resolve,'image/png')); }
-    catch { throw new Error('该视频源不允许截帧，请下载并上传到素材库后重试'); }
+    catch { throw new Error('该视频源不允许截帧，请下载并上传到资产库后重试'); }
     if (!blob || blob.size>20*1024*1024) throw new Error('画面无法导出或图片超过 20 MB');
-    const form=new FormData(); form.append('file',blob,`${node.title||'视频'}-${time.toFixed(2)}s.png`);
+    const form=new FormData(); if(projectId)form.append('project_id',projectId); form.append('file',blob,`${node.title||'视频'}-${time.toFixed(2)}s.png`);
     const asset=await api.request('/api/assets',{method:'POST',body:form});
     api.upsertAsset(asset);
     if (state.project?.id===projectId && state.nodes.includes(node)) api.addLibraryAsset(asset,{position:{x:node.x+360,y:node.y}});
-    api.toast('当前画面已保存到素材库');
+    api.toast('当前画面已加入生成历史');
   }
   async function action(name) {
     const node=api.selectedNode(); if (!node || busy) return;
@@ -121,7 +121,7 @@ export function createNodeContext(api, canvas, inspector, refresh) {
         const url=node.type==='video'?api.videoPreviewUrl(node,task):asset?.url;
         if(url) {const a=document.createElement('a'); a.href=url; a.download=asset?.name||node.title; a.target='_blank'; a.rel='noopener'; a.click();}
       }
-      if (name==='save') await api.saveNode(node);
+      if (name==='save') {busy=true;toolbar.querySelector('[data-context="save"]').disabled=true;await api.saveNode(node);}
       if (name==='image') api.generateNodeImage(node);
       if (name==='audio') api.generateNodeAudio(node);
       if (name==='reference') api.generateFromImage(asset || await api.prepareVideoReference(node),node);
@@ -156,7 +156,10 @@ export function createNodeContext(api, canvas, inspector, refresh) {
     if(node.type==='prompt') actions.push(['polish','sparkle','润色']);
     if(node.type==='script') actions.push(['script','script','编辑分镜'],['expand','grid','展开分镜']);
     if(node.type==='character') actions.push(['character','character','编辑角色']);
-    if(node.type==='video' && state.nodeTasks[node.id]?.status==='done') actions.push(['save','library','存入素材库']);
+    if(node.type==='video'&&taskReady(node)||asset?.url) {
+      const saved=asset?asset.in_library:node.type==='video'&&state.nodeTasks[node.id]?.asset_save_status==='saved';
+      actions.push(['save',saved?'libraryRemove':'library',saved?'移出资产库':'保存至资产库']);
+    }
     if(video || asset?.url) actions.push(['download','download','下载']);
     const key=node.id+JSON.stringify(actions);
     if(key!==toolbarKey) {
@@ -168,8 +171,9 @@ export function createNodeContext(api, canvas, inspector, refresh) {
       const bounds=canvas.getBoundingClientRect(),r=card.getBoundingClientRect();
       toolbar.style.transformOrigin='top left';
       toolbar.style.transform=`scale(${state.zoom})`;
-      toolbar.style.left=(r.left-bounds.left+r.width/2-toolbar.offsetWidth*state.zoom/2)+'px';
-      toolbar.style.top=(r.top-bounds.top-(toolbar.offsetHeight+10)*state.zoom)+'px';
+      const desiredLeft=r.left-bounds.left+r.width/2-toolbar.offsetWidth*state.zoom/2;
+      toolbar.style.left=Math.max(12,Math.min(canvas.clientWidth-toolbar.offsetWidth*state.zoom-12,desiredLeft))+'px';
+      toolbar.style.top=Math.max(60,r.top-bounds.top-(toolbar.offsetHeight+10)*state.zoom)+'px';
     }
     positionOptions();
   }

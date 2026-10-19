@@ -1,6 +1,6 @@
 import { setSurfaceVisible, surfaceIsOpen } from './canvas-motion.js?v=liblib-detail-2';
-import { createNodeContext } from './node-context.js?v=combined-node-params-5';
-import { createVisualStylePicker } from './visual-style-picker.js?v=3';
+import { createNodeContext } from './node-context.js?v=library-toggle-1';
+import { createVisualStylePicker } from './visual-style-picker.js?v=4';
 // Canvas chrome shares the existing editors and persistence with the application.
 // Its screen-space overlays never participate in node/world coordinates.
 export function createCanvasWorkspace(api) {
@@ -59,7 +59,7 @@ export function createCanvasWorkspace(api) {
   $('#generateBtn .generate-label').textContent = '生成视频';
   $('#generateBtn .generate-hint').textContent = '';
   const nodeContext = createNodeContext(api, canvas, inspector, refresh);
-  for (const [id, glyph, label] of [['dockAddNode','plus','添加节点'],['dockMaterial','materials','素材库'],['dockHistory','clock','生成历史'],['dockShortcuts','keyboard','快捷键'],['dockHelp','help','教程']]) {
+  for (const [id, glyph, label] of [['dockAddNode','plus','添加节点'],['dockMaterial','materials','资产库'],['dockHistory','clock','生成历史'],['dockShortcuts','keyboard','快捷键'],['dockHelp','help','教程']]) {
     $('#' + id).querySelector(':scope > svg').outerHTML = icon(glyph);
     $('#' + id).title = label;
     $('#' + id).setAttribute('aria-label', label);
@@ -322,13 +322,16 @@ export function createCanvasWorkspace(api) {
       const bounds=canvas.getBoundingClientRect(), r=card?.getBoundingClientRect();
       const width=node?.type==='script'?920:node?.type==='video'?640:520;
       const scale=state.zoom;
-      inspector.style.width=width+'px';
+      const visibleWidth=Math.min(width,(canvas.clientWidth-24)/scale);
+      inspector.style.width=visibleWidth+'px';
       inspector.style.maxWidth='none';
-      inspector.style.maxHeight='none';
+      inspector.style.maxHeight=Math.max(120,(canvas.clientHeight-100)/scale)+'px';
       inspector.style.transformOrigin='top left';
       inspector.style.transform=`scale(${scale})`;
-      const left=r?r.left-bounds.left+r.width/2-width*scale/2:16;
-      const top=r?r.bottom-bounds.top+12*scale:80;
+      const desiredLeft=r?r.left-bounds.left+r.width/2-visibleWidth*scale/2:16;
+      const desiredTop=r?r.bottom-bounds.top+12*scale:80;
+      const left=Math.max(12,Math.min(canvas.clientWidth-visibleWidth*scale-12,desiredLeft));
+      const top=Math.max(60,Math.min(canvas.clientHeight-inspector.offsetHeight*scale-40,desiredTop));
       inspector.style.left=left+'px'; inspector.style.top=top+'px';
     }
     positionPalette(); minimap(); renderBoard();

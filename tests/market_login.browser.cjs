@@ -42,6 +42,8 @@ with tempfile.TemporaryDirectory(prefix='jht-market-browser-') as directory:
                     self.send_header('Content-Length', str(len(data)))
                     self.end_headers()
                     if self.command != 'HEAD': self.wfile.write(data)
+                except (BrokenPipeError, ConnectionResetError, ssl.SSLEOFError):
+                    pass  # Navigating away deliberately closes in-flight browser requests.
                 finally: upstream.close()
             do_GET = do_POST = do_PUT = do_PATCH = do_DELETE = do_HEAD = forward
         proxy = ThreadingHTTPServer(('127.0.0.1', 0), Proxy)
@@ -96,7 +98,7 @@ async function api(frame, url, body) {
     return { status:response.status, data:m.marketResponseData(await response.json()) };
   }, {url, body});
 }
-(async () => {
+async function run() {
   const server = spawn(process.env.JHT_TEST_PYTHON || '.venv/Scripts/python.exe', ['-u','-c',fixture], {stdio:['pipe','pipe','pipe']});
   let browser;
   try {
@@ -187,4 +189,6 @@ async function api(frame, url, body) {
     server.stdin.end('\n');
     await new Promise(resolve=>{if(server.exitCode!==null)return resolve();const timer=setTimeout(()=>{server.kill();resolve();},15000);server.once('exit',()=>{clearTimeout(timer);resolve();});});
   }
-})().catch(error=>{console.error(error);process.exitCode=1;});
+}
+module.exports = { fixture, api, run };
+if (require.main === module) run().catch(error=>{console.error(error);process.exitCode=1;});

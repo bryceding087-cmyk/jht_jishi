@@ -90,6 +90,8 @@ function homeHarness(jobs = [], initialKind = 'image') {
     complete: task => ['done', 'succeeded'].includes(task.status),
     esc: escapeHtml, icon: () => '', normalizeContentError: value => value,
     onPreviewAsset: asset => previews.push(asset),
+    onSaveAsset: async (asset,inLibrary)=>({...asset,in_library:inLibrary}),
+    onSaveTask:async (task,inLibrary)=>{task.asset_save_status=inLibrary?'saved':'history';return {id:task.id,in_library:inLibrary};},
     referencePreview: { open: asset => referencePreviews.push(asset) },
     frameMode: () => false, referencesFor: draft => draft.references,
     api, json: body => body, buildRegenerationRequest,
@@ -108,7 +110,7 @@ function homeHarness(jobs = [], initialKind = 'image') {
     sourceBetween(homeSource, '  function metadata(job)', '  function editTurn(job)'),
     sourceBetween(homeSource, '  async function regenerateTurn(job,button)', '  async function deleteTurn('),
     sourceBetween(homeSource, '  async function deleteTurn(job,button)', '  const details='),
-    sourceBetween(homeSource, '  results.onclick=e=>', '  async function poll()'),
+    sourceBetween(homeSource, '  results.onclick=async e=>', '  async function poll()'),
     sourceBetween(homeSource, '  async function refreshGenerationState(', '  form.onsubmit=async e=>'),
     sourceBetween(homeSource, '  form.onsubmit=async e=>', '  function renderRecent()'),
     sourceBetween(homeSource, "  root.addEventListener('click',e=>{", '  return {'),
@@ -118,6 +120,7 @@ function homeHarness(jobs = [], initialKind = 'image') {
   return {
     root, results, form, prompt, send, get d() { return context.drafts[context.kind]; }, previews, referencePreviews, requests, notifications, generation, stateReads, timers,
     render: () => context.render(), update: () => context.update(),
+    libraryChange: asset => documentEvents.get('asset-library-change')({detail:asset}),
     click: target => results.onclick({ target }),
     submit: () => form.onsubmit({ preventDefault() {} }),
     regenerate: job => context.regenerate(job, results.querySelector(`[data-home-regenerate="${job.task.id}"]`)),
@@ -146,6 +149,38 @@ function homeHarness(jobs = [], initialKind = 'image') {
       await callback();
     },
   };
+}
+
+// A saved result is disabled; removing through the library enables it again.
+{
+  const assets=[{...imageAsset('saved-image'),in_library:true},imageAsset('history-image')];
+  const job=resultJob('library-save',assets),env=homeHarness([job]);
+  env.render();
+  const preview=env.results.querySelector('.home-image-preview');
+  await env.click(env.results.querySelector('[data-home-save]'));
+  assert.ok(assets.every(asset=>asset.in_library));
+  const button=env.results.querySelector('[data-home-save]');
+  assert.equal(button.textContent,'已保存至资产库');
+  assert.equal(button.disabled,true);
+  await env.click(button);
+  assert.ok(assets.every(asset=>asset.in_library),'a stale click must never remove saved results');
+  env.libraryChange({...assets[0],in_library:false});
+  assert.equal(button.textContent,'保存至资产库');
+  assert.equal(button.disabled,false);
+  assert.equal(env.results.querySelector('.home-image-preview'),preview,'membership updates preserve the media DOM');
+}
+{
+  const job={kind:'video',conversationId:'conversation-1',prompt:'视频',settings:{aspect_ratio:'9:16'},
+    task:{id:'saved-video',status:'done',video_url:'/uploads/video.mp4',asset_id:'video-asset',asset_save_status:'history'}};
+  const env=homeHarness([job],'video');env.render();
+  const video=env.results.querySelector('video');
+  assert.ok(video.hasAttribute('data-conversation-video'));
+  await env.click(env.results.querySelector('[data-home-save]'));
+  assert.equal(env.results.querySelector('video'),video,'saving preserves playback and the shared player');
+  assert.equal(env.results.querySelector('[data-home-save]').disabled,true);
+  env.libraryChange({id:'video-asset',kind:'video',task_id:'saved-video',in_library:false});
+  assert.equal(env.results.querySelector('[data-home-save]').disabled,false);
+  assert.equal(env.results.querySelector('video'),video);
 }
 
 {
@@ -236,7 +271,9 @@ function homeHarness(jobs = [], initialKind = 'image') {
 
 for (const source of ['submit', 'regenerate']) {
   const job = resultJob('complete', [imageAsset('complete-image')]);
+  job.prompt = '将@微信图片_2026-10-18_114611_958.png的背景换成雪景';
   const env = homeHarness([job]);
+  env.prompt.value = job.prompt;
   env.render();
   await env.setServerBusy(false);
   let resolveTask;
@@ -247,6 +284,8 @@ for (const source of ['submit', 'regenerate']) {
   await env.submit();
   await env.regenerate(job);
   assert.equal(env.requests.length, 1, 'double submission and cross-entry clicks share one guard');
+  assert.equal(env.requests[0].body.prompt, job.prompt, 'naming must not alter the original prompt');
+  assert.equal('name' in env.requests[0].body, false, 'initial and repeated image generation must not use a truncated prompt as the name');
   resolveTask({ id: 'new-task', status: 'queued' });
   await first;
   assert.equal(env.notifications.length, 0);
@@ -462,6 +501,8 @@ function agentHarness() {
     document: { createElement: tag => new Element(tag) },
     $: selector => { assert.equal(selector, '#agentMessages'); return messages; },
     esc: escapeHtml, icon: () => '', onPreviewAsset: asset => previews.push(asset),
+    onSaveAsset: async (asset,inLibrary)=>({...asset,in_library:inLibrary}),
+    onSaveTask:async (task,inLibrary)=>{task.asset_save_status=inLibrary?'saved':'history';return {id:task.id,in_library:inLibrary};},
     normalizeContentError: value => value,
   });
   vm.runInContext(sourceBetween(agentSource, '  function renderEvent(e)', '  function renderReview(el,review)')
@@ -485,6 +526,14 @@ for (const eventKind of ['media', 'delivery']) {
     button.onclick();
     assert.equal(env.previews[0], asset);
     assert.equal(env.previews.length, 1);
+    const save=env.messages.querySelector('.agent-save-library');
+    await save.onclick({currentTarget:save});
+    assert.equal(asset.in_library,true);
+    assert.equal(save.textContent,'已保存至资产库');
+    assert.equal(save.disabled,true);
+    await save.onclick({currentTarget:save});
+    assert.equal(save.textContent,'已保存至资产库');
+    assert.equal(save.disabled,true);
   }
 }
 
@@ -510,6 +559,13 @@ for (const kind of ['video', 'audio']) {
   assert.equal(env.messages.querySelector('.agent-image-preview'), null);
   assert.ok(env.messages.querySelector(kind).hasAttribute('controls'));
   assert.equal(env.previews.length, 0);
+  const save=env.messages.querySelector('.agent-save-library');
+  await save.onclick({currentTarget:save});
+  assert.equal(save.textContent,'已保存至资产库');
+    assert.equal(save.disabled,true);
+    await save.onclick({currentTarget:save});
+    assert.equal(save.textContent,'已保存至资产库');
+    assert.equal(save.disabled,true);
 }
 
 console.log('PASS: Agent generated-image preview identity, accessible buttons, natural portrait/landscape sizing and native audio/video controls');

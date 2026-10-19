@@ -1,4 +1,4 @@
-import { icon } from './iconography.js?v=frame-ratio-1';
+import { icon } from './iconography.js?v=library-toggle-1';
 
 const mediaKinds = {
   image: { name: '图片', icon: 'image', english: 'IMAGE' },
@@ -67,7 +67,7 @@ export function mediaNodeDetail(node, asset, escapeHtml) {
   const preview = url ? `<div class="media-detail-preview">${mediaPreview(node, asset, escapeHtml, true)}</div>` : `<div class="media-detail-empty"><span aria-hidden="true">${icon(info.icon)}</span><p>还没有绑定${info.name}文件</p></div>`;
   const videoTools = kind === 'video' && url ? `<div class="media-video-tools media-node-interactive"><div class="media-video-step"><button type="button" id="mediaFramePrevious" title="向前步进 0.04 秒" aria-label="向前步进 0.04 秒">− 0.04s</button><output id="mediaVideoPosition" aria-live="off">0.00s</output><button type="button" id="mediaFrameNext" title="向后步进 0.04 秒" aria-label="向后步进 0.04 秒">+ 0.04s</button></div><div class="media-video-rate"><label for="mediaPlaybackRate">播放速度</label><select id="mediaPlaybackRate"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option></select></div><button type="button" class="secondary" id="mediaCaptureFrame">截取当前画面为图片素材</button><small>步进间隔为 0.04 秒；不同视频帧率下不等于精确一帧。</small></div>` : '';
   const download = url ? `<a class="secondary media-download" href="${escapeHtml(url)}" download="${escapeHtml(name || `${info.name}素材`)}" target="_blank" rel="noopener noreferrer">下载文件 ↗</a>` : '';
-  return `<div class="node-detail-card media-node-detail" data-media-detail="${escapeHtml(node.id)}"><span class="node-detail-kicker">${info.english} ASSET · ${info.name}素材</span><h3>${escapeHtml(node.title || `${info.name}素材`)}</h3><label for="mediaNodeTitle">节点名称</label><input id="mediaNodeTitle" value="${escapeHtml(node.title || '')}" maxlength="80" placeholder="${info.name}素材"><div class="media-file-meta"><span>当前文件</span><strong>${escapeHtml(name || '尚未选择')}</strong><small>${escapeHtml(asset?.mime_type || info.name)} · ${formatMediaSize(asset?.size_bytes)}</small></div>${preview}${asset?.description ? `<p class="media-detail-description">${escapeHtml(asset.description)}</p>` : ''}${videoTools}<div class="media-detail-actions media-node-interactive">${kind === 'image' || kind === 'prop' ? `<button type="button" class="secondary media-ai-button" id="mediaGenerateImage">${icon('sparkle','ui-icon-sm')} AI 生成图片</button>` : ''}<button type="button" class="primary" id="mediaUploadFile">${url ? '上传替换' : `上传${info.name}`}</button><button type="button" class="secondary" id="mediaPickFile">${url ? '更换素材' : '从素材库选择'}</button>${download}${(kind === 'image' || kind === 'prop') && url ? '<button type="button" class="secondary" id="mediaGenerateVideo">作为视频参考</button>' : ''}</div><p id="mediaDetailStatus" class="media-detail-status" role="status" aria-live="polite"></p></div>`;
+  return `<div class="node-detail-card media-node-detail" data-media-detail="${escapeHtml(node.id)}"><span class="node-detail-kicker">${info.english} ASSET · ${info.name}素材</span><h3>${escapeHtml(node.title || `${info.name}素材`)}</h3><label for="mediaNodeTitle">节点名称</label><input id="mediaNodeTitle" value="${escapeHtml(node.title || '')}" maxlength="80" placeholder="${info.name}素材"><div class="media-file-meta"><span>当前文件</span><strong>${escapeHtml(name || '尚未选择')}</strong><small>${escapeHtml(asset?.mime_type || info.name)} · ${formatMediaSize(asset?.size_bytes)}</small></div>${preview}${asset?.description ? `<p class="media-detail-description">${escapeHtml(asset.description)}</p>` : ''}${videoTools}<div class="media-detail-actions media-node-interactive">${kind === 'image' || kind === 'prop' ? `<button type="button" class="secondary media-ai-button" id="mediaGenerateImage">${icon('sparkle','ui-icon-sm')} AI 生成图片</button>` : ''}<button type="button" class="primary" id="mediaUploadFile">${url ? '上传替换' : `上传${info.name}`}</button><button type="button" class="secondary" id="mediaPickFile">${url ? '更换素材' : '从资产库选择'}</button>${asset?.id?`<button type="button" class="secondary" id="mediaSaveLibrary" >${icon(asset.in_library?"libraryRemove":"library")}${asset.in_library?"移出资产库":"保存至资产库"}</button>`:""}${download}${(kind === 'image' || kind === 'prop') && url ? '<button type="button" class="secondary" id="mediaGenerateVideo">作为视频参考</button>' : ''}</div><p id="mediaDetailStatus" class="media-detail-status" role="status" aria-live="polite"></p></div>`;
 }
 
 function waitForMediaEvent(video, name, timeout = 8000) {
@@ -86,7 +86,7 @@ function waitForMediaEvent(video, name, timeout = 8000) {
   });
 }
 
-export function bindMediaNodeDetail({ node, asset, api, toast, onPick, onUpload, onRename, onGenerateFromImage, onGenerateImage, onGenerateAudio, onFrameAsset }) {
+export function bindMediaNodeDetail({ node, asset, api, toast, onPick, onUpload, onRename, onGenerateFromImage, onGenerateImage, onGenerateAudio, onFrameAsset, onSaveAsset }) {
   const root = document.querySelector('.media-node-detail');
   if (!root || root.dataset.mediaDetail !== String(node.id)) return;
   const find = selector => root.querySelector(selector);
@@ -99,6 +99,7 @@ export function bindMediaNodeDetail({ node, asset, api, toast, onPick, onUpload,
   };
   find('#mediaPickFile').onclick = invoke(onPick);
   find('#mediaUploadFile').onclick = invoke(onUpload);
+  if(find('#mediaSaveLibrary'))find('#mediaSaveLibrary').onclick=invoke(async()=>{const button=find('#mediaSaveLibrary');button.disabled=true;try{const updated=await onSaveAsset?.(asset,!asset.in_library);if(updated)Object.assign(asset,updated);}finally{button.disabled=false;button.innerHTML=icon(asset.in_library?'libraryRemove':'library')+(asset.in_library?'移出资产库':'保存至资产库');}});
   find('#mediaNodeTitle').onchange = invoke(() => onRename?.(find('#mediaNodeTitle').value.trim().slice(0, 80) || `${mediaKinds[mediaKind(node, asset)].name}素材`));
   if (find('#mediaGenerateImage')) find('#mediaGenerateImage').onclick = invoke(onGenerateImage);
   if (node.type === 'audio') {
@@ -167,7 +168,7 @@ export function bindMediaNodeDetail({ node, asset, api, toast, onPick, onUpload,
       try {
         blob = await new Promise((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('画面导出失败，请重试。')), 'image/png'));
       } catch (error) {
-        if (error.name === 'SecurityError') throw new Error('该视频源不允许跨域截帧，请下载视频并上传到素材库后重试。');
+        if (error.name === 'SecurityError') throw new Error('该视频源不允许跨域截帧，请下载视频并上传到资产库后重试。');
         throw error;
       }
       if (blob.size > 20 * 1024 * 1024) throw new Error('截取图片超过 20 MB，请缩小视频分辨率后重试。');
@@ -177,7 +178,7 @@ export function bindMediaNodeDetail({ node, asset, api, toast, onPick, onUpload,
       const saved = await api('/api/assets', { method: 'POST', body: form });
       await onFrameAsset?.(saved);
       message(`已将 ${captureTime.toFixed(2)} 秒的画面保存为图片素材。`);
-      toast?.('当前画面已保存到图片素材库');
+      toast?.('当前画面已加入生成历史');
     } finally {
       setBusy(false);
       button.textContent = '截取当前画面为图片素材';

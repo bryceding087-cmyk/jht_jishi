@@ -1,4 +1,4 @@
-import { icon } from './iconography.js?v=audio-generation-1';
+import { icon } from './iconography.js?v=library-toggle-1';
 import { loadingMarkup } from './loading-state.js?v=1';
 
 const MODES = {
@@ -16,6 +16,9 @@ const requestId = () => crypto.randomUUID();
 export function createAudioGenerator(ctx) {
   const { api, json, escapeHtml: esc, toast } = ctx;
   let current = null;
+  document.addEventListener('asset-library-change',({detail:asset})=>{
+    if(current?.asset?.id===asset.id){Object.assign(current.asset,asset);render(current);}
+  });
   const active = session => current === session && session.overlay.isConnected && !session.suspended;
   const busy = session => session.submitting || ['queued', 'running'].includes(session.status);
 
@@ -79,7 +82,7 @@ export function createAudioGenerator(ctx) {
     const candidates = session.assets.filter(asset => ['audio', 'image', 'prop'].includes(asset.kind));
     return `<section class="ag-reference"><div class="ag-section-head"><h3>参考素材</h3><span>音频按添加顺序对应 @音频1、@音频2、@音频3</span></div>
       <div class="ag-ref-list">${session.references.length ? session.references.map((asset, index) => `<div class="ag-ref-item"><span class="ag-ref-mark">${icon(asset.kind === 'audio' ? 'audio' : 'image')}</span><span class="ag-ref-name">${esc(asset.name)}</span><small>${asset.kind === 'audio' ? `@音频${index + 1 + (session.speaker ? 1 : 0)}` : '参考图'}</small><button type="button" data-ag-ref-up="${index}" aria-label="前移 ${esc(asset.name)}" title="前移" ${index ? '' : 'disabled'}>${icon('arrowUp')}</button><button type="button" data-ag-ref-down="${index}" aria-label="后移 ${esc(asset.name)}" title="后移" ${index < session.references.length - 1 ? '' : 'disabled'}>${icon('chevronDown')}</button><button type="button" data-ag-ref-remove="${index}" aria-label="移除 ${esc(asset.name)}" title="移除">${icon('close')}</button></div>`).join('') : '<p class="ag-ref-empty">直接输入描述即可生成音频</p>'}</div>
-      <div class="ag-ref-add"><select id="agAssetPick" aria-label="从素材库选择参考素材"><option value="">从素材库选择…</option>${candidates.map(asset => `<option value="${esc(asset.id)}">${esc(asset.kind === 'audio' ? '音频' : '图片')} · ${esc(asset.name)}</option>`).join('')}</select><button type="button" id="agUploadReference">${icon('upload')}上传参考</button></div>
+      <div class="ag-ref-add"><select id="agAssetPick" aria-label="从资产库选择参考素材"><option value="">从资产库选择…</option>${candidates.map(asset => `<option value="${esc(asset.id)}">${esc(asset.kind === 'audio' ? '音频' : '图片')} · ${esc(asset.name)}</option>`).join('')}</select><button type="button" id="agUploadReference">${icon('upload')}上传参考</button></div>
       <label class="ag-field"><span>音色 ID <small>可选；与参考图片互斥</small></span><input id="agSpeaker" maxlength="200" value="${esc(session.speaker)}" placeholder="填写豆包语音 2.0 或复刻音色 ID"></label>
     </section>`;
   }
@@ -96,13 +99,14 @@ export function createAudioGenerator(ctx) {
         ${referenceHtml(session)}<details class="ag-advanced" ${session.advanced ? 'open' : ''}><summary>输出设置</summary><div class="ag-options"><label class="ag-field"><span>格式</span><select id="agFormat" ${locked ? 'disabled' : ''}><option value="wav" ${config.format === 'wav' ? 'selected' : ''}>WAV</option><option value="mp3" ${config.format === 'mp3' ? 'selected' : ''}>MP3</option><option value="ogg_opus" ${config.format === 'ogg_opus' ? 'selected' : ''}>OGG Opus</option></select></label><label class="ag-field"><span>采样率</span><select id="agSampleRate" ${locked ? 'disabled' : ''}>${RATES[config.format].map(value => `<option value="${value}" ${value === config.sample_rate ? 'selected' : ''}>${value.toLocaleString()} Hz</option>`).join('')}</select></label><label class="ag-field"><span>语速</span><input id="agSpeechRate" type="number" min="-50" max="100" value="${config.speech_rate}" ${locked ? 'disabled' : ''}></label><label class="ag-field"><span>音量</span><input id="agLoudnessRate" type="number" min="-50" max="100" value="${config.loudness_rate}" ${locked ? 'disabled' : ''}></label><label class="ag-field"><span>音调</span><input id="agPitchRate" type="number" min="-12" max="12" value="${config.pitch_rate}" ${locked ? 'disabled' : ''}></label></div><div class="ag-checks"><label><input id="agSubtitles" type="checkbox" ${config.enable_subtitle ? 'checked' : ''} ${locked ? 'disabled' : ''}>返回字幕时间轴</label><label><input id="agWatermark" type="checkbox" ${session.watermark ? 'checked' : ''} ${locked ? 'disabled' : ''}>添加音频水印</label></div></details>
         <p class="ag-error" role="alert" ${session.error ? '' : 'hidden'}>${esc(session.error || '')}</p><div class="ag-form-actions"><button type="submit" class="ag-primary" ${session.loading || locked || !session.model?.api_key_set ? 'disabled' : ''}>${locked ? '正在生成…' : finished ? '重新生成' : '生成音频'}</button></div></form>
         <aside class="ag-result"><div class="ag-wave" aria-hidden="true">${Array.from({length: 24}, (_, index) => `<i style="--bar:${[18,32,46,26,65,82,45,23,58,92,53,34,76,100,69,39,84,52,25,71,47,29,62,20][index]}%"></i>`).join('')}</div><div class="ag-result-status" role="status" aria-live="polite"><strong>${finished ? '音频已生成' : locked ? session.status === 'queued' ? '任务排队中' : '正在生成音频' : session.status === 'failed' ? '生成未完成' : '等待生成'}</strong>${finished ? `<small>${session.asset.duration ? Number(session.asset.duration).toFixed(1) + ' 秒 · ' : ''}${esc(session.asset.name)}</small>` : '<small>生成完成后可在这里试听</small>'}</div>${finished ? `<audio controls preload="metadata" src="${esc(session.asset.url)}"></audio><a class="ag-download" href="${esc(session.asset.url)}" download="${esc(session.asset.name)}">${icon('download')}下载音频</a>` : ''}</aside></div>
-      <footer class="ag-footer"><span>${locked ? '关闭面板后任务会继续，可稍后从音频素材库查看' : session.model?.api_key_set ? `${esc(session.model.provider)} · ${esc(session.model.model_id)}` : '请先配置音频模型 API Key'}</span><button type="button" id="agUse" class="ag-primary" ${finished ? '' : 'disabled'}>${session.options.onUse ? '使用这段音频' : '完成'}</button></footer></section>`;
+      <footer class="ag-footer"><span>${locked ? '关闭面板后任务会继续，可稍后从生成历史查看' : session.model?.api_key_set ? `${esc(session.model.provider)} · ${esc(session.model.model_id)}` : '请先配置音频模型 API Key'}</span>${finished?`<button type="button" id="agSaveLibrary" >${icon(session.asset.in_library?"libraryRemove":"library")}${session.asset.in_library?"移出资产库":"保存至资产库"}</button>`:""}<button type="button" id="agUse" class="ag-primary" ${finished ? '' : 'disabled'}>${session.options.onUse ? '使用这段音频' : '完成'}</button></footer></section>`;
     bind(session);
   }
 
   function bind(session) {
     const find = selector => session.overlay.querySelector(selector);
     find('#agClose').onclick = close;
+    if(find('#agSaveLibrary'))find('#agSaveLibrary').onclick=async event=>{event.currentTarget.disabled=true;event.currentTarget.textContent=session.asset.in_library?'正在移出…':'正在保存…';const asset=await ctx.onSaveAsset?.(session.asset,!session.asset.in_library);if(asset)session.asset=asset;render(session);};
     find('#agUse').onclick = async () => {
       if (!session.asset) return;
       try { await session.options.onUse?.(session.asset); close(); }
@@ -136,7 +140,7 @@ export function createAudioGenerator(ctx) {
           session.assets.unshift(asset);
           await ctx.onAssetCreated?.(asset);
           const error = referenceError(session, asset);
-          if (error) throw new Error(`${error}；文件已保存到素材库`);
+          if (error) throw new Error(`${error}；文件已加入生成历史`);
           session.references.push(asset); session.error = '';
           session.options.onDraft?.({reference_asset_ids: session.references.map(item => item.id)});
         } catch (error) { session.error = error.message || '上传参考素材失败'; }
@@ -179,7 +183,7 @@ export function createAudioGenerator(ctx) {
     } catch (error) {
       if (!active(session)) return;
       session.pollErrors++;
-      if (session.pollErrors >= 3) { session.error = '进度查询失败，任务仍在后台运行；请稍后从音频素材库查看'; render(session); }
+      if (session.pollErrors >= 3) { session.error = '进度查询失败，任务仍在后台运行；请稍后从生成历史查看'; render(session); }
       else session.timer = setTimeout(() => poll(session), 2500);
     }
   }

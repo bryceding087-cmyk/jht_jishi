@@ -19,11 +19,17 @@ VIDEO_DOWNLOAD_TIMEOUT = 120
 VIDEO_CHUNK_BYTES = 256 * 1024
 
 
-def validate_video_url(url):
-    """Reject local/private targets before following a provider download URL."""
+def validate_video_url(url, trusted_origin=None):
+    """Allow public HTTPS storage or the exact operator-configured gateway."""
     parsed = urlparse(str(url))
-    if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password:
+    if parsed.scheme not in ('http', 'https') or not parsed.hostname or parsed.username or parsed.password:
         raise ValueError('模型返回了无效的视频下载地址')
+    def origin(value):
+        return value.scheme, value.hostname, value.port or (443 if value.scheme == 'https' else 80)
+    if trusted_origin and origin(parsed) == origin(urlparse(str(trusted_origin))):
+        return str(url)
+    if parsed.scheme != 'https':
+        raise ValueError('模型返回的视频下载地址不允许访问')
     try:
         addresses = socket.getaddrinfo(parsed.hostname, parsed.port or 443, type=socket.SOCK_STREAM)
     except OSError:
@@ -34,8 +40,12 @@ def validate_video_url(url):
 
 
 class PublicVideoRedirectHandler(HTTPRedirectHandler):
+    def __init__(self, trusted_origin=None):
+        super().__init__()
+        self.trusted_origin = trusted_origin
+
     def redirect_request(self, request, fp, code, msg, headers, newurl):
-        validate_video_url(newurl)
+        validate_video_url(newurl, self.trusted_origin)
         return super().redirect_request(request, fp, code, msg, headers, newurl)
 
 
@@ -54,17 +64,17 @@ def _suffix(url, content_type, data):
     raise ValueError('模型返回的文件不是有效视频')
 
 
-def download_generated_video(url):
+def download_generated_video(url, trusted_origin=None):
     """Download a provider video with size, redirect and time bounds.
 
     Returns ``(bytes, suffix)``.  The caller owns persistence and can perform
     an atomic write to its configured uploads directory.
     """
-    validate_video_url(url)
+    validate_video_url(url, trusted_origin)
     request = Request(str(url), headers={'User-Agent': 'JianHuiTong/1.0', 'Accept': 'video/*'})
-    with build_opener(PublicVideoRedirectHandler()).open(request, timeout=VIDEO_DOWNLOAD_TIMEOUT) as response:
+    with build_opener(PublicVideoRedirectHandler(trusted_origin)).open(request, timeout=VIDEO_DOWNLOAD_TIMEOUT) as response:
         final_url = response.geturl() if hasattr(response, 'geturl') else str(url)
-        validate_video_url(final_url)
+        validate_video_url(final_url, trusted_origin)
         length = response.headers.get('Content-Length', '')
         if str(length).isdigit() and int(length) > MAX_VIDEO_BYTES:
             raise ValueError('生成视频超过 100 MB，暂时无法缓存')

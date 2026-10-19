@@ -117,6 +117,8 @@ jht-docker exec jht-postgres pg_dump -U postgres -p 55432 -Fc jianhuitong > jian
 
 ## 源码中增加的构建入口
 
+本地开发的文本、图片、视频网关默认是 `https://aimarket.hncig.cn:4090`。Dockerfile 和容器入口默认使用 `http://192.168.241.202:4091`；离线打包脚本生成的 `config/app.env` 也明确写入内网地址。本地 `.env` 不进入镜像，部署时不要将本地 `.env` 直接作为容器的 `--env-file`。显式设置 `JIANHUITONG_MARKET_MODEL_ORIGIN` 时，以该部署配置为准。
+
 项目根目录提供 `Dockerfile` 与 `.dockerignore`，可在有外网且具备 Docker 的 Linux amd64 构建机上执行标准构建：
 
 ```bash

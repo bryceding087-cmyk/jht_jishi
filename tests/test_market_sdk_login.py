@@ -67,6 +67,51 @@ class MarketSDKLoginTests(unittest.TestCase):
     def login(self, subject='user-a'):
         return self.call('POST', '/api/integrations/aimarket/login', self.context(subject), expected=201)
 
+    def pending_video(self, **changes):
+        self.h.ACTIVE_VIDEO_TASKS.clear()
+        self.h.save('model_config', {**self.h.DEFAULT_MODEL, 'base_url': self.market.settings.model_origin})
+        binding = self.login()['binding_id']
+        conversation = self.call('POST', '/api/conversations', {'title': '返回继续生成', 'kind': 'video',
+            'prompt': '小熊猫跳舞', 'settings': {}, 'request_id': 'resume'}, binding=binding, expected=201)
+        params = {'project_id': conversation['id'], 'node_id': 'conversation-video',
+            'model_config_id': self.h.DEFAULT_MODEL_ID, 'prompt': '小熊猫跳舞', 'resolution': '768p', 'request_id': 'resume'}
+        with patch.object(self.h.threading, 'Thread'):
+            task = self.call('POST', '/api/tasks', params, binding=binding, expected=202)
+        self.h.update_task(task['id'], **{'status': 'running', 'provider_task_id': 'original-provider-id',
+            'polling_interrupted': True, **changes})
+        self.h.ACTIVE_VIDEO_TASKS.clear()
+        self.market.revoke(binding)
+        return conversation, task, params
+
+    def test_returning_market_identity_resumes_original_video_with_new_binding(self):
+        conversation, task, _ = self.pending_video(query_retry_at=time.time() + 60)
+        fresh = self.login()['binding_id']
+        stranger = self.login('user-b')['binding_id']
+        self.assertEqual(self.call('GET', '/api/conversations', binding=stranger), [])
+        self.call('GET', '/api/conversations/' + conversation['id'], binding=stranger, expected=404)
+        self.assertEqual(self.call('GET', '/api/conversations', binding=fresh)[0]['active_task']['id'], task['id'])
+        with patch.object(self.h.threading, 'Thread') as workers:
+            result = self.call('GET', '/api/conversations/' + conversation['id'], binding=fresh)
+            self.call('GET', '/api/tasks/' + task['id'], binding=fresh)
+        self.assertEqual(result['tasks'][0]['id'], task['id'])
+        self.assertEqual(result['tasks'][0]['status'], 'running')
+        self.assertEqual(workers.call_count, 1)
+        self.assertIs(workers.call_args.kwargs['args'][-1], True, 'resume only the original GET loop')
+        saved = self.h.get('task', task['id'])
+        self.assertEqual(saved['provider_task_id'], 'original-provider-id')
+        self.assertEqual(saved['_market_binding_id'], fresh)
+        self.assertNotIn('sk-fixture', json.dumps(saved))
+
+    def test_new_submission_after_reconnection_keeps_original_generation_busy(self):
+        conversation, task, params = self.pending_video(status='blocked')
+        fresh = self.login()['binding_id']
+        with patch.object(self.h.threading, 'Thread') as workers:
+            blocked = self.call('POST', '/api/tasks', {**params, 'request_id': 'different'}, binding=fresh, expected=409)
+        self.assertEqual(blocked['detail']['task']['id'], task['id'])
+        self.assertEqual(workers.call_count, 1)
+        self.assertIs(workers.call_args.kwargs['args'][-1], True)
+        self.assertEqual(self.h.get('task', task['id'])['_market_binding_id'], fresh)
+
     def test_anonymous_market_shell_and_assets_without_business_access(self):
         status, headers, body = self.browser.request('GET', '/market')
         self.assertEqual(status, 200)

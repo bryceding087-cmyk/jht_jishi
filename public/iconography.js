@@ -3,6 +3,7 @@ import { referenceIcon, referenceIconNames } from './canvas-reference-icons.js?v
 const PATHS = {
   copy: '<rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3"/>',
   trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 11v6M14 11v6"/>',
+  libraryRemove: '<path d="M4 5h16v4H4zM6 9v11h12V9M9 14h6"/>',
   sort: '<path d="M4 5h12M4 10h8M4 15h5M18 8v12m-3-3 3 3 3-3"/>',
   folder: '<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3V7Z"/><path d="m3 11 3-1h15"/>',
   group: '<rect x="4" y="4" width="16" height="16" rx="3" stroke-dasharray="3 3"/><rect x="8" y="8" width="8" height="8" rx="1"/>',
@@ -28,6 +29,7 @@ const PATHS = {
   preview: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3V9Z"/>',
   fit: '<path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h3a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4"/>',
   reset: '<path d="M5 5v5h5M5.5 10A7.5 7.5 0 1 1 7.8 17"/>',
+  regenerate: '<path d="M20.5 15.5A6.5 6.5 0 0 0 16 4.5H9M3.5 8.5A6.5 6.5 0 0 0 8 19.5h7" stroke-width="2.2"/><path d="m10.5 1-4 3.5 4 3.5V1ZM13.5 16l4 3.5-4 3.5v-7Z" fill="currentColor" stroke="none"/>',
   text: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h8M8 13h8M8 16h5"/>',
   image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.5"/><path d="m4 18 5-5 3 3 3-4 5 6"/>',
   video: '<rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3"/><path d="m8 9 4 3-4 3V9Z"/>',

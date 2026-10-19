@@ -17,7 +17,7 @@ export function buildRegenerationRequest(job, requestId) {
     body.node_id = 'conversation-video';
     body.asset_ids = [...(settings.asset_ids ?? settings.reference_asset_ids ?? references)];
   } else {
-    body.name = job.prompt.slice(0, 60);
+    if (job.kind === 'audio') body.name = job.prompt.slice(0, 60);
     body.reference_asset_ids = [...(settings.reference_asset_ids ?? settings.asset_ids ?? references)];
     if (job.kind === 'image') body.watermark = false;
   }

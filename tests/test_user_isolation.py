@@ -98,6 +98,64 @@ class UserIsolationTests(unittest.TestCase):
         self.assertEqual(forged['creator_id'], str(self.users['dingyufu']['id']))
         self.request(self.b, 'GET', '/api/projects/' + self.pa['id'], expected=404, headers={'x-role': 'admin', 'x-user-id': '1'})
 
+    def test_uploads_are_history_until_manually_saved_and_library_is_private(self):
+        self.assertFalse(self.aa['in_library'])
+        self.assertEqual(self.request(self.a, 'GET', '/api/assets?collection=library'), [])
+        route = '/api/assets/' + self.aa['id'] + '/library'
+        self.request(self.b, 'POST', route, {}, expected=404)
+        self.request(self.b, 'POST', '/api/assets/' + self.aa['id'] + '/retry-file', {}, expected=404)
+        first = self.request(self.a, 'POST', route, {})
+        second = self.request(self.a, 'POST', route, {})
+        self.assertTrue(first['in_library'])
+        self.assertEqual(first['library_saved_at'], second['library_saved_at'])
+        self.assertEqual(first['url'], self.aa['url'])
+        self.assertEqual(len(self.request(self.a, 'GET', '/api/assets')), 1)
+        self.assertEqual([a['id'] for a in self.request(self.a, 'GET', '/api/assets?collection=library')], [self.aa['id']])
+        self.assertEqual(self.request(self.b, 'GET', '/api/assets?collection=library'), [])
+
+    def test_remove_from_library_preserves_history_files_and_references(self):
+        route = '/api/assets/' + self.aa['id'] + '/library'
+        original_file = self.a.request('GET', self.aa['url'])[2]
+        self.request(self.a, 'POST', route, {})
+        self.request(self.b, 'DELETE', route, expected=404)
+        self.assertTrue(self.request(self.a, 'GET', '/api/assets/' + self.aa['id'])['in_library'])
+        node = {'id': 'reference', 'type': 'asset', 'assetId': self.aa['id'], 'assetUrl': self.aa['url']}
+        self.request(self.a, 'PUT', '/api/projects/' + self.pa['id'], {'name': '甲的画布', 'nodes': [node]})
+        conversation = self.request(self.a, 'POST', '/api/conversations', {
+            'title': '保留参考图', 'kind': 'image', 'prompt': '参考图', 'request_id': 'remove-library-reference',
+            'settings': {'reference_asset_ids': [self.aa['id']]},
+        }, 201)
+        removed = self.request(self.a, 'DELETE', route)
+        repeated = self.request(self.a, 'DELETE', route)
+        self.assertFalse(removed['in_library'])
+        self.assertIsNone(removed['library_saved_at'])
+        self.assertEqual(repeated['updated_at'], removed['updated_at'])
+        self.assertEqual(self.request(self.a, 'GET', '/api/assets?collection=library'), [])
+        self.assertEqual([a['id'] for a in self.request(self.a, 'GET', '/api/assets')], [self.aa['id']])
+        self.assertEqual(self.a.request('GET', self.aa['url'])[2], original_file)
+        project = self.request(self.a, 'GET', '/api/projects/' + self.pa['id'])
+        self.assertEqual(project['nodes'][0]['assetId'], self.aa['id'])
+        details = self.request(self.a, 'GET', '/api/conversations/' + conversation['id'])
+        self.assertEqual(details['settings']['reference_asset_ids'], [self.aa['id']])
+        restored = self.request(self.a, 'POST', route, {})
+        self.assertTrue(restored['in_library'])
+        self.assertEqual(restored['id'], self.aa['id'])
+        self.assertEqual(restored['url'], self.aa['url'])
+        self.request(self.a, 'DELETE', '/api/assets/missing/library', expected=404)
+
+    def test_generation_snapshots_reflect_manual_library_membership(self):
+        for kind, field, getter in [('image', 'assets', self.h.image_task_public), ('audio', 'asset', self.h.audio_task_public)]:
+            with self.subTest(kind=kind), access_scope(self.users['dingyufu']):
+                snapshot = {'id': 'task-' + kind, 'status': 'succeeded', field: [self.aa] if field == 'assets' else self.aa}
+                self.h.save_asset_to_library(self.aa['id'])
+                result = getter(snapshot)
+                asset = result[field][0] if field == 'assets' else result[field]
+                self.assertTrue(asset['in_library'])
+                self.h.remove_asset_from_library(self.aa['id'])
+                result = getter(snapshot)
+                asset = result[field][0] if field == 'assets' else result[field]
+                self.assertFalse(asset['in_library'])
+
     def test_foreign_project_reads_writes_copy_scripts_recent_and_trash_are_denied(self):
         path = '/api/projects/' + self.pa['id']
         for method, route, body in [('GET', path, None), ('GET', path + '/info', None),

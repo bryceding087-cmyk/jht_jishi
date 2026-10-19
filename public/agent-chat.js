@@ -1,10 +1,10 @@
 import { validateReferenceVideo, videoReferenceCover } from './reference-video.js?v=1';
 import { userStorageKey } from './session.js?v=market-sdk-3';
-import { icon } from './iconography.js?v=style-pen-3';
+import { icon } from './iconography.js?v=library-toggle-1';
 import { renderMarkdown } from './markdown.js?v=agent-docs-1';
 import { attachAssetMentions } from './asset-mentions.js?v=reference-sync-2';
 import { createHomePreferences } from './home-preferences.js?v=parameter-escape-8';
-import { createVisualStylePicker } from './visual-style-picker.js?v=3';
+import { createVisualStylePicker } from './visual-style-picker.js?v=4';
 import { normalizeContentError } from './task-errors.js?v=content-rejection-3';
 import { withLoading } from './loading-state.js?v=1';
 
@@ -13,8 +13,17 @@ const STATUS = {running:'正在制作',waiting_tool:'正在生成',waiting_user:
 const AGENT_LOADER = '<span class="aurora-loader agent-loading" role="status" aria-label="正在处理"><span class="aurora-loader__halo" aria-hidden="true"></span><span class="aurora-loader__rotor" aria-hidden="true"></span><span class="aurora-loader__core" aria-hidden="true"></span></span>';
 const TITLES = {'project-context':'创作上下文',director:'导演','story-polishing':'故事润色','model-budget':'模型与费用','story-analysis':'内容与时长','creative-design':'创意设计','visual-assets':'视觉素材','storyboard-planning':'分镜规划','prompt-composition':'提示词','video-generation':'视频生成','voice-production':'音色与配音','music-production':'整片配乐','video-editing':'视频合成','quality-review':'质量检查','canvas-management':'画布管理','revision-recovery':'修改与恢复'};
 
-export function createAgentChat({api, json, escapeHtml: esc, toast, onModels, beforeStart, onProjectSnapshot, onConversationSnapshot, onPreviewAsset}) {
+export function createAgentChat({api, json, escapeHtml: esc, toast, onModels, beforeStart, onProjectSnapshot, onConversationSnapshot, onPreviewAsset, onSaveAsset}) {
   const root = document.getElementById('agentView');
+  document.addEventListener('asset-library-change',({detail:asset})=>{
+    root.querySelectorAll('.agent-save-library').forEach(button=>{
+      if(button.libraryAsset?.id!==asset.id)return;
+      Object.assign(button.libraryAsset,asset);
+      button.dataset.librarySaved=String(!!asset.in_library);
+      button.disabled=!!asset.in_library||button.getAttribute('aria-busy')==='true';
+      button.innerHTML=icon('library')+(asset.in_library?'已保存至资产库':'保存至资产库');
+    });
+  });
   let run = null, capabilities = null, cursor = 0, polling = null, visible = false, busy = false, files = [], mode = 'create', initialized = false;
   const prefs = {aspect_ratio:'16:9',style:'',visual_style:null,scope:'full_video',voice:true,music:true,subtitles:true,canvas:false,models:{}};
   let formRequestId = null;
@@ -25,7 +34,7 @@ export function createAgentChat({api, json, escapeHtml: esc, toast, onModels, be
   root.innerHTML = `
     <div class="agent-topbar"><span class="agent-location">${icon('sparkle')}<span>Agent 创作</span></span></div>
     <div class="agent-scroll" id="agentScroll"><div class="agent-welcome"><div class="agent-eyebrow">从一个想法，到一部作品</div><h1><span class="agent-hero-mark">${icon('sparkle')}</span><span class="agent-hero-intro">和<span class="agent-brand-name">建绘通</span></span><div class="agent-modes" role="tablist" aria-label="创作类型"><button class="selected" data-mode="create" role="tab" aria-selected="true">创作</button><button data-mode="drama" role="tab" aria-selected="false">短剧</button><button data-mode="marketing" role="tab" aria-selected="false">营销</button></div><span>聊聊创作想法</span></h1><p>写下你的故事，让导演、素材与镜头一起就位。</p></div><div class="agent-messages" id="agentMessages" aria-live="polite" aria-relevant="additions"></div></div>
-    <div class="agent-composer-wrap"><form class="agent-composer" id="agentComposer"><div class="agent-attached" id="agentAttached"></div><label class="sr-only" for="agentInput">故事或消息</label><textarea id="agentInput" rows="4" maxlength="24000" placeholder="输入你的故事或创作想法，输入 @ 可引用素材库里的图片、视频和音频…"></textarea><div class="agent-compose-tools"><div class="agent-tool-group agent-central-tools"><button type="button" class="agent-pill" data-command="skills">${icon('sparkle')}技能 ${icon('chevronDown')}</button></div><div class="agent-tool-group"><button type="submit" class="agent-send" aria-label="发送消息" disabled>${icon('arrowUp')}</button></div></div></form></div>
+    <div class="agent-composer-wrap"><form class="agent-composer" id="agentComposer"><div class="agent-attached" id="agentAttached"></div><label class="sr-only" for="agentInput">故事或消息</label><textarea id="agentInput" rows="4" maxlength="24000" placeholder="输入你的故事或创作想法，输入 @ 可引用资产库里的图片、视频和音频…"></textarea><div class="agent-compose-tools"><div class="agent-tool-group agent-central-tools"><button type="button" class="agent-pill" data-command="skills">${icon('sparkle')}技能 ${icon('chevronDown')}</button></div><div class="agent-tool-group"><button type="submit" class="agent-send" aria-label="发送消息" disabled>${icon('arrowUp')}</button></div></div></form></div>
     <input type="file" id="agentUpload" multiple hidden accept="image/*,video/mp4,video/webm,audio/*">
     <dialog class="agent-dialog" id="agentDialog"><div class="agent-dialog-head"><h2></h2><button class="agent-icon" type="button" aria-label="关闭">${icon('close')}</button></div><div class="agent-dialog-body"></div></dialog>`;
   const $ = selector => root.querySelector(selector);
@@ -94,7 +103,7 @@ export function createAgentChat({api, json, escapeHtml: esc, toast, onModels, be
     const heading=run ? `${run.title} · ${STATUS[run.status] || run.status}`:'新对话';root.dataset.agentTitle=heading;
     if(docked||!root.dataset.homeMode||root.dataset.homeMode==='agent')$('.agent-location span').textContent=heading;
     if(run) {Object.assign(prefs,{visual_style:null},run.preferences);prefs.canvas=false;syncQuickPreferences();stylePicker.refresh();}
-    input.placeholder=run?'继续描述修改要求，或询问当前进度…':'输入你的故事或创作想法，输入 @ 可引用素材库里的图片、视频和音频…';
+    input.placeholder=run?'继续描述修改要求，或询问当前进度…':'输入你的故事或创作想法，输入 @ 可引用资产库里的图片、视频和音频…';
     refreshInput();
     renderControls();
   }
@@ -139,7 +148,14 @@ export function createAgentChat({api, json, escapeHtml: esc, toast, onModels, be
     else if(e.kind==='media'||e.kind==='delivery'){
       const a=e.asset;const url=safeURL(a.url);
       const mediaKind=a.kind==='image'||a.kind==='prop'?'image':a.kind==='audio'?'audio':'video';
-      el.innerHTML=`<div class="agent-media-card agent-media-${mediaKind}"><div>${mediaKind==='image'?`<button type="button" class="agent-image-preview" aria-label="放大预览 ${esc(a.name)}"><img src="${url}" alt="${esc(a.name)}" loading="lazy"></button>`:mediaKind==='audio'?`<audio src="${url}" controls preload="metadata"></audio>`:`<video src="${url}" controls preload="metadata" playsinline></video>`}</div><footer><span>${esc(e.text)}</span><a href="${url}" download="${esc(a.name)}">下载 ${icon('arrowUpRight')}</a></footer></div>`;
+      el.innerHTML=`<div class="agent-media-card agent-media-${mediaKind}"><div>${mediaKind==='image'?`<button type="button" class="agent-image-preview" aria-label="放大预览 ${esc(a.name)}"><img src="${url}" alt="${esc(a.name)}" loading="lazy"></button>`:mediaKind==='audio'?`<audio src="${url}" controls preload="metadata"></audio>`:`<video data-conversation-video src="${url}" controls preload="metadata" playsinline></video>`}</div><footer><span>${esc(e.text)}</span><button type="button" class="agent-save-library" data-player-library data-library-saved="${!!a.in_library}" aria-busy="false" ${a.in_library?'disabled':''}>${icon('library')}${a.in_library?'已保存至资产库':'保存至资产库'}</button><a href="${url}" download="${esc(a.name)}">下载 ${icon('arrowUpRight')}</a></footer></div>`;
+      el.querySelector('.agent-save-library').libraryAsset=a;
+      el.querySelector('.agent-save-library').onclick=async event=>{
+        const button=event.currentTarget;if(button.disabled||a.in_library)return;
+        button.disabled=true;button.setAttribute('aria-busy','true');button.innerHTML=icon('library')+'正在保存…';
+        try{const saved=await onSaveAsset?.(a,true);if(saved)Object.assign(a,saved);}
+        finally{button.disabled=!!a.in_library;button.dataset.librarySaved=String(!!a.in_library);button.setAttribute('aria-busy','false');button.innerHTML=icon('library')+(a.in_library?'已保存至资产库':'保存至资产库');}
+      };
       if(mediaKind==='image')el.querySelector('.agent-image-preview').onclick=()=>onPreviewAsset?.(a);
       const media=el.querySelector('img,video');
       if(media){

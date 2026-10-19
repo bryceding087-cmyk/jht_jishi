@@ -32,7 +32,7 @@ body:has(.creation-home.has-media-conversation.active-view:not(.agent-docked))>m
 .creation-home .home-results .home-image-preview:only-child{max-width:min(340px,100%)}
 .creation-home .home-results .home-image-preview:focus-visible{outline:2px solid #b5d5d6;outline-offset:4px}
 .creation-home.has-media-conversation:not(.agent-docked)>.home-results .home-image-results img{display:block;height:auto;width:auto;max-width:100%;max-height:420px;aspect-ratio:auto;object-fit:contain;border:0;border-radius:0;background:transparent}
-.creation-home.has-media-conversation:not(.agent-docked)>.home-results video{width:min(640px,100%);height:auto;max-height:420px;aspect-ratio:var(--result-ratio,16/9);border:0;border-radius:6px}
+.creation-home.has-media-conversation:not(.agent-docked)>.home-results video:not([data-conversation-video]){width:min(640px,100%);height:auto;max-height:420px;aspect-ratio:var(--result-ratio,16/9);border:0;border-radius:6px}
 .creation-home.has-media-conversation:not(.agent-docked)>.home-results footer{justify-content:flex-start;margin-top:12px}
 .creation-home.has-media-conversation:not(.agent-docked)>.agent-composer-wrap{width:calc(100% - 64px);margin:8px 32px 18px;border:1px solid #ffffff10;background:linear-gradient(120deg,#1c1e20,#202223);border-radius:26px;box-shadow:0 -15px 40px #11121355}
 .creation-home.has-media-conversation:not(.agent-docked)>.agent-composer-wrap::before{opacity:.3}
@@ -80,9 +80,9 @@ body:has(.creation-home.has-media-conversation.active-view:not(.agent-docked))>m
   font: 500 13px var(--font-ui);
   transition: background 150ms ease, opacity 150ms ease;
 }
-.creation-home .home-results .home-turn-actions button:hover { background: #353535; }
+.creation-home .home-results .home-turn-actions button:not(:disabled):hover { background: #353535; }
 .creation-home .home-results .home-turn-actions button:focus-visible { outline: 1px solid #aaa; outline-offset: 2px; }
-.creation-home .home-results .home-turn-actions button:disabled { opacity: .45; cursor: wait; }
+.creation-home .home-results .home-turn-actions button:disabled { opacity: .45; cursor: default; }
 .creation-home .home-results .home-turn-actions .home-turn-delete { width: 38px; padding: 0; }
 .home-turn-actions svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 

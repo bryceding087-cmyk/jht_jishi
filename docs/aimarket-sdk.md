@@ -30,7 +30,7 @@
 |---|---|---|
 | `JIANHUITONG_PUBLIC_ORIGIN` | `https://aimarket.hncig.cn:4193` | 建绘通浏览器外部 origin；代理终止 HTTPS 或重写 Host 时用于写请求校验，显式空值禁用该例外 |
 | `JIANHUITONG_MARKET_ORIGIN` | `https://aimarket.hncig.cn:4090` | 实际集市父网页 origin；缺失或清空则禁用集市入口 |
-| `JIANHUITONG_MARKET_MODEL_ORIGIN` | `http://192.168.241.202:4091` | 服务端内网模型网关，模型路径仍含 `/v1` |
+| `JIANHUITONG_MARKET_MODEL_ORIGIN` | 本地 `https://aimarket.hncig.cn:4090`；Docker `http://192.168.241.202:4091` | 文本、图片、视频的模型网关，模型路径仍含 `/v1`；与模型管理中实际使用的网关一致 |
 | `JIANHUITONG_MARKET_AGENT_ID` | `020884f4-99f0-4d6f-bbc4-74426e6fed1c` | SDK 应用 ID 必须一致；未设置或空值时使用此默认值 |
 | `JIANHUITONG_MARKET_SDK_LOGIN` | `1` | 信任现有 SDK context 并映射个人账号；设为 `0` 可恢复先本地登录再绑定的旧模式 |
 | `JIANHUITONG_MARKET_KEY_TTL` | `3600` 秒 | 限制在 60–3600 秒；到期重新连接 |

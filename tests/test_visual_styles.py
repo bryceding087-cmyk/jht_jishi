@@ -2,7 +2,9 @@
 import hashlib
 import json
 from collections import Counter
+from itertools import product
 from pathlib import Path
+from urllib.parse import urlsplit
 import unittest
 from pydantic import ValidationError
 
@@ -16,15 +18,19 @@ from test_auth import Browser
 class VisualStyleTests(unittest.TestCase):
     def test_catalogue_and_all_previews_are_complete(self):
         styles = style_catalog()['styles']
-        self.assertEqual(len({s['id'] for s in styles}), 40)
-        self.assertEqual(Counter(s['category'] for s in styles), {'真人': 16, '2D': 13, '3D': 11})
+        self.assertEqual(style_catalog()['version'], '2.3.0')
+        self.assertEqual(len(styles), 152)
+        self.assertEqual(len({s['id'] for s in styles}), 152)
+        self.assertEqual(Counter(s['category'] for s in styles), {'真人': 53, '2D': 44, '3D': 35, '建筑': 20})
         for style in styles:
             with self.subTest(style=style['id']):
                 self.assertNotIn('preview_subject', style)
                 self.assertNotIn('preview_prompt', style)
-                preview = Path(__file__).resolve().parents[1] / 'public' / style['preview_url'].lstrip('/')
+                url = urlsplit(style['preview_url'])
+                preview = Path(__file__).resolve().parents[1] / 'public' / url.path.lstrip('/')
                 self.assertTrue(preview.is_file())
                 self.assertEqual(hashlib.sha256(preview.read_bytes()).hexdigest(), style['preview_sha256'])
+                self.assertEqual(url.query, 'v=' + style['preview_sha256'][:12])
                 snapshot = resolve_style({'id': style['id']})
                 self.assertEqual(snapshot['prompt'], style['image_style_prompt_zh'])
                 for kind in ('image', 'video'):
@@ -33,6 +39,18 @@ class VisualStyleTests(unittest.TestCase):
                     self.assertIn(style['display_name'], text)
                     self.assertLessEqual(len(text), 4000)
         self.assertNotIn('image_style_prompt_zh', public_styles()['styles'][0])
+
+    def test_architecture_preserves_existing_building_and_user_directions(self):
+        for style in style_catalog()['styles']:
+            if style['category'] != '建筑':
+                continue
+            with self.subTest(style=style['id']):
+                fields = style_task_fields({'id': style['id']}, '原有教学楼，平视构图，固定机位', 'video')
+                self.assertIn('保留体量、层数、开口、结构和相机视角', fields['effective_prompt'])
+                self.assertIn('除非用户明确要求改造', fields['effective_prompt'])
+                self.assertNotIn('构图建议', fields['effective_prompt'])
+                self.assertNotIn('运动建议', fields['effective_prompt'])
+                self.assertEqual(fields['style_snapshot']['version'], '2.3.0')
 
     def test_invalid_or_forged_selection_rejected(self):
         for value in [{'id': 'missing'}, {'id': 'custom'}, {'id': 'custom', 'custom_prompt': '  '},
@@ -65,10 +83,11 @@ class VisualStyleTests(unittest.TestCase):
             style_task_fields({'id': 'feature-animation'}, '长' * 3999, 'image')
 
     def test_video_providers_receive_effective_text_without_extra_reference_images(self):
-        selection = {'id': 'wax-crayon-storybook'}
-        fields = style_task_fields(selection, '一辆蓝色卡车，固定镜头', 'video')
-        for provider, model, resolution in [('ark', 'seedance-test', '720p'), ('aimarket', 'minimax-h3', '768p')]:
-            with self.subTest(provider=provider):
+        for style_id, (provider, model, resolution) in product(
+                ('wax-crayon-storybook', 'architecture-parametric-fluid'),
+                [('ark', 'seedance-test', '720p'), ('aimarket', 'minimax-h3', '768p')]):
+            fields = style_task_fields({'id': style_id}, '一辆蓝色卡车，固定镜头', 'video')
+            with self.subTest(style=style_id, provider=provider):
                 wire = video_payload({'prompt': '一辆蓝色卡车，固定镜头', **fields, 'asset_ids': [],
                     'aspect_ratio': '16:9', 'resolution': resolution, 'duration': 4, 'mode': 'text-to-video'},
                     {'provider_id': provider, 'model_id': model}, lambda _: self.fail('Style preview must not be a reference'))
@@ -95,25 +114,28 @@ class StyleWorkflowTests(unittest.TestCase):
 
     def test_catalogue_requires_login_and_members_can_select(self):
         self.assertEqual(Browser(self.h.app).request('GET', '/api/visual-styles')[0], 401)
-        self.assertEqual(len(self.request(self.a, 'GET', '/api/visual-styles')['styles']), 40)
+        self.assertEqual(len(self.request(self.a, 'GET', '/api/visual-styles')['styles']), 152)
 
     def test_task_snapshot_history_clear_and_idempotency(self):
-        style = {'id': 'feature-animation'}
-        for kind in ('image', 'video'):
-            with self.subTest(kind=kind):
+        for kind, style_id in product(('image', 'video'), ('feature-animation', 'architecture-parametric-fluid')):
+            style = {'id': style_id}
+            name = resolve_style(style)['name']
+            request_id = kind + '-' + style_id
+            with self.subTest(kind=kind, style=style_id):
                 context = self.request(self.a, 'POST', '/api/conversations', {'title': '风格测试', 'kind': kind,
-                    'prompt': '原始描述', 'settings': {'visual_style': style}, 'request_id': kind}, 201)
-                body = {**self.payload(kind, context, kind + '-styled'), 'visual_style': style}
+                    'prompt': '原始描述', 'settings': {'visual_style': style}, 'request_id': request_id}, 201)
+                body = {**self.payload(kind, context, request_id + '-styled'), 'visual_style': style}
                 task = self.request(self.a, 'POST', self.route(kind), body, 202)
                 params = task if kind == 'image' else task['params']
-                self.assertEqual(params['style_snapshot']['name'], '圆润动画电影3D')
-                self.assertIn('圆润动画电影3D', params['effective_prompt'])
+                self.assertEqual(params['style_snapshot']['name'], name)
+                self.assertEqual(params['style_snapshot']['version'], '2.3.0')
+                self.assertIn(name, params['effective_prompt'])
                 self.assertEqual(params['prompt'], '测试')
                 again = self.request(self.a, 'POST', self.route(kind), body, 202)
                 self.assertEqual(again['id'], task['id'])
                 self.finish(kind, task)
                 self.request(self.a, 'POST', self.route(kind), {**body, 'visual_style': None}, 409)
-                cleared = self.request(self.a, 'POST', self.route(kind), {**body, 'request_id': kind + '-clear', 'visual_style': None}, 202)
+                cleared = self.request(self.a, 'POST', self.route(kind), {**body, 'request_id': request_id + '-clear', 'visual_style': None}, 202)
                 self.finish(kind, cleared)
                 detail = self.request(self.a, 'GET', '/api/conversations/' + context['id'])
                 turns = {t['id']: t for t in detail['tasks']}

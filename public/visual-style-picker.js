@@ -66,6 +66,12 @@ export function createVisualStylePicker({ api, escapeHtml: esc, icon, onError = 
       (!matches.length && !special ? '<p class="style-picker-no-results">没有找到相关风格</p>' : '');
     panel.querySelectorAll('[data-style-category]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.styleCategory === category)));
   }
+  function drawCategories() {
+    const available = [...new Set(styles.map(style => style.category))];
+    const preferred = ['真人', '2D', '3D', '建筑'];
+    const categories = ['全部', ...preferred.filter(c => available.includes(c)), ...available.filter(c => !preferred.includes(c))];
+    panel.querySelector('nav').innerHTML = categories.map(c => `<button type="button" data-style-category="${esc(c)}" aria-pressed="${c === category}">${esc(c)}</button>`).join('');
+  }
   async function choose(value) {
     if (!current || panel.dataset.busy === 'true') return;
     const entry = current;
@@ -78,7 +84,7 @@ export function createVisualStylePicker({ api, escapeHtml: esc, icon, onError = 
     if (panel) return;
     panel = document.createElement('div'); panel.className = 'home-preference-panel visual-style-picker';
     panel.setAttribute('popover', 'manual'); panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-label', '选择视觉风格');
-    panel.innerHTML = `<div class="style-picker-search">${icon('search')}<input type="search" aria-label="搜索风格" placeholder="搜索风格"><button type="button" data-style-close aria-label="关闭风格选择">${icon('close')}</button></div><div class="style-picker-body"><nav aria-label="风格分类">${['全部','真人','2D','3D'].map(c => `<button type="button" data-style-category="${c}" aria-pressed="${c === '全部'}">${c}</button>`).join('')}</nav><div class="style-picker-grid"></div><form class="style-picker-custom" hidden><label>自定义风格提示词<textarea maxlength="1500" rows="7" placeholder="描述媒介、造型、材质、光影与色彩，例如：纸雕质感，柔和侧光，低饱和配色…"></textarea></label><small>主体与场景请在生成描述中填写。</small><div><button type="button" data-style-back>返回风格库</button><button type="submit">使用此风格</button></div></form></div>`;
+    panel.innerHTML = `<div class="style-picker-search">${icon('search')}<input type="search" aria-label="搜索风格" placeholder="搜索风格"><button type="button" data-style-close aria-label="关闭风格选择">${icon('close')}</button></div><div class="style-picker-body"><nav aria-label="风格分类"></nav><div class="style-picker-grid"></div><form class="style-picker-custom" hidden><label>自定义风格提示词<textarea maxlength="1500" rows="7" placeholder="描述媒介、造型、材质、光影与色彩，例如：纸雕质感，柔和侧光，低饱和配色…"></textarea></label><small>主体与场景请在生成描述中填写。</small><div><button type="button" data-style-back>返回风格库</button><button type="submit">使用此风格</button></div></form></div>`;
     document.body.append(panel);
     panel.querySelector('input').oninput = event => { query = event.target.value.trim(); drawGrid(); };
     panel.onclick = event => {
@@ -133,7 +139,7 @@ export function createVisualStylePicker({ api, escapeHtml: esc, icon, onError = 
         styles = data.styles; anchor = trigger; current = entry; category = '全部'; query = '';
         panel.querySelector('input').value = '';
         panel.querySelector('form').hidden = true; panel.querySelector('.style-picker-grid').hidden = false;
-        trigger.setAttribute('aria-expanded', 'true'); drawGrid();
+        trigger.setAttribute('aria-expanded', 'true'); drawCategories(); drawGrid();
         panel.showPopover(); position();
         panel.querySelector('input').focus({ preventScroll: true });
       } catch (error) { onError(error.message); }

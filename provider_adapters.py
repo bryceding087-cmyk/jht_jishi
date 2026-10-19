@@ -3,6 +3,7 @@
 from copy import deepcopy
 from urllib.parse import quote, urlparse
 from content_errors import normalize_content_error
+from model_gateway import DOCKER_MODEL_ORIGIN, model_gateway_origin
 
 
 PROVIDERS = {
@@ -15,7 +16,7 @@ PROVIDERS = {
         'id': 'aimarket', 'name': 'AI Market',
         'description': '使用 AI 集市的 Chat Completions 接口，集市入口使用当前会话凭据。',
         'defaults': {'model_id': 'deepseek-v4-flash-vision-exp-0817',
-                     'base_url': 'http://192.168.241.202:4091', 'api_path': '/v1/chat/completions'},
+                     'base_url': DOCKER_MODEL_ORIGIN, 'api_path': '/v1/chat/completions'},
     }],
     'image': [{
         'id': 'ark', 'name': '火山方舟 Ark',
@@ -26,7 +27,7 @@ PROVIDERS = {
         'id': 'aimarket', 'name': 'AI Market',
         'description': '使用 AI 集市的 Images Generations 接口。',
         'defaults': {'model_id': 'doubao-seedream-5.0-pro',
-                     'base_url': 'http://192.168.241.202:4091', 'api_path': '/v1/images/generations'},
+                     'base_url': DOCKER_MODEL_ORIGIN, 'api_path': '/v1/images/generations'},
     }],
     'audio': [{
         'id': 'volcengine-speech', 'name': '火山引擎语音',
@@ -44,7 +45,7 @@ PROVIDERS = {
     }, {
         'id': 'aimarket', 'name': 'AI Market',
         'description': '使用独立的视频提交与查询接口。minimax-h3 支持 768P、2K 和 4～15 秒；参考图支持本地图片数据或公网 URL。',
-        'defaults': {'model_id': 'minimax-h3', 'base_url': 'http://192.168.241.202:4091',
+        'defaults': {'model_id': 'minimax-h3', 'base_url': DOCKER_MODEL_ORIGIN,
                      'api_path': '/v1/video_generation',
                      'query_path': '/v1/query/video_generation/{task_id}'},
     }],
@@ -52,7 +53,12 @@ PROVIDERS = {
 
 
 def provider_catalog():
-    return deepcopy(PROVIDERS)
+    catalog = deepcopy(PROVIDERS)
+    for providers in catalog.values():
+        for provider in providers:
+            if provider['id'] == 'aimarket':
+                provider['defaults']['base_url'] = model_gateway_origin()
+    return catalog
 
 
 def provider_id(kind, config):
@@ -71,7 +77,7 @@ def provider_id(kind, config):
 
 def provider_preset(kind, config):
     selected = provider_id(kind, config)
-    return next(item for item in PROVIDERS[kind] if item['id'] == selected)
+    return next(item for item in provider_catalog()[kind] if item['id'] == selected)
 
 
 def video_capabilities(config):

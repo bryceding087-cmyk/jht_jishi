@@ -11,7 +11,7 @@ import threading
 import uuid
 
 from fastapi import HTTPException
-from sqlalchemy import and_, select, text
+from sqlalchemy import and_, or_, select, text
 
 from data_access import current_principal
 from storage.schema import records
@@ -53,7 +53,9 @@ class ConversationGeneration:
     def candidates(self, conversation_id=None, connection=None):
         task, context = records.alias('generation_task'), records.alias('generation_context')
         statement = select(task.c.kind, task.c.body).join(context, and_(context.c.id == task.c.context_id, context.c.kind == 'conversation'))
-        statement = statement.where(task.c.kind.in_(TASK_KINDS), task.c.status.in_(('queued', 'running')),
+        resumable_video = and_(task.c.kind == 'task', task.c.body['polling_interrupted'].as_boolean().is_(True),
+            task.c.body['provider_task_id'].as_string().is_not(None), task.c.status.not_in(('done', 'succeeded')))
+        statement = statement.where(task.c.kind.in_(TASK_KINDS), or_(task.c.status.in_(('queued', 'running')), resumable_video),
             task.c.deleted_at.is_(None), context.c.body['kind'].as_string().in_(('image', 'video', 'audio')))
         if conversation_id is not None:
             statement = statement.where(task.c.context_id == conversation_id)
@@ -97,17 +99,20 @@ class ConversationGeneration:
         for kind, task in self.candidates(conversation_id):
             if self.live(kind, task):
                 continue
+            if kind == 'task':
+                # Keep the returning page's credential scope until reconciliation
+                # rebinds this same user's task. Entering the old worker scope here
+                # would discard the new session and incorrectly release the gate.
+                if task.get('provider_task_id'):
+                    self.h.refresh_video_task(task['id'])
+                else:
+                    self.h.reconcile_video_task(task['id'])
+                continue
             with self.h.worker_scope(task):
                 if kind == 'image_task':
                     self.h.image_generation_status(task['id'])
                 elif kind == 'audio_task':
                     self.h.audio_generation_status(task['id'])
-                else:
-                    try:
-                        self.h.reconcile_video_task(task['id'])
-                    except HTTPException as error:
-                        self.h.update_task(task['id'], status='blocked', polling_interrupted=True,
-                                           error=str(error.detail))
 
     def is_manual(self, request, kind):
         if not current_principal():

@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from PIL import Image
 from script_excel import MAX_FILE_BYTES, parse_storyboard_excel
 from asset_service import FILE_TYPES, MIMES, file_type, validate_bytes, project_asset_references, is_image_asset_kind, validate_asset_kind
-from image_service import download_generated_image, image_error_message, image_capabilities, image_output_size
+from image_service import download_generated_image, image_error_message, image_capabilities, image_output_size, generated_image_name
 from audio_service import (AudioGenerationRequest, audio_reference, image_reference, audio_payload,
                            request_audio, decode_audio_result, audio_error_message)
 from video_service import download_generated_video
@@ -37,6 +37,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from conversation_generation import ConversationGeneration, transaction_connection, after_commit
 from visual_styles import VisualStyleSelection, public_styles, style_task_fields
+from model_gateway import DOCKER_MODEL_ORIGIN, with_model_gateway, model_gateway_origin
 
 ROOT = Path(__file__).parent
 DATA = Path(os.environ.get('JIANHUITONG_DATA_DIR') or ROOT / 'data')
@@ -82,7 +83,7 @@ DEFAULT_MODEL = {
     'name': 'MiniMax H3（默认）',
     'provider': 'AI Market', 'provider_id': 'aimarket',
     'model_id': 'minimax-h3',
-    'base_url': 'http://192.168.241.202:4091',
+    'base_url': DOCKER_MODEL_ORIGIN,
     'api_path': '/v1/video_generation',
     'query_path': '/v1/query/video_generation/{task_id}',
     'is_default': True,
@@ -95,7 +96,7 @@ DEFAULT_LLM = {
     'name': 'DeepSeek V4 Flash Vision（默认）',
     'provider': 'AI Market', 'provider_id': 'aimarket',
     'model_id': 'deepseek-v4-flash-vision-exp-0817',
-    'base_url': 'http://192.168.241.202:4091',
+    'base_url': DOCKER_MODEL_ORIGIN,
     'api_path': '/v1/chat/completions',
     # Text generation is a long-running operation for script synthesis.  The
     # value is persisted with custom model configurations and can be adjusted
@@ -110,7 +111,7 @@ DEFAULT_IMAGE_MODEL = {
     'name': 'Seedream 5.0 Pro',
     'provider': 'AI Market', 'provider_id': 'aimarket',
     'model': 'doubao-seedream-5.0-pro',
-    'base_url': 'http://192.168.241.202:4091',
+    'base_url': DOCKER_MODEL_ORIGIN,
     'api_path': '/v1/images/generations',
     'size': '2K',
     'watermark': False,
@@ -242,6 +243,8 @@ def save(kind, obj):
                     if key in previous:
                         obj[key] = previous[key]
             else:
+                if kind == 'asset':
+                    obj.setdefault('in_library', False)
                 identity = current_creator()
                 if not identity and kind in ('agent_run', 'conversation'):
                     identity = record_creator(obj, legacy_owner=True)
@@ -538,6 +541,7 @@ def internal_registry_model(kind, mid=None):
     config.setdefault('api_path', MODEL_PATHS[kind])
     config.setdefault('provider', '火山方舟 Ark' if kind == 'image' else '兼容接口')
     config['provider_id'] = provider_id(kind, config)
+    config = with_model_gateway(config)
     if kind == 'video':
         config['query_path'] = video_query_path(config)
         config['capabilities'] = video_capabilities(config)
@@ -565,6 +569,7 @@ def safe_public_model_url(value):
         return ''
 
 def registry_public(kind, config):
+    config = with_model_gateway({**config, 'provider_id': provider_id(kind, config)})
     key = config.get('api_key', '')
     market_available = model_session_state(config)
     return {'id': config['id'], 'kind': kind, 'name': config.get('name', ''),
@@ -1079,13 +1084,13 @@ def update_task(tid, **updates):
 
 
 def cache_generated_video(url):
-    """Persist a provider result before exposing it as a completed task.
+    """Persist a provider result independently of manual library membership.
 
     The provider URL is a short-lived signed URL.  Write the downloaded bytes
     through a temporary file and atomically rename it so a browser can never
     observe a partially written MP4/WebM file.
     """
-    data, suffix = download_generated_video(url)
+    data, suffix = download_generated_video(url, trusted_origin=model_gateway_origin())
     UPLOADS.mkdir(parents=True, exist_ok=True)
     target = UPLOADS / ('generated-video-' + uuid.uuid4().hex + suffix)
     temporary = target.with_name(target.name + '.part')
@@ -1147,6 +1152,7 @@ def video_failure_is_terminal(response):
 
 
 def _run_provider_task(tid, params, config, resume=False):
+    config = with_model_gateway(config)
     provider_task_id = get('task', tid).get('provider_task_id') if resume else None
     try:
         if not resume:
@@ -1158,10 +1164,10 @@ def _run_provider_task(tid, params, config, resume=False):
                 raise RuntimeError(creation_error)
             provider_task_id = video_task_id(created)
             update_task(tid, status='queued', provider_task_id=provider_task_id, provider_response=created,
-                        submitted_at=time.time(), status_message='已提交，正在排队或生成', auto_save_video=True)
+                        submitted_at=time.time(), status_message='已提交，正在排队或生成', auto_save_video=False)
         if not provider_task_id:
             raise RuntimeError('模型接口未返回任务 ID')
-        current = update_task(tid, polling_interrupted=False, query_paused=False, error=None, auto_save_video=True)
+        current = update_task(tid, polling_interrupted=False, query_paused=False, error=None, auto_save_video=False)
         query_url = video_query_url(config, provider_task_id)
         submitted = current.get('submitted_at') or current.get('created_at') or time.time()
         deadline = time.monotonic() + VIDEO_QUERY_WINDOW
@@ -1200,8 +1206,8 @@ def _run_provider_task(tid, params, config, resume=False):
                             last_query_at=time.time(), provider_response=result)
             elif status == 'done':
                 update_task(tid, status='done', error=None, video_url=parsed['video_url'],
-                    video_cache_status='pending', asset_save_status='pending', provider_response=result,
-                    status_message='生成完成，正在保存到素材库', completed_at=time.time())
+                    video_cache_status='pending', asset_save_status='history', provider_response=result,
+                    status_message='生成完成，已加入生成历史', completed_at=time.time())
                 finalize_video_task(tid)
                 return
             elif status == 'failed':
@@ -1225,49 +1231,75 @@ def _run_provider_task(tid, params, config, resume=False):
 
 
 def ensure_video_asset(tid):
-    """Register the cached file once, preserving the original task's ownership."""
+    """Record completed video in history independently of library membership."""
     with _task_asset_lock:
-        task = get('task', tid)
-        if task.get('deleted_at'):
+        task = normalize_task_video(get('task', tid))
+        if task.get('deleted_at') or task.get('status') != 'done' or not task.get('video_url'):
             return None
+        if task.get('asset_save_status') == 'pending' and task.get('asset_save_error'):
+            task = update_task(tid, video_cache_status='failed', video_cache_error=task['asset_save_error'])
         previous = next((a for a in listing('asset') if a.get('task_id') == tid and a.get('kind') == 'video'), None)
-        if previous:
-            update_task(tid, asset_id=previous['id'], asset_save_status='removed' if previous.get('deleted_at') else 'saved')
+        if previous and previous.get('deleted_at'):
             return previous
-        url = task.get('video_url', '')
-        filename = url[len('/uploads/'):] if url.startswith('/uploads/') else ''
-        if not filename or Path(filename).name != filename or '\\' in filename:
-            raise ValueError('视频尚未保存到本地')
-        path = UPLOADS / filename
-        if not path.is_file():
-            raise ValueError('视频本地文件不可用')
-        asset = save('asset', {'id': str(uuid.uuid5(uuid.NAMESPACE_URL, 'jht-video-task:' + tid)),
-            'kind': 'video', 'name': clean_asset_name((task.get('params') or {}).get('prompt', '')[:50] or '生成视频'),
-            'url': url, 'source': 'generated', 'project_id': task.get('project_id', ''), 'folder_id': '',
-            'task_id': tid, 'size_bytes': path.stat().st_size, 'mime_type': MIMES.get(path.suffix, 'video/mp4'),
-            'created_at': time.time(), 'duration': (task.get('params') or {}).get('duration', 0),
-            **record_creator(task)})
-        update_task(tid, asset_id=asset['id'], asset_save_status='saved', asset_save_error='', status_message='已完成，已保存到素材库')
+        url = task['video_url']
+        name = url[len('/uploads/'):] if url.startswith('/uploads/') else ''
+        path = UPLOADS / name if name and Path(name).name == name and '\\' not in name else None
+        cached = bool(path and path.is_file())
+        if not cached and (not task.get('video_cache_status') or path):
+            task = update_task(tid, video_cache_status='failed' if path else 'pending',
+                video_cache_error='视频文件不存在，请重新生成或导入视频' if path else '')
+        asset = {**(previous or {}), 'id': previous['id'] if previous else str(uuid.uuid5(uuid.NAMESPACE_URL, 'jht-video-task:' + tid)),
+            'kind': 'video', 'name': (previous or {}).get('name') or clean_asset_name((task.get('params') or {}).get('prompt', '')[:50] or '生成视频'),
+            'url': url, 'source': 'generated', 'project_id': task.get('project_id', ''),
+            'folder_id': (previous or {}).get('folder_id', ''), 'task_id': tid,
+            'in_library': bool((previous or {}).get('in_library')),
+            'size_bytes': path.stat().st_size if cached else 0, 'mime_type': MIMES.get(path.suffix, 'video/mp4') if cached else 'video/mp4',
+            'created_at': (previous or {}).get('created_at') or task.get('completed_at') or task.get('created_at') or time.time(),
+            'duration': (task.get('params') or {}).get('duration', 0),
+            'file_status': 'cached' if cached else task.get('video_cache_status', 'pending'),
+            'file_error': task.get('video_cache_error', ''), **record_creator(task)}
+        if asset != previous:
+            asset = save('asset', asset)
+        updates = {'asset_id': asset['id'], 'asset_save_status': 'saved' if asset['in_library'] else 'history',
+            'auto_save_video': False, 'status_message': ('生成完成，文件下载失败，可在生成历史中重试下载'
+                if asset['file_status'] == 'failed' else '生成完成，已保存至资产库' if asset['in_library'] else '生成完成，已加入生成历史')}
+        if cached:
+            updates.update(video_cache_status='cached', video_cache_error='')
+        if any(task.get(k) != v for k, v in updates.items()):
+            update_task(tid, **updates)
         return asset
 
 
+_video_file_locks = {}
+_video_file_lock_guard = threading.Lock()
+
+
 def finalize_video_task(tid):
-    # Saving failures do not turn a successful model generation into a failure.
-    for attempt in range(3):
-        if attempt:
-            time.sleep(10 * attempt)
+    # Download failures are separate from generation and never loop forever.
+    with _video_file_lock_guard:
+        lock = _video_file_locks.setdefault(tid, threading.Lock())
+    with lock:
         current = get('task', tid)
-        if current.get('deleted_at'):
+        if current.get('deleted_at') or current.get('status') != 'done' or not current.get('video_url'):
             return
+        asset = ensure_video_asset(tid)
+        if not asset or asset.get('deleted_at'):
+            return
+        current = get('task', tid)
         try:
             if not current.get('video_url', '').startswith('/uploads/'):
+                update_task(tid, video_cache_status='pending', video_cache_error='')
                 url = cache_generated_video(current['video_url'])
                 update_task(tid, video_url=url, video_cache_status='cached', video_cache_error='')
-            ensure_video_asset(tid)
-            return
+            else:
+                if not asset.get('size_bytes'):
+                    raise ValueError('视频文件不存在，请重新生成或导入视频')
+                update_task(tid, video_cache_status='cached', video_cache_error='')
         except Exception as error:
-            update_task(tid, asset_save_status='pending', asset_save_error=provider_error_message(error),
-                asset_retry_at=time.time()+60, status_message='生成已完成，正在重试保存到素材库')
+            update_task(tid, video_cache_status='failed', video_cache_error=provider_error_message(error),
+                asset_save_error='', auto_save_video=False, asset_save_status='history',
+                status_message='生成已完成，文件下载失败；可在生成历史中重试保存')
+        return ensure_video_asset(tid)
 
 
 def refresh_video_task(tid):
@@ -1275,8 +1307,6 @@ def refresh_video_task(tid):
     if current.get('deleted_at'):
         return current
     if current.get('provider_task_id') and (current['status'] in ('queued', 'running') or current.get('polling_interrupted')):
-        if current.get('query_retry_at', 0) > time.time():
-            return current
         try:
             return reconcile_video_task(tid)
         except HTTPException as error:
@@ -1284,18 +1314,26 @@ def refresh_video_task(tid):
                 raise
             return update_task(tid, status='running', error=None, polling_interrupted=True, query_paused=True,
                 query_retry_at=time.time()+30, status_message='等待重新连接集市以继续查询，原任务已保留')
-    if current['status'] == 'done' and current.get('auto_save_video') and current.get('asset_save_status') not in ('saved', 'removed') and current.get('asset_retry_at', 0) <= time.time():
-        with VIDEO_WORKER_LOCK:
-            if tid not in ACTIVE_VIDEO_TASKS:
-                ACTIVE_VIDEO_TASKS.add(tid)
-                def finish():
-                    try:
-                        with worker_scope(get('task', tid)):
-                            finalize_video_task(tid)
-                    finally:
-                        with VIDEO_WORKER_LOCK:
-                            ACTIVE_VIDEO_TASKS.discard(tid)
-                start_generation_worker('task', current, finish, ())
+    if current['status'] == 'done' and current.get('video_url'):
+        legacy_pending = current.get('auto_save_video') and current.get('asset_save_status') == 'pending'
+        asset = ensure_video_asset(tid)
+        if asset and asset.get('deleted_at'):
+            return update_task(tid, asset_save_status='deleted', auto_save_video=False,
+                video_cache_status='deleted', status_message='生成记录已删除')
+        current = get('task', tid)
+        if current.get('video_cache_status') == 'pending' or (legacy_pending and current.get('video_cache_status') != 'failed'):
+            with VIDEO_WORKER_LOCK:
+                if tid not in ACTIVE_VIDEO_TASKS:
+                    ACTIVE_VIDEO_TASKS.add(tid)
+                    def finish():
+                        try:
+                            with worker_scope(get('task', tid)):
+                                finalize_video_task(tid)
+                        finally:
+                            with VIDEO_WORKER_LOCK:
+                                ACTIVE_VIDEO_TASKS.discard(tid)
+                    start_generation_worker('task', current, finish, ())
+        current = get('task', tid)
     return current
 
 
@@ -1316,7 +1354,11 @@ def reconcile_video_task(tid):
         if current.get('provider_task_id') and (current['status'] in ('queued','running') or current.get('polling_interrupted')):
             refreshed = refresh_market_credentials(current)
             if refreshed != current:
-                current = save('task', refreshed)
+                current = save('task', {**refreshed, 'query_retry_at': 0})
+            if current['status'] not in ('queued', 'running'):
+                current = update_task(tid, status='running', error=None)
+            if current.get('query_retry_at', 0) > time.time():
+                return current
             # A resumed job keeps its credential source, including when opened
             # from an ordinary page after its marketplace connection expired.
             with worker_scope(current):
@@ -1460,8 +1502,24 @@ def update_image_model_config(patch: ImageModelUpdate):
 
 
 def image_task_public(task):
-    return {key: task[key] for key in ('id', 'status', 'name', 'prompt', 'model', 'size', 'watermark',
+    public = {key: task[key] for key in ('id', 'status', 'name', 'prompt', 'model', 'size', 'watermark',
                                       'aspect_ratio', 'count', 'assets', 'model_config_id', 'project_id', 'folder_id', 'created_at', 'updated_at', 'error', 'asset', 'visual_style', 'style_snapshot', 'effective_prompt') if key in task}
+    return hydrate_task_assets(public)
+
+
+def hydrate_task_assets(public):
+    def fresh(snapshot):
+        if not snapshot or not snapshot.get('id'):
+            return None
+        try:
+            return asset_public(require_live_asset(snapshot['id']))
+        except HTTPException:
+            return None
+    if 'asset' in public:
+        public['asset'] = fresh(public['asset'])
+    if 'assets' in public:
+        public['assets'] = [asset for snapshot in public['assets'] if (asset := fresh(snapshot))]
+    return public
 
 
 def run_image_generation(tid, config):
@@ -1491,6 +1549,8 @@ def _run_image_generation(tid, config):
                 for field in ('watermark', 'stream', 'response_format'):
                     payload.pop(field, None)
             name = task['name']
+            if name == 'AI 生成图片':
+                name = generated_image_name(task['prompt'], [get('asset', aid).get('name', '') for aid in reference_ids])
             if Path(name).suffix.lower() in ('.png', '.jpg', '.jpeg', '.webp'): name = Path(name).stem
             folder_id = task['folder_id'] if not task['folder_id'] or raw_record('asset_folder', task['folder_id']) else ''
             # Independent single-image calls give an exact count on models without group generation.
@@ -1574,14 +1634,14 @@ def image_generation_status(tid: str):
         if task.get('deleted_at'): raise HTTPException(404, '生成记录已删除')
         if task.get('status') in ('queued', 'running') and not manual_generation.live('image_task', task):
             task = save('image_task', {**task, 'status': 'failed', 'updated_at': time.time(),
-                                      'error': '服务已重启，生成任务中断。请先检查图片资产库是否已有结果，再决定是否重新生成。'})
+                                      'error': '服务已重启，生成任务中断。请先检查生成历史是否已有结果，再决定是否重新生成。'})
         return image_task_public(task)
 
 def audio_task_public(task):
     fields = ('id', 'status', 'name', 'prompt', 'mode', 'model', 'model_config_id', 'project_id', 'folder_id',
               'reference_asset_ids', 'speaker', 'audio_config', 'watermark', 'created_at', 'updated_at',
               'error', 'asset', 'duration', 'original_duration', 'subtitle', 'log_id')
-    return {key: task[key] for key in fields if key in task}
+    return hydrate_task_assets({key: task[key] for key in fields if key in task})
 
 
 def audio_task_references(params):
@@ -1591,7 +1651,7 @@ def audio_task_references(params):
         url = str(asset.get('url') or '')
         filename = url[len('/uploads/'):]
         if not url.startswith('/uploads/') or not filename or Path(filename).name != filename or '\\' in filename:
-            raise ValueError('请先将参考素材上传到本地素材库')
+            raise ValueError('请先将参考素材上传到本地历史文件')
         target = UPLOADS / filename
         if not target.is_file():
             raise ValueError('参考素材文件不存在，请重新上传')
@@ -1693,7 +1753,7 @@ def audio_generation_status(tid: str):
         if task.get('deleted_at'): raise HTTPException(404, '生成记录已删除')
         if task.get('status') in ('queued', 'running') and not manual_generation.live('audio_task', task):
             task = save('audio_task', {**task, 'status': 'failed', 'updated_at': time.time(),
-                                     'error': '服务已重启，音频生成任务中断。请先检查音频素材库和服务商记录，再决定是否重新生成。'})
+                                     'error': '服务已重启，音频生成任务中断。请先检查生成历史和服务商记录，再决定是否重新生成。'})
         return audio_task_public(task)
 
 
@@ -2099,6 +2159,8 @@ def asset_public(asset, projects=None, characters=None, all_assets=None, convers
     return {'id': asset['id'], 'kind': 'image' if asset.get('kind') == 'prop' else asset.get('kind', 'image'), 'name': asset.get('name', '未命名素材'),
             'url': asset.get('url', ''), 'content': asset.get('content', ''), 'script_data': asset.get('script_data', {}),
             'tags': asset.get('tags', []), 'folder_id': asset.get('folder_id', ''), 'description': asset.get('description', ''),
+            'in_library': bool(asset.get('in_library')), 'library_saved_at': asset.get('library_saved_at'),
+            'file_status': asset.get('file_status', 'cached'), 'file_error': asset.get('file_error', ''),
             'favorite': bool(asset.get('favorite')), 'source': asset.get('source', 'uploaded'),
             'project_id': asset.get('project_id', ''), 'size_bytes': asset.get('size_bytes', 0),
             'mime_type': asset.get('mime_type') or MIMES.get(Path(asset.get('url', '')).suffix.lower(), ''),
@@ -2110,11 +2172,14 @@ def asset_public(asset, projects=None, characters=None, all_assets=None, convers
 
 
 @app.get('/api/assets')
-def assets():
+def assets(collection: Literal['history', 'library'] = 'history'):
+    for task in listing('task'):
+        if task.get('status') == 'done' and task.get('video_url') and not task.get('deleted_at'):
+            refresh_video_task(task['id'])
     projects, characters = listing('project'), listing('character')
     all_assets = listing('asset')
     conversations=listing('conversation')
-    return [asset_public(a, projects, characters, all_assets, conversations) for a in all_assets if not a.get('deleted_at') and a.get('kind', 'image') in ('image','prop','video','audio')]
+    return [asset_public(a, projects, characters, all_assets, conversations) for a in all_assets if not a.get('deleted_at') and (collection == 'history' or a.get('in_library')) and a.get('kind', 'image') in ('image','prop','video','audio')]
 
 
 @app.get('/api/assets/{aid}')
@@ -2190,7 +2255,7 @@ async def upload(file: UploadFile = File(...), project_id: str = Form(''), folde
 
 @app.post('/api/assets/content', status_code=201)
 def create_content_asset(body: AssetContent):
-    raise HTTPException(410, '素材库仅支持图片、视频和音频，文本与脚本请保存在画布或 Agent 创作记录中')
+    raise HTTPException(410, '资产库仅支持图片、视频和音频，文本与脚本请保存在画布或 Agent 创作记录中')
 
 
 @app.patch('/api/assets/{aid}')
@@ -2261,49 +2326,64 @@ def delete_asset_folder(fid: str):
 _task_asset_lock = threading.Lock()
 
 
+@app.post('/api/tasks/{tid}/history-asset')
+def video_history_asset(tid: str):
+    asset = ensure_video_asset(tid)
+    if not asset or asset.get('deleted_at'):
+        raise HTTPException(422, '视频尚未生成完成，或生成记录已删除')
+    return asset_public(asset)
+
+
+@app.post('/api/assets/{aid}/library')
+def save_asset_to_library(aid: str):
+    asset = require_live_asset(aid)
+    if asset.get('kind') == 'video' and asset.get('task_id') and (asset.get('file_status') != 'cached' or not asset.get('url', '').startswith('/uploads/')):
+        finalize_video_task(asset['task_id'])
+        asset = require_live_asset(aid)
+        if asset.get('file_status') != 'cached' or not asset.get('url', '').startswith('/uploads/'):
+            raise HTTPException(502, '视频已生成，但文件下载失败，尚未加入资产库。请稍后重试。' + asset.get('file_error', ''))
+    with _task_asset_lock:
+        asset = require_live_asset(aid)
+        if not asset.get('in_library'):
+            asset = save('asset', {**asset, 'in_library': True, 'library_saved_at': time.time(), 'updated_at': time.time()})
+        if asset.get('kind') == 'video' and asset.get('task_id'):
+            update_task(asset['task_id'], asset_save_status='saved', auto_save_video=False,
+                status_message='生成完成，已保存至资产库')
+    return asset_public(asset)
+
+
+@app.delete('/api/assets/{aid}/library')
+def remove_asset_from_library(aid: str):
+    """Remove library membership while keeping the history record and references."""
+    with _task_asset_lock:
+        asset = require_live_asset(aid)
+        if asset.get('in_library'):
+            asset = save('asset', {**asset, 'in_library': False, 'library_saved_at': None, 'updated_at': time.time()})
+        if asset.get('kind') == 'video' and asset.get('task_id'):
+            update_task(asset['task_id'], asset_save_status='history', auto_save_video=False,
+                status_message='生成完成，已加入生成历史')
+    return asset_public(asset)
+
+
+@app.post('/api/assets/{aid}/retry-file')
+def retry_asset_file(aid: str):
+    asset = require_live_asset(aid)
+    if asset.get('kind') != 'video' or not asset.get('task_id'):
+        raise HTTPException(422, '此记录没有可重试的视频下载')
+    finalize_video_task(asset['task_id'])
+    return asset_public(require_live_asset(aid))
+
+
 @app.post('/api/assets/from-task', status_code=201)
 def save_task_asset(body: AssetFromTask):
     validate_asset_location(folder_id=body.folder_id)
-    with _task_asset_lock:
-        previous = next((a for a in listing('asset') if a.get('task_id') == body.task_id and not a.get('deleted_at')), None)
-        if previous: return asset_public(previous)
-        task = get('task', body.task_id)
-        if task.get('status') != 'done' or not task.get('video_url'):
-            raise HTTPException(422, '只有生成成功的视频才能保存到素材库')
-        url = task['video_url']
-        limit = 100 * 1024 * 1024
-        try:
-            if url.startswith('/uploads/'):
-                file_name = url[len('/uploads/'):]
-                if not file_name or Path(file_name).name != file_name or '\\' in file_name:
-                    raise HTTPException(422, '视频文件路径无效')
-                path = UPLOADS / file_name
-                if not path.is_file(): raise HTTPException(422, '生成视频文件已丢失')
-                if path.stat().st_size > limit: raise HTTPException(413, '视频不能超过 100 MB')
-                data = path.read_bytes()
-            else:
-                if urlparse(url).scheme not in ('http', 'https'): raise HTTPException(422, '生成视频地址无效')
-                chunks, total, started = [], 0, time.monotonic()
-                with urlopen(Request(url, headers={'Accept': 'video/*'}), timeout=20) as response:
-                    if urlparse(response.geturl()).scheme not in ('http', 'https'): raise HTTPException(422, '视频下载地址无效')
-                    if int(response.headers.get('Content-Length', 0)) > limit: raise HTTPException(413, '视频不能超过 100 MB')
-                    while True:
-                        chunk = response.read(256 * 1024)
-                        if not chunk: break
-                        total += len(chunk)
-                        if total > limit: raise HTTPException(413, '视频不能超过 100 MB')
-                        if time.monotonic() - started > 60: raise HTTPException(504, '视频保存超时，请稍后重试')
-                        chunks.append(chunk)
-                data = b''.join(chunks)
-        except HTTPException:
-            raise
-        except (OSError, ValueError) as error:
-            if is_storage_full(error): raise
-            raise HTTPException(502, '无法下载生成视频，链接可能已过期，请重新生成后保存')
-        suffix = '.webm' if data.startswith(b'\x1aE\xdf\xa3') else '.mp4'
-        name = clean_asset_name(body.name or ('生成视频-' + task['id'][:8]))
-        if not name.lower().endswith(suffix): name += suffix
-        return store_uploaded_asset(data, name, task.get('project_id', ''), body.folder_id, 'generated', task['id'])
+    asset = video_history_asset(body.task_id)
+    if body.name or body.folder_id:
+        with _task_asset_lock:
+            current = require_live_asset(asset['id'])
+            save('asset', {**current, 'name': clean_asset_name(body.name) if body.name else current['name'],
+                'folder_id': body.folder_id or current.get('folder_id', '')})
+    return save_asset_to_library(asset['id'])
 
 @app.get('/api/tasks')
 def tasks(project_id: str | None = None):
@@ -2316,17 +2396,11 @@ def cache_task_video(tid: str):
     task = normalize_task_video(get('task', tid))
     if task.get('status') != 'done' or not task.get('video_url'):
         raise HTTPException(422, '只有生成成功的视频才能缓存')
-    if str(task['video_url']).startswith('/uploads/'):
-        return task
-    try:
-        local_url = cache_generated_video(task['video_url'])
-    except Exception as error:
-        detail = provider_error_message(error)
-        update_task(tid, video_url='', video_cache_status='expired', video_cache_error=detail)
-        if is_storage_full(error):
-            raise HTTPException(507, '服务端磁盘空间不足，暂时无法缓存视频')
-        raise HTTPException(410, '视频下载地址已失效，请重新生成')
-    return update_task(tid, video_url=local_url, video_cache_status='cached', video_cache_error='')
+    finalize_video_task(tid)
+    current = get('task', tid)
+    if current.get('video_cache_status') != 'cached':
+        raise HTTPException(502, '视频已生成，文件下载失败，可稍后重试下载')
+    return current
 
 def script_scene_image_resources(script, scene_index=None):
     data = normalise_script(script.get('script_data') or {})

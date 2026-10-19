@@ -2,27 +2,28 @@ import { createProjectLibrary } from './project-library.js?v=viewport-info-4';
 import { createCanvasGroups, normalizeGroups, groupBounds } from './canvas-groups.js?v=unified-history-2';
 import { createCanvasHistory } from './canvas-history.js?v=1';
 import { beginRequest, withLoading } from './loading-state.js?v=1';
-import { installNodePlayers } from './node-player.js?v=agent-audio-feed-6';
+import { installNodePlayers } from './node-player.js?v=fullscreen-double-click-1';
 import { describeTaskError, ARK_MODEL_MANAGEMENT_URL } from './task-errors.js?v=content-rejection-3';
 import { resolveVideoInput, resolveVideoAssets, deriveVideoMode, materializeVideoAssets, referenceAssetId, scriptScenePrompt } from './node-inputs.js?v=node-frame-mode-2';
 import { attachAssetMentions } from './asset-mentions.js?v=reference-sync-2';
-import { createAssetLibrary } from './asset-library.js?v=market-sdk-3';
-import { mediaNodeBody, mediaNodeDetail, bindMediaNodeDetail } from './media-nodes.js?v=ui-cleanup-1';
+import { createAssetLibrary } from './asset-library.js?v=asset-tab-motion-1';
+import { mediaNodeBody, mediaNodeDetail, bindMediaNodeDetail } from './media-nodes.js?v=library-toggle-1';
 import { RESOURCE_TYPES, PREPARATION_TYPES, preparationResources, resourceKind, acceptsResourceAsset } from './script-resources.js?v=icons-font-2';
 import { createModelManager } from './model-manager.js?v=user-isolation-1';
-import { createImageGenerator } from './image-generation.js?v=visual-style-3';
-import { createAudioGenerator } from './audio-generation.js?v=loading-2';
+import { createImageGenerator } from './image-generation.js?v=styles-2.3.0';
+import { createAudioGenerator } from './audio-generation.js?v=library-toggle-1';
 import { syncScriptResourceGraph, detachScriptResourceEdges } from './script-resource-graph.js?v=agent-canvas-clean-3';
-import { icon } from './iconography.js?v=style-pen-3';
+import { icon } from './iconography.js?v=regenerate-1';
 import { checkSessionResponse, createSessionControls } from './session.js?v=market-sdk-3';
 import { initializeMarket, isMarketEntry, isMarketSessionRequired, navigateToMarketEntry, withMarketSession, marketResponseData, marketMediaUrl } from './market-session.js?v=market-sdk-3';
-import { createAgentChat } from './agent-chat.js?v=market-sdk-3';
+import { createAgentChat } from './agent-chat.js?v=styles-2.3.0';
 import { createCanvasAgent } from './canvas-agent.js?v=canvas-agent-float-2';
-import { createHomeComposer } from './home-composer.js?v=video-reliability-1';
+import { createHomeComposer } from './home-composer.js?v=agent-tab-order-1';
+import { createConversationResume } from './conversation-resume.js?v=1';
 import { createHomeHub } from './home-hub.js?v=viewport-7';
-import { createCanvasWorkspace } from './canvas-workspace.js?v=visual-style-3';
+import { createCanvasWorkspace } from './canvas-workspace.js?v=styles-2.3.0';
 import { setSurfaceVisible, surfaceIsOpen } from './canvas-motion.js?v=liblib-detail-2';
-import { createInlineNodeMedia } from './inline-node-media.js?v=visual-style-3';
+import { createInlineNodeMedia } from './inline-node-media.js?v=styles-2.3.0';
 import { installCanvasConnections } from './canvas-connections.js?v=1';
 
 // Cancel browser image/link/text drag previews; canvas movement uses pointer events.
@@ -39,6 +40,7 @@ if (isMarketEntry() && location.pathname !== '/market' && new URLSearchParams(lo
 installNodePlayers();
 
 let canvasWorkspace, canvasGroups, canvasAgent, homeComposer, homeHub, canvasConnections;
+const conversationResume = createConversationResume();
 
 const $ = (selector) => document.querySelector(selector);
 const state = { project: null, projects: [], options: null, models: [], llm: null, selectedModelId: 'default-seedance-2.0-mini', assets: [], selectedAssetIds: [], characters: [], nodes: [], edges: [], nodeTasks: {}, selectedNodeId: 'prompt-node', selectedNodeIds: new Set(), groups: [], selectedGroupId: null, selectedEdgeIndex: null, mode: 'text-to-video', zoom: 1, panX: 0, panY: 0, drag: null, pendingPort: null, saveTimer: null, spaceDown: false, connectMode: false, canvasTool: 'move', sidebarCollapsed: false, inspectorCollapsed: false, taskPollers: new Map(), lastCompletedTask: null, scriptWorkflow: null, pendingScriptResourceId: '', titleEdit: null };
@@ -49,7 +51,23 @@ const canvasHistory = createCanvasHistory({ state, onRestore: () => {
 const emptyScriptData = (sourceNodeId = '') => ({ title: '未命名脚本', genre: '企业宣传片', duration: '60-90秒', style: '写实电影感', aspect_ratio: '16:9', resolution: '768p', source_node_id: sourceNodeId, scenes: [], resources: [], updated_at: Date.now() / 1000 });
 
 const toast = (message) => { const el = $('#toast'); el.textContent = message; el.classList.add('show'); window.setTimeout(() => el.classList.remove('show'), 2600); };
-function statusText(status, task = {}) { if (task.status_message && ['queued','running','done'].includes(status)) return task.status_message; if (status === 'blocked' && describeTaskError(task).quotaLimited) return '模型限额暂停'; return ({ queued: '排队中', running: '生成中', done: '已完成', failed: '失败', blocked: '未配置模型' }[status] || status || '待生成'); }
+function statusText(status, task = {}, compact = false) { if (!compact && task.status_message && ['queued','running','done'].includes(status)) return task.status_message; if (status === 'blocked' && describeTaskError(task).quotaLimited) return '模型限额暂停'; return ({ queued: '排队中', running: '生成中', done: '生成完成', failed: '生成失败', blocked: '未配置模型' }[status] || status || '待生成'); }
+const videoSubmissions = new Set();
+function videoSubmissionKey(nodeId, projectId = state.project?.id) { return `${projectId}:${nodeId}`; }
+function videoGenerationBusy(nodeId, projectId = state.project?.id) {
+  return videoSubmissions.has(videoSubmissionKey(nodeId, projectId)) ||
+    state.project?.id === projectId && ['queued', 'running'].includes(state.nodeTasks[nodeId]?.status);
+}
+function syncVideoGenerateButton() {
+  const button = $('#generateBtn'), node = selectedNode();
+  if (!button) return;
+  const submitting = videoSubmissions.has(videoSubmissionKey(node?.id));
+  const busy = node?.type === 'video' && videoGenerationBusy(node.id);
+  button.disabled = node?.type !== 'video' || state.switchingProject || busy;
+  button.setAttribute('aria-busy', String(Boolean(busy)));
+  const label = button.querySelector('.generate-label');
+  if (label) label.textContent = submitting ? '提交中…' : busy ? statusText(state.nodeTasks[node.id]?.status) : '生成视频';
+}
 function taskErrorHtml(task) {
   if (!task.error) return '';
   const issue = describeTaskError(task);
@@ -170,7 +188,7 @@ function nodeDetailHtml(node) {
   }
   if (node.type === 'asset') {
     const asset = state.assets.find(item => item.id === node.assetId) || (node.assetUrl ? { url: node.assetUrl, name: node.assetName } : null);
-    return `<div class="node-detail-card"><span class="node-detail-kicker">ASSET NODE · 素材参考</span><h3>${escapeHtml(asset?.name || node.assetName || node.title || '素材参考')}</h3>${asset?.url ? `<img class="node-detail-thumb" src="${escapeHtml(asset.url)}" alt="${escapeHtml(asset.name || '素材参考')}">` : '<div class="node-detail-placeholder"><div><b>素材文件不可用</b><small>请从素材库重新选择</small></div></div>'}</div>`;
+    return `<div class="node-detail-card"><span class="node-detail-kicker">ASSET NODE · 素材参考</span><h3>${escapeHtml(asset?.name || node.assetName || node.title || '素材参考')}</h3>${asset?.url ? `<img class="node-detail-thumb" src="${escapeHtml(asset.url)}" alt="${escapeHtml(asset.name || '素材参考')}">` : '<div class="node-detail-placeholder"><div><b>素材文件不可用</b><small>请从资产库重新选择</small></div></div>'}</div>`;
   }
   return `<div class="node-detail-card"><span class="node-detail-kicker">NODE · 节点信息</span><h3>${escapeHtml(node.title || '节点')}</h3><p>当前节点类型：${escapeHtml(node.type || '未知')}</p></div>`;
 }
@@ -182,6 +200,7 @@ function renderNodeDetail(node) {
   if (!node) return;
   if (isMediaNode(node)) {
     bindMediaNodeDetail({ node, asset: nodeAsset(node), api, toast, escapeHtml,
+      onSaveAsset:(asset,inLibrary)=>assetLibrary.setLibraryMembership(asset,inLibrary),
       onPick: () => chooseNodeMedia(node), onUpload: () => uploadNodeMedia(node),
       onGenerateImage: () => generateNodeImage(node),
       onGenerateAudio: () => generateNodeAudio(node),
@@ -263,7 +282,7 @@ function renderNodeDetail(node) {
     }
   }
   if (node.type === 'character') {
-    view.insertAdjacentHTML('beforeend', '<div class="inline-composer-tools"><button type="button" id="characterPickInline">从素材库添加参考</button><button type="button" id="characterUploadInline">上传参考图</button></div>');
+    view.insertAdjacentHTML('beforeend', '<div class="inline-composer-tools"><button type="button" id="characterPickInline">从资产库添加参考</button><button type="button" id="characterUploadInline">上传参考图</button></div>');
     $('#characterPickInline').onclick=()=>inlineNodeMedia.pick(node);
     $('#characterUploadInline').onclick=()=>uploadNodeMedia(node);
     $('#detailCharacterName').oninput = event => {
@@ -289,7 +308,7 @@ function loadNodeSettings() {
     editor.hidden = true;
     detail.hidden = false;
     renderNodeDetail(node);
-    $('#generateBtn').disabled = true;
+    syncVideoGenerateButton();
     state.loadingSettings = false;
     return;
   }
@@ -372,7 +391,7 @@ function loadNodeSettings() {
     $('#durationSelect').title = '时长来自脚本镜头，请在脚本节点修改该镜头时长';
     for (const id of ['ratioSelect', 'resolutionSelect']) $('#'+id).title = '';
   } else for (const id of ['ratioSelect','durationSelect','resolutionSelect']) $('#'+id).title = '';
-  $('#generateBtn').disabled = false;
+  syncVideoGenerateButton();
   state.loadingSettings = false;
 }
 function markSaving() { $('#saveState').textContent = '未保存'; $('#saveState').className = 'save-state saving'; }
@@ -505,7 +524,7 @@ async function loadConversation(id){
     homeComposer.select('agent');await agentChat.openRun(item.run_id,snapshot);
   }else await homeComposer.openConversation(id,current);
   if(!current())return;
-  state.activeConversationId=id;homeHub?.showConversation();showView('agent',true);history.replaceState(null,'',`?conversation=${encodeURIComponent(id)}`);
+  state.activeConversationId=id;conversationResume.remember(state.user,id);homeHub?.showConversation();showView('agent',true);history.replaceState(null,'',`?conversation=${encodeURIComponent(id)}`);
 }
 function renderProjectLibrary(projects = state.projects, trashed = false) { projectLibrary.render(projects, trashed); }
 async function duplicateProject(id) { try { await flushSave(); const copy = await api(`/api/projects/${id}/duplicate`, { method: 'POST' }); state.projects.unshift(copy); renderProjects(); renderProjectLibrary(); toast(`已复制项目：${copy.name}`); } catch (error) { toast(error.message); } }
@@ -593,6 +612,7 @@ async function loadProject(id) {
   if (state.switchingProject) return;
   if(state.project?.id!==id)canvasAgent?.projectChanged();
   state.switchingProject = true;
+  syncVideoGenerateButton();
   try {
     await flushSave();
     const project = await api(`/api/projects/${id}`);
@@ -622,7 +642,7 @@ async function loadProject(id) {
     if (referencesMigrated || scriptResourcesMigrated || starterPromptsCleared) scheduleSave();
     await loadHistory();
     Object.entries(state.nodeTasks).forEach(([nodeId, task]) => updateTaskNode(task, nodeId));
-  } finally { state.switchingProject = false; canvasHistory.reset(); }
+  } finally { state.switchingProject = false; syncVideoGenerateButton(); canvasHistory.reset(); }
 }
 function projectPayload() {
   return { name: $('#projectNameInput').value.trim() || state.project.name, nodes: structuredClone(state.nodes), groups: structuredClone(normalizeGroups(state.groups,state.nodes)), edges: structuredClone(state.edges), selected_asset_ids: [], viewport: { x: state.panX, y: state.panY, zoom: state.zoom }, revision: state.project.revision || 0 };
@@ -674,7 +694,7 @@ function videoPreviewBody(node, task) {
   const url = videoPreviewUrl(node, task);
   if (url) return `<video class="frame-media" controls preload="metadata" playsinline${task?.id ? ` data-video-task="${escapeHtml(task.id)}"` : ''} src="${escapeHtml(url)}"></video>`;
   const failed = task?.status === 'failed' || task?.video_cache_status === 'expired';
-  const label = task?.video_cache_status === 'expired' ? '视频链接已失效，请重新生成' : task?.status === 'failed' ? describeTaskError(task).title : task ? statusText(task.status, task) : '等待生成预览';
+  const label = task?.video_cache_status === 'expired' ? '视频链接已失效，请重新生成' : task?.status === 'failed' ? describeTaskError(task).title : task ? statusText(task.status, task, true) : '等待生成预览';
   return `<div class="play">${icon(failed ? 'close' : 'play')}</div><span>${escapeHtml(label)}</span>`;
 }
 function videoStatusClass(task, node) {
@@ -686,7 +706,7 @@ function videoStatusClass(task, node) {
 }
 function videoMetaHtml(node, task) {
   const status = task?.status || (videoPreviewUrl(node, task) ? 'done' : undefined);
-  return `<div class="node-meta"><span>${escapeHtml(statusText(status, task || {}))}</span></div>`;
+  return `<div class="node-meta"><span>${escapeHtml(statusText(status, task || {}, true))}</span></div>`;
 }
 function videoPlaybackErrorText(task) {
   return task?.video_cache_status === 'fallback'
@@ -709,7 +729,7 @@ function bindVideoPlayback(video, task) {
     // Older tasks may still have a valid provider URL from before local
     // caching was introduced.  Repair those silently once; an expired URL
     // stays on the localized error state above instead of looping forever.
-    if (!task?.id || String(task.video_url || '').startsWith('/uploads/')) return;
+    if (!task?.id || task.video_cache_status || String(task.video_url || '').startsWith('/uploads/')) return;
     api(`/api/tasks/${encodeURIComponent(task.id)}/cache-video`, { method: 'POST' }).then(repaired => {
       if (!repaired?.video_url || !host.isConnected || repaired.video_url === task.video_url) return;
       host.dataset.playbackFailed = 'false';
@@ -877,7 +897,7 @@ function documentFrameBody(node, data) {
   const button = `<button type="button" ${action}>${icon(prompt ? 'pencil' : 'script', 'ui-icon-sm')}<span>${actionLabel}</span></button>`;
   if (!filled) return `<div class="frame-empty document-frame-empty"><span class="frame-placeholder document-placeholder" aria-hidden="true">${icon(prompt ? 'text' : 'script')}</span><div class="frame-try"><span>尝试：</span>${button}<small>${prompt ? '写下灵感，连接脚本或视频节点' : '导入 Excel 或根据文本拆分分镜'}</small></div></div>`;
   const preview = prompt ? `<p class="document-excerpt">${escapeHtml(text)}</p>` : `<strong class="document-heading">${escapeHtml(data.title || '分镜脚本')}</strong><p class="document-excerpt">${escapeHtml(scenes.slice(0, 3).map((scene, index) => `${index + 1}. ${scene.description || '待填写画面描述'}`).join('\n'))}</p>`;
-  const summary = prompt ? `${text.length} 字${node.sourceAssetId ? ' · 来自素材库' : ''}` : `${scenes.length} 个镜头 · ${preparationResources(data).length} 项资源`;
+  const summary = prompt ? `${text.length} 字${node.sourceAssetId ? ' · 来自资产库' : ''}` : `${scenes.length} 个镜头 · ${preparationResources(data).length} 项资源`;
   return `<div class="document-frame-content">${preview}<div class="document-frame-footer"><span>${summary}</span><div class="frame-try">${button}</div></div></div>`;
 }
 
@@ -1038,7 +1058,7 @@ function addLibraryAsset(asset, options = {}) {
   return node;
 }
 function bindNodeAsset(node, asset) {
-  if (!state.nodes.includes(node)) return toast('原素材节点已移除，上传内容已保留在素材库');
+  if (!state.nodes.includes(node)) return toast('原素材节点已移除，上传内容已保留在生成历史');
   const sameKind = nodeMediaKind(node) === (asset.kind || 'image') || (nodeMediaKind(node) === 'image' && (asset.kind || 'image') === 'prop');
   if (!sameKind) return toast('素材类型与节点不匹配，请选择同类文件');
   upsertAsset(asset);
@@ -1080,7 +1100,7 @@ function uploadNodeMedia(node) {
       toast('正在上传素材…');
       const asset = await api('/api/assets', { method: 'POST', body: form }); upsertAsset(asset);
       if (state.project?.id === projectId && state.nodes.includes(node)) { bindNodeAsset(node, asset); toast('素材已上传并绑定到节点'); }
-      else toast('素材已上传到素材库');
+      else toast('素材已加入生成历史');
     } catch (error) { toast(error.message); }
   };
   input.click();
@@ -1095,7 +1115,7 @@ async function prepareVideoReference(source) {
   if(source.type!=='video') {if(!nodeAsset(source)?.url)throw new Error('请先上传或选择参考视频');return nodeAsset(source);}
   const task=state.nodeTasks[source.id], projectId=state.project?.id;
   if(task?.status!=='done'||!task.video_url)throw new Error('请等待上游视频生成完成后再引用');
-  const asset=await api('/api/assets/from-task',json({task_id:task.id,name:source.title||'参考视频'}));
+  const asset=await api(`/api/tasks/${encodeURIComponent(task.id)}/history-asset`,json({}));
   if(state.project?.id!==projectId||state.nodeTasks[source.id]?.id!==task.id)throw new Error('项目或上游视频已变更，请重新引用');
   const previousId=source.referenceAssetId;
   upsertAsset(asset);source.referenceAssetId=asset.id;source.referenceTaskId=task.id;
@@ -1311,7 +1331,6 @@ function bindNodeEvents() {
   document.querySelectorAll('[data-media-upload]').forEach(button => button.onclick = () => { const node = state.nodes.find(item => item.id === button.dataset.mediaUpload); if (node) uploadNodeMedia(node); });
   document.querySelectorAll('[data-media-generate]').forEach(button => button.onclick = () => { const node = state.nodes.find(item => item.id === button.dataset.mediaGenerate); if (node) generateNodeImage(node); });
   document.querySelectorAll('[data-audio-generate]').forEach(button => button.onclick = () => { const node = state.nodes.find(item => item.id === button.dataset.audioGenerate); if (node) generateNodeAudio(node, button.dataset.audioMode); });
-  document.querySelectorAll('[data-save-video]').forEach(button => button.onclick = event => { event.stopPropagation(); assetLibrary.saveTask(state.nodeTasks[button.dataset.saveVideo]); });
   updatePortHighlights();
 }
 function nodeFootprint(node) {
@@ -1534,6 +1553,7 @@ function updateTaskNode(task, nodeId = state.selectedNodeId) {
   if (!targetId) return;
   if (task) state.nodeTasks[targetId] = task;
   task = state.nodeTasks[targetId];
+  syncVideoGenerateButton();
   const node = document.querySelector(`.node[data-node="${CSS.escape(targetId)}"]`);
   if (!node) return;
   const modelNode = state.nodes.find(item => item.id === targetId);
@@ -1541,11 +1561,7 @@ function updateTaskNode(task, nodeId = state.selectedNodeId) {
   const preview = node.querySelector('.video-preview');
   const dot = node.querySelector('.status-dot');
   if (dot) dot.className = `status-dot ${videoStatusClass(task, modelNode)}`;
-  if (meta && modelNode) {
-    meta.outerHTML = videoMetaHtml(modelNode, task);
-    const saveButton = node.querySelector('[data-save-video]');
-    if (saveButton) saveButton.onclick = event => { event.stopPropagation(); assetLibrary.saveTask(state.nodeTasks[targetId]); };
-  }
+  if (meta && modelNode) meta.outerHTML = videoMetaHtml(modelNode, task);
   if (preview) {
     preview.dataset.playbackFailed = 'false';
     preview.innerHTML = videoPreviewBody(modelNode, task);
@@ -1567,8 +1583,8 @@ async function pollTask(taskId, nodeId) {
     try {
       const task = await api(`/api/tasks/${taskId}`);
       if (state.project?.id !== projectId) { state.taskPollers.delete(taskId); return; }
-      updateTaskNode(task, nodeId);
-      if (task.status === 'done' && !(task.auto_save_video && task.asset_save_status === 'pending') || task.status === 'failed' || task.status === 'blocked') {
+      if (state.nodeTasks[nodeId]?.id === taskId) updateTaskNode(task, nodeId);
+      if (task.status === 'done' && !(task.video_cache_status === 'pending') || task.status === 'failed' || task.status === 'blocked') {
         state.taskPollers.delete(taskId);
         if (task.status === 'done') state.lastCompletedTask = task;
         await loadHistory();
@@ -1584,9 +1600,12 @@ async function pollTask(taskId, nodeId) {
   state.taskPollers.set(taskId, window.setTimeout(poll, 900));
 }
 async function submitTask() {
+  const videoNode = selectedNode(), projectId = state.project?.id;
+  if (videoNode?.type !== 'video') return toast('请先选择视频生成节点');
+  if (state.switchingProject || videoGenerationBusy(videoNode.id, projectId)) return;
+  const submissionKey = videoSubmissionKey(videoNode.id, projectId);
+  let submitting = false;
   try {
-    const videoNode = selectedNode();
-    if (videoNode?.type !== 'video') return toast('请先选择视频生成节点');
     captureSettings();
     const mode = deriveVideoMode(videoNode, state.nodes, state.edges, state.assets, state.characters);
     state.mode = mode;
@@ -1613,25 +1632,39 @@ async function submitTask() {
       if (unsupported.length) return toast(`当前模型不支持${unsupported.join('、')}，请在视频节点调整画幅或分辨率，或在脚本中调整镜头时长`);
     }
     const payload = { project_id: state.project.id, node_id: videoNode.id, prompt, negative_prompt: input.negative_prompt.trim(), mode: state.mode, model: model.model_id, model_config_id: model.id, aspect_ratio: params.aspect_ratio, duration: Number(params.duration), resolution: params.resolution, visual_style: params.visual_style||null, asset_ids: selectedAssets.map(asset => asset.id) };
+    videoSubmissions.add(submissionKey); submitting = true;
+    syncVideoGenerateButton();
     await flushSave();
     const task = await api('/api/tasks', json(payload));
+    if (state.project?.id !== projectId) return;
     updateTaskNode(task, videoNode.id);
     await loadHistory();
+    if (state.project?.id !== projectId) return;
     if (task.status === 'queued' || task.status === 'running') pollTask(task.id, videoNode.id);
     else toast(task.error || (task.status === 'blocked' ? '请先配置模型 API Key' : '任务已提交'));
     if (task.status === 'queued' || task.status === 'running') toast('任务已提交，正在排队或生成');
   } catch (error) { toast(error.message); }
+  finally {
+    if (submitting) videoSubmissions.delete(submissionKey);
+    syncVideoGenerateButton();
+  }
 }
 async function loadHistory() {
   if (!state.project) return;
-  const tasks = await api(`/api/tasks?project_id=${state.project.id}`);
-  const sortedTasks = [...tasks].sort((a, b) => (b.updated_at || b.created_at || 0) - (a.updated_at || a.created_at || 0));
+  const projectId = state.project.id;
+  const tasks = await api(`/api/tasks?project_id=${projectId}`);
+  if (state.project?.id !== projectId) return;
+  const sortedTasks = [...tasks].sort((a, b) => (b.created_at || b.updated_at || 0) - (a.created_at || a.updated_at || 0));
   const latestByNode = {};
-  sortedTasks.forEach(task => { const nodeId = task.params?.node_id; if (nodeId && !latestByNode[nodeId]) latestByNode[nodeId] = task; });
+  sortedTasks.forEach(task => {
+    const nodeId = task.params?.node_id, current = latestByNode[nodeId];
+    if (nodeId && (!current || ['queued','running'].includes(task.status) && !['queued','running'].includes(current.status))) latestByNode[nodeId] = task;
+  });
   state.nodeTasks = { ...state.nodeTasks, ...latestByNode };
+  syncVideoGenerateButton();
   Object.entries(latestByNode).forEach(([nodeId, task]) => {
     updateTaskNode(task, nodeId);
-    if (['queued','running'].includes(task.status) || task.auto_save_video && task.asset_save_status === 'pending') pollTask(task.id, nodeId);
+    if (['queued','running'].includes(task.status) || task.video_cache_status === 'pending') pollTask(task.id, nodeId);
   });
   const latestDone = sortedTasks.find(task => task.status === 'done' && task.video_url);
   if (latestDone) state.lastCompletedTask = latestDone;
@@ -1642,14 +1675,22 @@ async function loadHistory() {
 }
 async function retryTask(task, accountReviewed = false) {
   if (!task?.params) return;
+  const projectId = task.project_id || task.params.project_id, nodeId = task.params.node_id;
+  if (state.project?.id !== projectId || state.switchingProject || videoGenerationBusy(nodeId, projectId)) return;
   if (describeTaskError(task).quotaLimited && !accountReviewed) return showQuotaHelp(task);
+  const submissionKey = videoSubmissionKey(nodeId, projectId);
+  videoSubmissions.add(submissionKey);
+  syncVideoGenerateButton();
   try {
     const payload = { ...task.params }; delete payload.model_name;
     const next = await api('/api/tasks', json(payload));
+    if (state.project?.id !== projectId) return;
     if (accountReviewed) closeModal();
     updateTaskNode(next, task.params.node_id); await loadHistory();
+    if (state.project?.id !== projectId) return;
     if (['queued','running'].includes(next.status)) pollTask(next.id, task.params.node_id); else toast(next.error || '任务未执行');
   } catch (error) { toast(error.message); }
+  finally { videoSubmissions.delete(submissionKey); syncVideoGenerateButton(); }
 }
 function renderAssetLibrary() { assetLibrary.refresh(); }
 function showView(view, conversationCommit=false) {
@@ -1797,10 +1838,10 @@ async function uploadFiles(files) {
       if (video) selectAsset(asset.id, video);
       else if (canvasUpload && !videoId && state.project?.id === projectId) addAssetNode(asset, null);
       if (state.view === 'assets') renderAssetLibrary();
-      toast(video ? `${file.name} 已添加素材节点并连接到视频` : `${file.name} 已加入素材库`);
+      toast(video ? `${file.name} 已添加素材节点并连接到视频` : `${file.name} 已加入生成历史`);
     } catch (error) { toast(error.message); }
   }
-  if (!$('#canvasPanel').hidden && $('#canvasPanelTitle').textContent === '素材库') showAssetPanel();
+  if (!$('#canvasPanel').hidden && $('#canvasPanelTitle').textContent === '资产库') showAssetPanel();
 }
 function selectAsset(id, video = selectedNode()) {
   if (video?.type !== 'video' || !state.assets.some(asset => asset.id === id && ['image', 'prop','audio','video'].includes(asset.kind || 'image'))) return;
@@ -1833,7 +1874,7 @@ function unselectAsset(id) {
   video.settings.mode = deriveVideoMode(video, state.nodes, state.edges, state.assets, state.characters);
   state.selectedEdgeIndex = null;
   renderEdges(); updatePortHighlights(); loadNodeSettings(); scheduleSave();
-  if (!$('#canvasPanel').hidden && $('#canvasPanelTitle').textContent === '素材库') showAssetPanel();
+  if (!$('#canvasPanel').hidden && $('#canvasPanelTitle').textContent === '资产库') showAssetPanel();
   toast('已断开该素材与当前视频的连接，素材节点仍可复用');
 }
 function renderAssets() {
@@ -1895,6 +1936,7 @@ async function returnFromModelManagement() {
   await context?.onReturn?.();
 }
 const imageGenerator = createImageGenerator({ api, json, escapeHtml, toast,
+  onSaveAsset: (asset,inLibrary)=>assetLibrary.setLibraryMembership(asset,inLibrary),
   onManageModels: options => openModelManagement('image', options),
   onAssetCreated: asset => {
     upsertAsset(asset);
@@ -1902,6 +1944,7 @@ const imageGenerator = createImageGenerator({ api, json, escapeHtml, toast,
   }
 });
 const audioGenerator = createAudioGenerator({ api, json, escapeHtml, toast,
+  onSaveAsset: (asset,inLibrary)=>assetLibrary.setLibraryMembership(asset,inLibrary),
   onManageModels: options => openModelManagement('audio', options),
   onAssetCreated: asset => { upsertAsset(asset); if (state.view === 'assets') assetLibrary.render(); },
 });
@@ -1982,6 +2025,10 @@ const assetLibrary = createAssetLibrary({ state, api, json, escapeHtml, toast, s
   onGenerateAudio: options => audioGenerator.open(options),
   onAddCharacter: character => { if (!state.project) return toast('请先创建或打开一个项目'); showView('canvas'); addCharacterNode(character); },
   onChanged: () => {
+    document.querySelectorAll('[data-history-save]').forEach(button=>{
+      const asset=state.assets.find(item=>item.id===button.dataset.historySave);
+      if(asset)button.innerHTML=icon(asset.in_library?'libraryRemove':'library')+(asset.in_library?'移出资产库':'保存至资产库');
+    });
     let changed = false;
     for (const node of state.nodes.filter(item => item.type === 'character')) {
       const character = state.characters.find(item => item.id === node.characterId);
@@ -2016,7 +2063,7 @@ function closeCanvasPanel() {
 }
 function showNodePalette(position = null) {
   state.pendingNodePosition = position && Number.isFinite(position.x) ? position : null;
-  const types = [['prompt','text','文本'],['asset','image','图片'],['video','video','视频'],['audio','audio','音频'],['script','script','脚本'],['library','library','素材库']];
+  const types = [['prompt','text','文本'],['asset','image','图片'],['video','video','视频'],['audio','audio','音频'],['script','script','脚本'],['library','library','资产库']];
   openCanvasPanel('添加节点', '选择节点，连接你的创作', `<div class="node-palette">${types.map(([type, iconName, title]) => `<button class="palette-card palette-${type}" data-palette-node="${type}">${icon(iconName)}<div><b>${title}</b></div>${['script','library'].includes(type) ? icon('chevronRight','palette-chevron') : ''}</button>`).join('')}</div>`);
   document.querySelectorAll('[data-palette-node]').forEach(button => button.onclick = () => {
     const type = button.dataset.paletteNode;
@@ -2029,7 +2076,7 @@ function showAssetPanel() {
   const video = selectedNode()?.type === 'video' ? selectedNode() : null;
   if (video && state.view==='canvas') { inlineNodeMedia.pick(video,true); return; }
   const projectId = state.project?.id;
-  assetLibrary.openPicker({ kind: video ? ['image','prop','video','audio'] : 'image', title: video ? '选择参考素材' : '图片素材库', onPick: asset => {
+  assetLibrary.openPicker({ kind: video ? ['image','prop','video','audio'] : 'image', title: video ? '选择参考素材' : '图片资产库', onPick: asset => {
     if (state.project?.id !== projectId) return toast('项目已切换，请重新选择素材');
     if (video && state.nodes.includes(video)) selectAsset(asset.id, video); else addLibraryAsset(asset);
   } });
@@ -2193,10 +2240,10 @@ function scriptWorkflowHtml(node, data, step) {
         const ready = acceptsResourceAsset(resource, asset);
         const visual = ready && kind === 'image' ? `<img src="${escapeHtml(asset.url)}" alt="${escapeHtml(asset.name)}">` : icon(info.icon);
         const optional = resource.required === false || String(resource.id || '').startsWith('resource-');
-        return `<article class="script-resource-card ${ready ? 'resource-ready' : ''}" data-resource-kind="${kind}"><div class="resource-mark">${visual}</div><div class="resource-info"><strong>${escapeHtml(resource.name)}</strong><span>${escapeHtml(resource.category || info.label)} · ${optional ? '可选' : '建议准备'}</span><p>${escapeHtml(resource.reason || '')}</p>${ready ? `<small class="resource-uploaded">已关联：${escapeHtml(asset.name)}</small>` : resource.asset_id ? '<small class="resource-type-error">已关联素材类型不符或文件失效，请重新选择。</small>' : `<small class="resource-format">请上传${info.label}文件，也可从素材库复用</small>`}</div><div class="script-resource-buttons">${kind === 'image' ? `<button class="script-resource-generate" data-script-generate-image="${escapeHtml(resource.id)}">${icon('sparkle','ui-icon-sm')}AI 生成图片</button>` : ''}<button class="script-resource-upload ${ready ? 'uploaded' : ''}" data-script-upload-resource="${escapeHtml(resource.id)}">${ready ? '更换' : '上传'}${info.label}</button><button class="script-resource-library" data-script-pick-resource="${escapeHtml(resource.id)}">从${info.label}库选择</button>${resource.asset_id ? `<button class="script-resource-library" data-script-unbind="${escapeHtml(resource.id)}">移除关联</button>` : ''}</div></article>`;
+        return `<article class="script-resource-card ${ready ? 'resource-ready' : ''}" data-resource-kind="${kind}"><div class="resource-mark">${visual}</div><div class="resource-info"><strong>${escapeHtml(resource.name)}</strong><span>${escapeHtml(resource.category || info.label)} · ${optional ? '可选' : '建议准备'}</span><p>${escapeHtml(resource.reason || '')}</p>${ready ? `<small class="resource-uploaded">已关联：${escapeHtml(asset.name)}</small>` : resource.asset_id ? '<small class="resource-type-error">已关联素材类型不符或文件失效，请重新选择。</small>' : `<small class="resource-format">请上传${info.label}文件，也可从资产库复用</small>`}</div><div class="script-resource-buttons">${kind === 'image' ? `<button class="script-resource-generate" data-script-generate-image="${escapeHtml(resource.id)}">${icon('sparkle','ui-icon-sm')}AI 生成图片</button>` : ''}<button class="script-resource-upload ${ready ? 'uploaded' : ''}" data-script-upload-resource="${escapeHtml(resource.id)}">${ready ? '更换' : '上传'}${info.label}</button><button class="script-resource-library" data-script-pick-resource="${escapeHtml(resource.id)}">从${info.label}库选择</button>${resource.asset_id ? `<button class="script-resource-library" data-script-unbind="${escapeHtml(resource.id)}">移除关联</button>` : ''}</div></article>`;
       }).join('')}</div></section>`;
     }).join('');
-    content = `<div class="script-step-intro"><div><h3>根据分镜分类准备资源</h3><p>人物、场景和道具准备图片，片段素材准备视频，旁白、配乐和音效准备音频。图片支持 AI 生成，也可上传或从素材库复用。已关联的资源会自动显示为画布素材节点，并连接到当前脚本。</p></div><button class="script-secondary" id="scriptGenerateResources">重新分析资源</button></div>${tabs}${groups || `<div class="script-workflow-empty">${icon(RESOURCE_TYPES[filter]?.icon || 'diamond')}<b>${resources.length ? '此类型暂无资源需求' : '还没有资源清单'}</b><small>${resources.length ? '可切换其他分类查看需要准备的素材' : '先完成或导入 Excel，再点击「重新分析资源」'}</small></div>`}`;
+    content = `<div class="script-step-intro"><div><h3>根据分镜分类准备资源</h3><p>人物、场景和道具准备图片，片段素材准备视频，旁白、配乐和音效准备音频。图片支持 AI 生成，也可上传或从资产库复用。已关联的资源会自动显示为画布素材节点，并连接到当前脚本。</p></div><button class="script-secondary" id="scriptGenerateResources">重新分析资源</button></div>${tabs}${groups || `<div class="script-workflow-empty">${icon(RESOURCE_TYPES[filter]?.icon || 'diamond')}<b>${resources.length ? '此类型暂无资源需求' : '还没有资源清单'}</b><small>${resources.length ? '可切换其他分类查看需要准备的素材' : '先完成或导入 Excel，再点击「重新分析资源」'}</small></div>`}`;
   } else {
     const prompts = data.scenes?.length ? data.scenes.map((scene, index) => `<article class="script-prompt-card"><div class="script-prompt-title"><span>${index + 1}</span><div><strong>第 ${index + 1} 镜 · ${escapeHtml(scene.shot_size || '中景')}</strong><small>${escapeHtml(scene.duration || '')} · ${escapeHtml(scene.description || '').slice(0, 80)}</small></div><button class="script-mini-generate" data-script-generate-prompt="${index}">${icon('wand','ui-icon-sm')} 重新生成</button></div><label>分镜提示词<textarea data-script-storyboard="${index}" rows="4" placeholder="画面主体、构图、光影和风格">${escapeHtml(scene.storyboard_prompt || '')}</textarea></label><label>视频运动提示词<textarea data-script-motion="${index}" rows="3" placeholder="人物动作、镜头运动、速度和转场">${escapeHtml(scene.motion_prompt || '')}</textarea></label><span class="autosave-label">自动保存</span></article>`).join('') : `<div class="script-workflow-empty"><span>${icon('script','ui-icon-lg')}</span><b>还没有分镜</b><small>返回第一步生成分镜内容</small></div>`;
     content = `<div class="script-step-intro"><div><h3>为每个镜头合成视频提示词</h3><p>分镜提示词描述画面，运动提示词描述动作与运镜。展开后的视频节点直接使用这两项原文组合的提示词，修改后同步生效。</p></div><button class="script-primary" id="scriptGeneratePrompts">${icon('wand','ui-icon-sm')} 合成全部提示词</button></div><div class="script-prompt-list">${prompts}</div>`;
@@ -2354,10 +2401,10 @@ async function uploadScriptResource(resourceId, files, expectedWorkflow = state.
       const form = new FormData(); form.append('file', file); if (state.project?.id) form.append('project_id', state.project.id);
       const asset = await api('/api/assets', { method: 'POST', body: form });
       upsertAsset(asset);
-      if (!acceptsResourceAsset(resource, asset)) { toast(`这项资源需要${RESOURCE_TYPES[resourceKind(resource)].label}文件，所选文件已存入对应素材库但未绑定`); continue; }
+      if (!acceptsResourceAsset(resource, asset)) { toast(`这项资源需要${RESOURCE_TYPES[resourceKind(resource)].label}文件，所选文件已加入生成历史但未绑定`); continue; }
       const currentResource = state.project?.id === projectId && state.nodes.includes(node) && scriptDataForNode(node).resources.find(item => item.id === resourceId);
-      if (!currentResource) { toast(`${file.name} 已上传到素材库，原脚本资源已变更`); continue; }
-      if (!acceptsResourceAsset(currentResource, asset)) { toast('资源类型已变更，请从素材库重新选择'); continue; }
+      if (!currentResource) { toast(`${file.name} 已加入生成历史，原脚本资源已变更`); continue; }
+      if (!acceptsResourceAsset(currentResource, asset)) { toast('资源类型已变更，请从资产库重新选择'); continue; }
       currentResource.kind = resourceKind(currentResource); currentResource.asset_id = asset.id; currentResource.file_name = asset.name; currentResource.status = 'uploaded'; saveScriptLocal(node, scriptDataForNode(node));
       toast(`${file.name} 已关联到资源：${currentResource.name}，并连接到画布脚本节点`);
     } catch (error) { toast(error.message); }
@@ -2417,7 +2464,7 @@ function chooseScriptResourceFromLibrary(resourceId) {
       const asset = state.assets.find(item => item.id === button.dataset.chooseScriptAsset);
       if (!current || !acceptsResourceAsset(current, asset)) return toast('资源已变更，请返回重新选择');
       Object.assign(current, { kind: resourceKind(current), asset_id: asset.id, file_name: asset.name, status: 'uploaded' });
-      saveScriptLocal(node, scriptDataForNode(node)); renderScriptWorkflow(); toast('已从素材库关联资源，并连接到画布脚本节点');
+      saveScriptLocal(node, scriptDataForNode(node)); renderScriptWorkflow(); toast('已从资产库关联资源，并连接到画布脚本节点');
     });
   };
   draw();
@@ -2426,25 +2473,31 @@ function llmConfigModal() { return openModelManagement('text'); }
 
 async function showCanvasHistoryPanel() {
   const projectId = state.project?.id;
-  openCanvasPanel('生成历史', '查看生成任务，或将已完成的视频添加到画布', '<div class="panel-empty"><b>正在读取任务记录…</b></div>');
+  openCanvasPanel('生成历史', '查看生成和导入的内容，可添加到画布或保存至资产库', '<div class="panel-empty"><b>正在读取历史…</b></div>');
   const requestId = crypto.randomUUID();
   $('#canvasPanel').dataset.request = requestId;
   const current = () => state.project?.id === projectId && !$('#canvasPanel').hidden && $('#canvasPanel').dataset.request === requestId && $('#canvasPanelTitle').textContent === '生成历史';
   try {
-    const tasks = projectId ? await api(`/api/tasks?project_id=${projectId}`) : [];
+    const [tasks, history] = await Promise.all([projectId ? api(`/api/tasks?project_id=${projectId}`) : [], api('/api/assets')]);
     if (!current()) return;
-    $('#canvasPanelBody').innerHTML = tasks.length ? `<div class="panel-list">${tasks.map(task => {
+    history.forEach(upsertAsset);
+    const items=history.filter(asset=>asset.project_id===projectId);
+    const pendingTasks=tasks.filter(task=>!items.some(asset=>asset.task_id===task.id));
+    $('#canvasPanelBody').innerHTML = items.length||pendingTasks.length ? `<div class="panel-list">${items.map(asset=>`<div class="history-panel-card" data-history-asset="${escapeHtml(asset.id)}"><b>${escapeHtml(asset.name)}</b><small>${escapeHtml({image:'图片',prop:'图片',video:'视频',audio:'音频'}[asset.kind]||'素材')} · ${asset.source==='generated'?'AI 生成':'导入'}${asset.file_status==='failed'?' · 文件下载失败':''}</small><button type="button" data-history-preview="${escapeHtml(asset.id)}">预览</button><button type="button" class="history-add-node" data-history-add="${escapeHtml(asset.id)}">添加到画布</button><button type="button" data-history-save="${escapeHtml(asset.id)}" >${icon(asset.in_library?'libraryRemove':'library')}${asset.in_library?'移出资产库':'保存至资产库'}</button>${asset.file_status==='failed'?`<button type="button" data-history-retry="${escapeHtml(asset.id)}">重试下载</button>`:''}</div>`).join('')}${pendingTasks.map(task => {
       const prompt = task.params?.prompt || '生成视频';
       return `<div class="history-panel-card"><b>${escapeHtml(prompt.slice(0, 36))}${prompt.length > 36 ? '…' : ''}</b><small>${escapeHtml(task.params?.model_name || task.params?.model || '视频模型')} · ${escapeHtml(task.params?.resolution || '')} · ${Number(task.params?.duration) || 0}s</small><span class="task-status ${escapeHtml(task.status)}">${statusText(task.status, task)}</span>${taskErrorHtml(task)}${taskRetryHtml(task)}${task.status === 'done' && task.video_url ? `<button class="history-add-node" data-history-add="${escapeHtml(task.id)}">${icon('plus','ui-icon-sm')}添加到画布</button>` : ''}</div>`;
-    }).join('')}</div>` : '<div class="panel-empty"><b>还没有生成任务</b><small>提交一次视频生成任务后会出现在这里</small></div>';
+    }).join('')}</div>` : '<div class="panel-empty"><b>还没有生成或导入内容</b><small>图片、视频和音频会保留在这里</small></div>';
+    const findAsset=id=>items.find(asset=>asset.id===id);
+    document.querySelectorAll('[data-history-preview]').forEach(button=>button.onclick=()=>assetLibrary.preview(findAsset(button.dataset.historyPreview)));
+    document.querySelectorAll('[data-history-save]').forEach(button=>button.onclick=async()=>{button.disabled=true;await assetLibrary.setLibraryMembership(findAsset(button.dataset.historySave));if(button.isConnected){const asset=findAsset(button.dataset.historySave);button.disabled=false;button.innerHTML=icon(asset?.in_library?'libraryRemove':'library')+(asset?.in_library?'移出资产库':'保存至资产库');}});
+    document.querySelectorAll('[data-history-retry]').forEach(button=>button.onclick=async()=>{button.disabled=true;await assetLibrary.retryFile(findAsset(button.dataset.historyRetry));if(current())showCanvasHistoryPanel();});
     document.querySelectorAll('#canvasPanelBody [data-retry-task]').forEach(button => button.onclick = () => retryTask(tasks.find(task => task.id === button.dataset.retryTask)));
     document.querySelectorAll('[data-history-add]').forEach(button => button.onclick = async () => {
       if (state.project?.id !== projectId) return;
       button.disabled = true;
-      const task = tasks.find(item => item.id === button.dataset.historyAdd);
       try {
-        const asset = await api('/api/assets/from-task', json({ task_id: task.id, name: task.params?.prompt?.slice(0,40) || '生成视频' }));
-        if (state.project?.id === projectId) { addLibraryAsset(asset); toast('历史视频已添加到画布，并保存在素材库'); }
+        const asset = findAsset(button.dataset.historyAdd) || await api(`/api/tasks/${encodeURIComponent(button.dataset.historyAdd)}/history-asset`, json({}));
+        if (state.project?.id === projectId) { addLibraryAsset(asset); toast('已添加到画布'); }
       } catch (error) { toast(error.message); }
       finally { if (button.isConnected) button.disabled = false; }
     });
@@ -2634,11 +2687,19 @@ async function boot() {
       }
     });
     const entry = new URLSearchParams(location.search);
+    const resumeId = conversationResume.target(state.user, state.conversations, entry);
     if (entry.get('embedded') === '1') document.body.classList.add('agent-embedded');
     if(entry.get('conversation'))await openConversation(entry.get('conversation'));
     else if (entry.get('project')) await selectProject(entry.get('project'));
     else if (['projects','works'].includes(entry.get('view'))) showView('projects');
     else if (entry.get('view') === 'canvas' && state.projects.length) await selectProject(state.projects[0].id);
+    else if (resumeId) {
+      try { await openConversation(resumeId); }
+      catch (error) {
+        if (error.status !== 404) throw error;
+        conversationResume.forget(state.user);showView('home');loadNodeSettings();
+      }
+    }
     else { showView('home'); loadNodeSettings(); }
     if (entry.get('embedded') === '1') requestAnimationFrame(() => fitCanvas());
     bootFinished = true;
@@ -2657,7 +2718,8 @@ async function boot() {
 $('#renameProject').onclick = editProjectNameInline; $('#modalClose').onclick = closeModal; $('#modalBackdrop').onclick = event => { if (event.target === $('#modalBackdrop')) closeModal(); }; $('#saveProjectBtn').onclick = () => saveProject(false).catch(() => {}); $('#generateBtn').onclick = submitTask;
 const agentChat = createAgentChat({ api, json, escapeHtml, toast,
   onPreviewAsset:previewGeneratedAsset,
-  onConversationSnapshot:run=>{if(state.view==='agent'&&$('#agentView').dataset.homeMode==='agent'){homeHub?.showConversation();state.activeConversationId=run.project_id;history.replaceState(null,'',`?conversation=${encodeURIComponent(run.project_id)}`);}const stamp=`${run.id}:${run.updated_at}`;if(state.conversationStamp!==stamp){state.conversationStamp=stamp;refreshConversations().catch(error=>toast(error.message));}},
+  onSaveAsset:(asset,inLibrary)=>assetLibrary.setLibraryMembership(asset,inLibrary),
+  onConversationSnapshot:run=>{if(state.view==='agent'&&$('#agentView').dataset.homeMode==='agent'){homeHub?.showConversation();state.activeConversationId=run.project_id;conversationResume.remember(state.user,run.project_id);history.replaceState(null,'',`?conversation=${encodeURIComponent(run.project_id)}`);}const stamp=`${run.id}:${run.updated_at}`;if(state.conversationStamp!==stamp){state.conversationStamp=stamp;refreshConversations().catch(error=>toast(error.message));}},
   beforeStart: () => flushSave(),
   onProjectSnapshot: async (projectId,revision) => {
     const canRefresh=()=>state.view==='canvas'&&state.project?.id===projectId&&!state.dirty&&!state.saveInFlight&&!state.drag&&!state.switchingProject;
@@ -2678,11 +2740,13 @@ canvasAgent=createCanvasAgent({chat:agentChat,state,icon,toast,beforeOpen:flushS
   contextText:()=>[`项目：${state.project?.name||'未命名'}`,...state.nodes.map(node=>`${node.title||node.type}：${node.settings?.prompt||node.text||node.script_data?.title||''}`)].join('\n').slice(0,6000)
 });
 homeComposer=createHomeComposer({api,json,escapeHtml,icon,toast,state,
-  onModeChange:renderProjects,
+  onSaveTask:(task,inLibrary)=>assetLibrary.saveTask(task,inLibrary),onRetryFile:asset=>assetLibrary.retryFile(asset),
+  onModeChange:()=>{conversationResume.remember(state.user,state.activeConversationId);renderProjects();},
   onPreviewAsset:previewGeneratedAsset,
+  onSaveAsset:(asset,inLibrary)=>assetLibrary.setLibraryMembership(asset,inLibrary),
   onModels:kind=>openModelManagement(kind),onAssets:()=>showView('assets'),
   onConversation:id=>openConversation(id).catch(error=>toast(error.message)),
-  onConversations:async id=>{if(id){state.activeConversationId=id;history.replaceState(null,'',`?conversation=${encodeURIComponent(id)}`);}await refreshConversations();}
+  onConversations:async id=>{if(id){state.activeConversationId=id;conversationResume.remember(state.user,id);history.replaceState(null,'',`?conversation=${encodeURIComponent(id)}`);}await refreshConversations();}
 });
 homeHub=createHomeHub({state,composer:homeComposer,chat:agentChat,icon,escapeHtml,toast,
   onProjects:()=>showView('projects'),onOpenCanvas:id=>selectProject(id).catch(error=>toast(error.message)),

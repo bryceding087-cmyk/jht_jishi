@@ -9,7 +9,8 @@ const base = { prompt: '原来的完整描述\n第二行', conversationId: 'conv
 const original = structuredClone(metadata);
 const image = buildRegenerationRequest({ ...base, kind: 'image' }, 'new-image');
 assert.deepEqual(image, { model_config_id: 'saved-model', size: '2K', count: 2, aspect_ratio: '16:9', prompt: base.prompt,
-  project_id: 'conversation-a', request_id: 'new-image', name: base.prompt, reference_asset_ids: ['image-a'], watermark: false });
+  project_id: 'conversation-a', request_id: 'new-image', reference_asset_ids: ['image-a'], watermark: false });
+assert.equal('name' in image, false, 'image regeneration must use the shared automatic naming rule');
 const audio = buildRegenerationRequest({ ...base, kind: 'audio' }, 'new-audio');
 assert.equal('model' in audio, false); assert.equal('size' in audio, false); assert.equal('asset_ids' in audio, false);
 assert.deepEqual(audio.audio_config, metadata.audio_config); assert.equal(audio.speaker, 'speaker-a');

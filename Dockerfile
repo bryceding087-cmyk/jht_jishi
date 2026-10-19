@@ -1,5 +1,6 @@
 FROM python:3.11-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 HOST=0.0.0.0 PORT=8000 JIANHUITONG_DATA_DIR=/app/data
+ENV JIANHUITONG_MARKET_MODEL_ORIGIN=http://192.168.241.202:4091
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app

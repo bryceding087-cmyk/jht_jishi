@@ -19,6 +19,7 @@ from fastapi import HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from market_identity import login_market_context_user
+from model_gateway import with_model_gateway
 
 
 _credential_scope = ContextVar('jianhuitong_market_credentials', default=None)
@@ -332,6 +333,7 @@ def model_api_key(url, original):
 
 def model_for_generation(config):
     """Return a transient copy; callers must never persist this result."""
+    config = with_model_gateway(config)
     if is_direct_seed_audio(config):
         return {**config, 'api_key': audio_api_key(SEED_AUDIO_ORIGIN + SEED_AUDIO_PATH, config.get('api_key', ''))}
     return {**config, 'api_key': model_api_key(config.get('base_url', ''), config.get('api_key', ''))}

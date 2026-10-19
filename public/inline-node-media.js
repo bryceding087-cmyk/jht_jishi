@@ -1,6 +1,6 @@
 import { createHomePreferences } from './home-preferences.js?v=parameter-escape-8';
 import { expandAssetMentions } from './asset-mentions.js?v=inline-chips-1';
-import { createVisualStylePicker } from './visual-style-picker.js?v=3';
+import { createVisualStylePicker } from './visual-style-picker.js?v=4';
 // Canvas-native media composers. Drafts and task IDs live on their owning node;
 // a task may finish while another node is selected without changing selection.
 export function createInlineNodeMedia(ctx) {
@@ -55,13 +55,14 @@ export function createInlineNodeMedia(ctx) {
   }
   function library(host,{kind,onPick,title='添加素材',exclude=[]}) {
     host.querySelector('.inline-asset-picker')?.remove();
+    let collection='history';
     const pane=document.createElement('section');pane.className='inline-asset-picker';
-    pane.innerHTML=`<div class="inline-picker-head"><span>${esc(title)}</span><button type="button" aria-label="关闭素材列表">${icon('close')}</button></div><input type="search" placeholder="搜索素材名称" aria-label="搜索节点素材"><div class="inline-picker-grid"></div><p class="inline-picker-status" role="status"></p>`;
+    pane.innerHTML=`<div class="inline-picker-head"><span>${esc(title)}</span><button type="button" aria-label="关闭素材列表">${icon('close')}</button></div><div class="al-collection-tabs" role="tablist" aria-label="选择内容范围"><button type="button" role="tab" data-inline-collection="history" aria-selected="true">生成历史</button><button type="button" role="tab" data-inline-collection="library" aria-selected="false">资产库</button></div><input type="search" placeholder="搜索素材名称" aria-label="搜索节点素材"><div class="inline-picker-grid"></div><p class="inline-picker-status" role="status"></p>`;
     host.append(pane);
     const status=pane.querySelector('.inline-picker-status');
     const draw=()=>{
       const query=pane.querySelector('input').value.toLowerCase();
-      const assets=state.assets.filter(asset=>(Array.isArray(kind)?kind:[kind]).includes(asset.kind||'image')&&!exclude.includes(asset.id)&&String(asset.name).toLowerCase().includes(query));
+      const assets=state.assets.filter(asset=>(collection==='history'||asset.in_library)&&(Array.isArray(kind)?kind:[kind]).includes(asset.kind||'image')&&!exclude.includes(asset.id)&&String(asset.name).toLowerCase().includes(query));
       pane.querySelector('.inline-picker-grid').innerHTML=assets.map(asset=>`<button type="button" data-inline-asset="${esc(asset.id)}" title="${esc(asset.name)}">${['image','prop'].includes(asset.kind||'image')?`<img src="${esc(asset.url)}" alt="" loading="lazy">`:icon(asset.kind==='audio'?'audio':'video')}<span>${esc(asset.name)}</span></button>`).join('');
       status.textContent=assets.length?'':'暂无匹配素材，可直接上传文件';
       pane.querySelectorAll('[data-inline-asset]').forEach(button=>button.onclick=async()=>{
@@ -70,6 +71,7 @@ export function createInlineNodeMedia(ctx) {
       });
     };
     pane.querySelector('.inline-picker-head button').onclick=()=>pane.remove();
+    pane.querySelectorAll('[data-inline-collection]').forEach(button=>button.onclick=()=>{collection=button.dataset.inlineCollection;pane.querySelectorAll('[data-inline-collection]').forEach(item=>item.setAttribute('aria-selected',String(item===button)));draw();});
     pane.querySelector('input').oninput=draw;draw();
     api('/api/assets').then(assets=>{if(Array.isArray(assets)){state.assets=assets;if(pane.isConnected)draw();}}).catch(error=>{if(pane.isConnected)status.textContent=error.message;});
     ctx.refresh();return pane;
@@ -106,7 +108,7 @@ export function createInlineNodeMedia(ctx) {
     const node=entry.node,audio=kindFor(node)==='audio',saved=node[settingsKey(node)]||{},linked=upstream(node),refs=references(entry),locked=busy(entry);
     const model=entry.models.find(item=>item.id===entry.modelId);
     const mode=saved.mode||'sfx';
-    entry.root.innerHTML=`<div class="inline-composer-tools"><button type="button" data-inline-action="reference">${icon('plus')}参考</button><button type="button" data-inline-action="upload-reference">${icon('upload')}上传参考</button>${audio?`<button type="button" data-inline-action="replace">${icon('library')}素材库</button><button type="button" data-inline-action="upload">${icon('upload')}上传音频</button><button type="button" data-inline-action="models">${icon('settings')}管理模型</button>`:''}</div>
+    entry.root.innerHTML=`<div class="inline-composer-tools"><button type="button" data-inline-action="reference">${icon('plus')}参考</button><button type="button" data-inline-action="upload-reference">${icon('upload')}上传参考</button>${audio?`<button type="button" data-inline-action="replace">${icon('library')}资产库</button><button type="button" data-inline-action="upload">${icon('upload')}上传音频</button><button type="button" data-inline-action="models">${icon('settings')}管理模型</button>`:''}</div>
       ${audio?`<div class="inline-audio-modes">${[['sfx','音效'],['voice','配音'],['music','音乐']].map(([value,label])=>`<button type="button" data-inline-mode="${value}" aria-pressed="${mode===value}" ${locked?'disabled':''}>${label}</button>`).join('')}</div>`:''}
       <div class="inline-reference-list">${refs.map((asset,index)=>`<div title="${esc(asset.name)}" ${asset.kind==='audio'?`data-audio-preview="${esc(asset.url)}"`:''}>${asset.kind==='audio'?'<span class="reference-audio-icon">♪</span>':`<img src="${esc(asset.url)}" alt="${esc(asset.name)}">`}<span class="reference-number">${index+1}</span>${asset.kind==='audio'&&asset.duration?`<small class="reference-duration">${Number(asset.duration).toFixed(1)}s</small>`:''}<button type="button" data-inline-remove="${esc(asset.id)}" aria-label="移除参考 ${esc(asset.name)}" ${locked?'disabled':''}>${icon('close')}</button></div>`).join('')}</div>
       <textarea class="inline-generation-prompt" aria-label="${audio?'音频':'图片'}生成描述" maxlength="${audio?3000:4000}" placeholder="${audio?'描述声音、配音内容或音乐氛围…':'描述画面内容、构图、光线与风格…'}" ${locked?'disabled':''} ${linked?'readonly':''}>${esc(linked||saved.prompt||'')}</textarea>
@@ -162,7 +164,7 @@ export function createInlineNodeMedia(ctx) {
     if(!valid(entry))return;
     entry.status=task.status;entry.error='';
     if(['succeeded','done'].includes(task.status)) {
-      if(!task.asset)throw new Error('任务已完成但未返回素材，请在素材库查看');
+      if(!task.asset)throw new Error('任务已完成但未返回素材，请在生成历史查看');
       if(entry.appliedId!==task.asset.id) {
         entry.appliedId=task.asset.id;
         draft(entry,{last_result_asset_id:task.asset.id});
@@ -201,7 +203,7 @@ export function createInlineNodeMedia(ctx) {
       await ctx.flushSave();
       const task=await api(`/api/${audio?'audio':'images'}/generations`,json({...payload,request_id:entry.requestId}));
       if(!valid(entry))return;
-      if(!task.id)throw new Error('任务未返回编号，请在素材库查看');
+      if(!task.id)throw new Error('任务未返回编号，请在生成历史查看');
       entry.uncertain=false;node[taskKey(node)]=task.id;ctx.save();entry.submitting=false;
       await accept(entry,task);
       if(['queued','running'].includes(entry.status))entry.timer=setTimeout(()=>poll(entry),1800);

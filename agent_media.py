@@ -42,7 +42,7 @@ def asset_path(host, asset_id):
     url = str(asset.get('url', ''))
     name = url.removeprefix('/uploads/')
     if not url.startswith('/uploads/') or Path(name).name != name or '\\' in name:
-        raise HTTPException(422, '合成只接受已保存到本地素材库的媒体')
+        raise HTTPException(422, '合成只接受已保存到本地历史文件的媒体')
     path = (host.UPLOADS / name).resolve()
     if path.parent != host.UPLOADS.resolve() or not path.is_file():
         raise HTTPException(422, '素材文件缺失，请重新上传或缓存')

@@ -2,24 +2,24 @@ import { validateReferenceVideo, videoReferenceCover } from './reference-video.j
 import { attachAssetMentions } from './asset-mentions.js?v=reference-sync-2';
 import { createHomePreferences } from './home-preferences.js?v=parameter-escape-8';
 import { normalizeContentError } from './task-errors.js?v=content-rejection-3';
-import { buildRegenerationRequest } from './generation-request.js?v=visual-style-1';
+import { buildRegenerationRequest } from './generation-request.js?v=image-names-1';
 import { createGenerationGuard } from './generation-state.js?v=conversation-scope-2';
 import { createImageLightbox } from './image-lightbox.js?v=1';
 import { createVideoHoverPreview } from './video-hover-preview.js?v=1';
-import { createVisualStylePicker } from './visual-style-picker.js?v=3';
+import { createVisualStylePicker } from './visual-style-picker.js?v=4';
 
-const TYPES=[['agent','sparkle','Agent'],['image','imageNode','图片生成'],['video','play','视频生成'],['audio','audio','音频生成']];
+const TYPES=[['image','imageNode','图片生成'],['video','play','视频生成'],['audio','audio','音频生成'],['agent','sparkle','Agent']];
 const PLACEHOLDERS={image:'描述你想生成的画面，输入 @ 引用图片，或上传参考图…',video:'描述你的镜头、场景与动作，输入 @ 引用图片、视频或音频…',audio:'描述你想要的声音，或输入需要朗读的文案…'};
 const pending=task=>['queued','running','waiting_tool'].includes(task.status);
-const needsPoll=task=>pending(task)||task.auto_save_video&&task.asset_save_status==='pending';
+const needsPoll=task=>pending(task)||task.video_cache_status==='pending';
 const complete=task=>['done','succeeded'].includes(task.status);
 const IMAGE_RATIOS=['adaptive','1:1','3:4','16:9','4:3','9:16','2:3','3:2','21:9'];
 const VIDEO_RATIOS=['16:9','9:16','1:1','4:3','3:4','21:9'];
 
-export function createHomeComposer({api,json,escapeHtml:esc,icon,toast,state,onConversations,onAssets,onModels,onConversation,onModeChange,onPreviewAsset}) {
+export function createHomeComposer({api,json,escapeHtml:esc,icon,toast,state,onConversations,onAssets,onModels,onConversation,onModeChange,onPreviewAsset,onSaveAsset,onSaveTask,onRetryFile}) {
   const root=document.querySelector('#agentView'),wrap=root.querySelector('.agent-composer-wrap');
   let kind='agent',models=[],visible=false,pollTimer=null,polling=null,statePollError=false,loading=null,uploading=false,contentAnimations=[],navigationRevision=0;
-  const drafts=Object.fromEntries(TYPES.slice(1).map(([key])=>[key,{generationScope:'draft:'+crypto.randomUUID(),prompt:'',visual_style:null,references:[],model:'',ratio:'16:9',imageRatio:'adaptive',imageSize:'2K',count:1,resolution:'768p',duration:4,videoMode:'all',frames:[null,null],audioMode:'sfx',format:'wav',speechRate:0,busy:false,requestId:null,conversationId:null}]));
+  const drafts=Object.fromEntries(TYPES.filter(([key])=>key!=='agent').map(([key])=>[key,{generationScope:'draft:'+crypto.randomUUID(),prompt:'',visual_style:null,references:[],model:'',ratio:'16:9',imageRatio:'adaptive',imageSize:'2K',count:1,resolution:'768p',duration:4,videoMode:'all',frames:[null,null],audioMode:'sfx',format:'wav',speechRate:0,busy:false,requestId:null,conversationId:null}]));
   const preferences=createHomePreferences({root,icon,escapeHtml:esc});
   const stylePicker=createVisualStylePicker({api,escapeHtml:esc,icon,onError:toast});
   const referencePreview=createImageLightbox({onError:toast});
@@ -185,7 +185,8 @@ export function createHomeComposer({api,json,escapeHtml:esc,icon,toast,state,onC
     const relevant=jobs.filter(matches);
     for(const job of relevant){
       let card=results.querySelector(`[data-home-job="${CSS.escape(job.task.id)}"]`);
-      const meta=metadata(job),key=JSON.stringify([job.task.status,job.task.status_message,job.task.asset_save_status,job.task.error,job.task.asset?.url,job.task.assets?.map(a=>a.url),job.task.video_url,job.task.progress,meta.modelName,meta.parameters]);
+      syncResultLibraryButton(job,card);
+      const meta=metadata(job),key=JSON.stringify([job.task.status,complete(job.task)?'':job.task.status_message,job.task.video_cache_status,job.task.error,job.task.asset?.url,job.task.assets?.map(a=>a.url),job.task.video_url,job.task.progress,meta.modelName,meta.parameters]);
       if(card?.dataset.renderKey===key)continue;
       if(!card){card=document.createElement('article');card.dataset.homeJob=job.task.id;results.append(card);}
       card.hidden=false;
@@ -195,12 +196,56 @@ export function createHomeComposer({api,json,escapeHtml:esc,icon,toast,state,onC
       const ratio=job.kind==='image'?meta.settings.aspect_ratio:job.kind==='video'?meta.settings.aspect_ratio:'1:1';
       card.style.setProperty('--result-ratio',/^\d+:\d+$/.test(ratio||'')?ratio.replace(':','/'):'1');
       const progress=typeof task.progress==='number'&&Number.isFinite(task.progress)?`${Math.max(0,Math.min(100,Math.round(task.progress)))}% · `:'';
-      const preview=images.length?`<div class="home-image-results">${images.map((a,i)=>`<button type="button" class="home-image-preview" data-home-preview-index="${i}" aria-label="查看第 ${i+1} 张生成图片"><img src="${esc(a.url)}" alt="${esc(job.prompt)} · ${i+1}" draggable="false"></button>`).join('')}</div>${!complete(task)?`<div class="home-task-state">${esc(pending(task)?`正在生成 ${images.length}/${task.count||1} 张…`:normalizeContentError(task.error)||'部分图片生成未完成')}</div>`:''}`:complete(task)&&url?(job.kind==='audio'?`<audio controls preload="metadata" src="${esc(url)}"></audio>`:`<video controls playsinline preload="metadata" src="${esc(url)}"></video>`):pending(task)?`<div class="home-generation-placeholder"><span>${progress}生成中</span><i aria-hidden="true"></i></div><p class="home-generation-status" role="status">${esc(task.status_message||'正在生成，请稍候')}</p>`:`<div class="home-task-state">${icon('warning')}<span>${esc(normalizeContentError(task.error)||'生成未完成')}</span></div>`;
-      card.innerHTML=`<h2 class="home-result-date">${esc(dateLabel(task.created_at))}</h2><header class="home-result-summary"><div class="home-result-references">${meta.refs.map((a,i)=>a.url&&['image','prop'].includes(a.kind||'image')?`<button type="button" class="home-reference-preview" data-home-reference-index="${i}" title="${esc(a.name)}" aria-label="预览参考图片：${esc(a.name||'图片')}"><img src="${esc(a.url)}" alt="${esc(a.name||'参考图片')}" draggable="false"></button>`:`<span title="${esc(a.name)}">${a.kind==='video'?videoReferenceCover(a,esc):icon(a.kind==='audio'?'audio':'video')}</span>`).join('')}</div><p class="home-user-prompt">${esc(job.prompt)}</p><div class="home-result-meta"><span>${esc(meta.modelName)}</span>${meta.parameters.map(v=>`<span>${esc(v)}</span>`).join('')}</div><button type="button" data-home-details="${esc(task.id)}">详细信息 ${icon('help')}</button></header>${preview}${complete(task)?`<p class="home-turn-note">${esc(task.auto_save_video ? task.asset_save_status==='saved'?'已保存到素材库 · 内容由AI生成':task.asset_save_status==='pending'?'生成已完成，正在保存到素材库':'内容由AI生成' : '内容由AI生成')}</p><footer class="home-turn-actions"><button type="button" data-home-edit="${esc(task.id)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4H6a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h7M17 3l4 4-9 9-5 1 1-5 9-9Z"/></svg>重新编辑</button><button type="button" data-home-regenerate="${esc(task.id)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 3-4 4 4 4M3 7h11a6 6 0 0 1 0 12h-3M17 21l4-4-4-4"/></svg>再次生成</button><button type="button" class="home-turn-delete" data-home-delete="${esc(task.id)}" aria-label="删除本段对话及生成内容" title="删除本段对话及生成内容">${icon('trash')}</button></footer>`:''}`;
+      const preview=images.length?`<div class="home-image-results">${images.map((a,i)=>`<button type="button" class="home-image-preview" data-home-preview-index="${i}" aria-label="查看第 ${i+1} 张生成图片"><img src="${esc(a.url)}" alt="${esc(job.prompt)} · ${i+1}" draggable="false"></button>`).join('')}</div>${!complete(task)?`<div class="home-task-state">${esc(pending(task)?`正在生成 ${images.length}/${task.count||1} 张…`:normalizeContentError(task.error)||'部分图片生成未完成')}</div>`:''}`:complete(task)&&url?(job.kind==='audio'?`<audio controls preload="metadata" src="${esc(url)}"></audio>`:`<video data-conversation-video controls playsinline preload="metadata" src="${esc(url)}"></video>`):pending(task)?`<div class="home-generation-placeholder"><span>${progress}生成中</span><i aria-hidden="true"></i></div><p class="home-generation-status" role="status">${esc(task.status_message||'正在生成，请稍候')}</p>`:`<div class="home-task-state">${icon('warning')}<span>${esc(normalizeContentError(task.error)||'生成未完成')}</span></div>`;
+      card.innerHTML=`<h2 class="home-result-date">${esc(dateLabel(task.created_at))}</h2><header class="home-result-summary"><div class="home-result-references">${meta.refs.map((a,i)=>a.url&&['image','prop'].includes(a.kind||'image')?`<button type="button" class="home-reference-preview" data-home-reference-index="${i}" title="${esc(a.name)}" aria-label="预览参考图片：${esc(a.name||'图片')}"><img src="${esc(a.url)}" alt="${esc(a.name||'参考图片')}" draggable="false"></button>`:`<span title="${esc(a.name)}">${a.kind==='video'?videoReferenceCover(a,esc):icon(a.kind==='audio'?'audio':'video')}</span>`).join('')}</div><p class="home-user-prompt">${esc(job.prompt)}</p><div class="home-result-meta"><span>${esc(meta.modelName)}</span>${meta.parameters.map(v=>`<span>${esc(v)}</span>`).join('')}</div><button type="button" data-home-details="${esc(task.id)}">详细信息 ${icon('help')}</button></header>${preview}${complete(task)||images.length?`<p class="home-turn-note">${esc(task.video_cache_status==='failed'?'生成已完成，文件下载失败，可重试下载':task.video_cache_status==='pending'?'已加入生成历史，正在下载视频文件':'已加入生成历史 · 内容由 AI 生成')}</p><footer class="home-turn-actions">${saveResultButton(job)}${job.kind==='video'&&task.video_cache_status==='failed'?`<button type="button" data-home-retry-file="${esc(task.id)}">重试下载</button>`:''}<button type="button" data-home-edit="${esc(task.id)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4H6a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h7M17 3l4 4-9 9-5 1 1-5 9-9Z"/></svg>重新编辑</button><button type="button" data-home-regenerate="${esc(task.id)}">${icon('regenerate')}再次生成</button><button type="button" class="home-turn-delete" data-home-delete="${esc(task.id)}" aria-label="删除本段对话及生成内容" title="删除本段对话及生成内容">${icon('trash')}</button></footer>`:''}`;
     }
     let previousDate='';results.querySelectorAll('article:not([hidden])').forEach(card=>{const date=card.querySelector('.home-result-date');date.hidden=date.textContent===previousDate;previousDate=date.textContent;});
     updateSend();
   }
+  const libraryJobs=new Set();
+  function resultSaved(job) {
+    const task=job.task, assets=task.assets?.length?task.assets:task.asset?[task.asset]:[];
+    return job.kind==='video'?task.asset_save_status==='saved':!!assets.length&&assets.every(asset=>asset.in_library);
+  }
+  function saveResultButton(job) {
+    const saved=resultSaved(job),busy=libraryJobs.has(job.task.id);
+    return `<button type="button" data-home-save="${esc(job.task.id)}" data-player-library data-library-saved="${saved}" aria-busy="${busy}" ${saved||busy?'disabled':''}>${icon('library')}<span>${busy?'正在保存…':saved?'已保存至资产库':'保存至资产库'}</span></button>`;
+  }
+  function syncResultLibraryButton(job,card) {
+    const button=card?.querySelector('[data-home-save]');if(!button)return;
+    const saved=resultSaved(job),busy=libraryJobs.has(job.task.id);
+    button.disabled=saved||busy;
+    button.dataset.librarySaved=String(saved);
+    button.setAttribute('aria-busy',String(busy));
+    const label=button.querySelector('span'),text=busy?'正在保存…':saved?'已保存至资产库':'保存至资产库';
+    if(label&&label.textContent!==text)label.textContent=text;
+  }
+  async function saveResult(job,button) {
+    if(libraryJobs.has(job.task.id)||resultSaved(job))return;
+    const assets=job.task.assets?.length?job.task.assets:job.task.asset?[job.task.asset]:[];
+    libraryJobs.add(job.task.id);
+    syncResultLibraryButton(job,button.closest('[data-home-job]'));
+    try {
+      if(job.kind==='video')await onSaveTask?.(job.task,true);
+      else for(const asset of assets){
+        if(asset.in_library)continue;
+        const saved=await onSaveAsset?.(asset,true);if(saved)Object.assign(asset,saved);
+      }
+    }catch(error){toast(error.message);}
+    finally{libraryJobs.delete(job.task.id);renderResults();}
+  }
+  document.addEventListener('asset-library-change',({detail:asset})=>{
+    let changed=false;
+    for(const job of jobs){
+      for(const item of [...(job.task.assets||[]),job.task.asset].filter(Boolean)){
+        if(item.id===asset.id){Object.assign(item,asset);changed=true;}
+      }
+      if(job.kind==='video'&&(job.task.asset_id===asset.id||job.task.id===asset.task_id)){
+        job.task.asset_id=asset.id;job.task.asset_save_status=asset.in_library?'saved':'history';changed=true;
+      }
+    }
+    if(changed)renderResults();
+  });
   function editTurn(job) {
     const d=drafts[job.kind];
     d.prompt=job.prompt;
@@ -251,7 +296,15 @@ export function createHomeComposer({api,json,escapeHtml:esc,icon,toast,state,onC
   }
   const details=document.createElement('dialog');details.className='home-result-details';details.innerHTML='<header><h2>生成详情</h2><button type="button" aria-label="关闭详情">×</button></header><div></div>';root.append(details);
   details.querySelector('button').onclick=()=>details.close();details.onclick=e=>{if(e.target===details)details.close();};
-  results.onclick=e=>{
+  results.onclick=async e=>{
+    const save=e.target.closest('[data-home-save]');
+    if(save){const job=jobs.find(item=>item.task.id===save.dataset.homeSave);if(job)await saveResult(job,save);return;}
+    const retry=e.target.closest('[data-home-retry-file]');
+    if(retry){
+      const job=jobs.find(item=>item.task.id===retry.dataset.homeRetryFile);if(!job)return;retry.disabled=true;
+      try{const asset=await api(`/api/tasks/${encodeURIComponent(job.task.id)}/history-asset`,json({}));const result=await onRetryFile?.(asset);if(result){job.task.video_url=result.url;job.task.video_cache_status=result.file_status;}}
+      catch(error){toast(error.message);}finally{retry.disabled=false;renderResults();}return;
+    }
     const reference=e.target.closest('[data-home-reference-index]');
     if(reference){const job=jobs.find(item=>item.task.id===reference.closest('[data-home-job]')?.dataset.homeJob),asset=job?.references?.[Number(reference.dataset.homeReferenceIndex)];if(asset)referencePreview.open(asset);return;}
     const preview=e.target.closest('[data-home-preview-index]');
@@ -310,7 +363,7 @@ export function createHomeComposer({api,json,escapeHtml:esc,icon,toast,state,onC
       conversationId=captured.viewConversationId||captured.conversationId;
       if(!conversationId){const conversation=await api('/api/conversations',json({title:text.slice(0,30),kind:target,prompt:text,settings,request_id:captured.requestId}));conversationId=conversation.id;submittedConversationId=conversationId;generation.bindConversation(scope,conversationId);if(revision===navigationRevision){if(d.requestId===captured.requestId)d.conversationId=conversation.id;d.title=conversation.title;if(kind===target)root.querySelector('.agent-location span').textContent=d.title;}await onConversations(revision===navigationRevision?conversation.id:undefined);}
       if(target==='video')task=await api('/api/tasks',json({...settings,project_id:conversationId,node_id:'conversation-video',request_id:captured.requestId}));
-      else task=await api(target==='image'?'/api/images/generations':'/api/audio/generations',json({prompt:text,name:text.slice(0,60),project_id:conversationId,model_config_id:model.id,reference_asset_ids:references,request_id:captured.requestId,...(target==='image'?{size:captured.imageSize,aspect_ratio:captured.imageRatio,count:captured.count,watermark:false,visual_style:captured.visual_style}:{mode:captured.audioMode,audio_config:audioConfig})}));
+      else task=await api(target==='image'?'/api/images/generations':'/api/audio/generations',json({prompt:text,project_id:conversationId,model_config_id:model.id,reference_asset_ids:references,request_id:captured.requestId,...(target==='image'?{size:captured.imageSize,aspect_ratio:captured.imageRatio,count:captured.count,watermark:false,visual_style:captured.visual_style}:{name:text.slice(0,60),mode:captured.audioMode,audio_config:audioConfig})}));
       submittedTask=task;submittedConversationId=conversationId;
       if(!jobs.some(job=>job.task.id===task.id))jobs.push({kind:target,task,prompt:text,conversationId,settings,modelName:model.name,references:[...captured.references]});if(revision===navigationRevision)d.viewConversationId=conversationId;
       const unchanged=d.requestId===captured.requestId;if(unchanged){d.requestId=null;d.conversationId=null;}

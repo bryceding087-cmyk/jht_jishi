@@ -1,7 +1,7 @@
-import { icon } from './iconography.js?v=preview-copy-3';
+import { icon } from './iconography.js?v=library-toggle-1';
 import { loadingMarkup } from './loading-state.js?v=1';
 import { createViewportObserver, revealMedia } from './viewport-media.js?v=1';
-import { marketMediaUrl } from './market-session.js?v=market-sdk-3';
+import { marketMediaUrl, withMarketSession, marketResponseData } from './market-session.js?v=market-sdk-3';
 
 const TYPES = { image: ['图片', 'image'], video: ['视频', 'video'], audio: ['音频', 'audio'] };
 const ACCEPT = { image: 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp', prop: 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp', video: 'video/mp4,video/webm,.mp4,.webm', audio: 'audio/mpeg,audio/wav,audio/mp4,audio/ogg,.mp3,.wav,.m4a,.ogg', document: '.txt,.xlsx', text: '.txt', script: '.xlsx' };
@@ -13,8 +13,8 @@ const bytes = number => !number ? '' : number < 1024 * 1024 ? `${Math.round(numb
 
 export function createAssetLibrary(ctx) {
   const { state, api, json, escapeHtml: esc, toast, showModal, closeModal } = ctx;
-  const ui = { type: 'all', query: '', source: '', scope: '', sort: 'newest', folder: '*', selected: new Set(), folders: [], loading: false, loaded: false, error: '', jobs: [], uploading: false };
-  let panelMode = '', pickerOptions = null, panelQuery = '', refreshSequence = 0;
+  const ui = { collection: 'history', pickerCollection: 'history', type: 'all', query: '', source: '', scope: '', sort: 'newest', folder: '*', selected: new Set(), folders: [], loading: false, loaded: false, error: '', jobs: [], uploading: false };
+  let panelMode = '', pickerOptions = null, panelQuery = '', refreshSequence = 0, refreshTimer = null;
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const tagsOf = asset => Array.isArray(asset.tags) ? asset.tags : [];
@@ -28,6 +28,7 @@ export function createAssetLibrary(ctx) {
   const patch = body => ({ ...json(body), method: 'PATCH' });
 
   async function refresh() {
+    clearTimeout(refreshTimer);
     const sequence=++refreshSequence;
     ui.loading=true;ui.error='';redraw();
     const options = { background: state.view === 'assets' };
@@ -43,11 +44,14 @@ export function createAssetLibrary(ctx) {
     ui.selected = new Set([...ui.selected].filter(id => ids.has(id)));
     if (ui.folder !== '*' && ui.folder && !ui.folders.some(folder => folder.id === ui.folder)) ui.folder = '*';
     changed();
+    if(!ui.error&&state.assets.some(asset=>asset.kind==='video'&&asset.file_status==='pending')){
+      refreshTimer=setTimeout(()=>{if(state.view==='assets'||panelMode==='picker'&&$('#alPicker'))refresh();},3000);
+    }
     return !ui.error;
   }
 
   function filteredAssets() {
-    return state.assets.filter(asset => matchesType(asset))
+    return state.assets.filter(asset => matchesType(asset) && (ui.collection === 'history' || asset.in_library))
       .sort((a,b) => (ui.sort === 'oldest' ? 1 : -1) * ((a.created_at || 0) - (b.created_at || 0)) || String(a.id).localeCompare(String(b.id)));
   }
   function thumbnail(asset, full = false) {
@@ -81,7 +85,7 @@ export function createAssetLibrary(ctx) {
   }
   function uploadJobs() {
     if (!ui.jobs.length) return '';
-    return `<div class="al-upload-jobs" role="status"><div><strong>${ui.uploading ? '正在上传素材' : '上传结果'}</strong>${!ui.uploading ? action('clear-jobs', '收起') : '<small>请保留页面，等待上传完成</small>'}</div>${ui.jobs.map(job => `<div class="al-upload-job ${job.status}"><span title="${esc(job.name)}">${esc(job.name)}</span><progress max="100" value="${job.progress || 0}"></progress><small>${esc(job.status === 'done' ? '已保存' : job.status === 'error' ? job.error : job.status === 'pending' ? '等待上传' : `${job.progress || 0}%`)}</small></div>`).join('')}</div>`;
+    return `<div class="al-upload-jobs" role="status"><div><strong>${ui.uploading ? '正在上传素材' : '上传结果'}</strong>${!ui.uploading ? action('clear-jobs', '收起') : '<small>请保留页面，等待上传完成</small>'}</div>${ui.jobs.map(job => `<div class="al-upload-job ${job.status}"><span title="${esc(job.name)}">${esc(job.name)}</span><progress max="100" value="${job.progress || 0}"></progress><small>${esc(job.status === 'done' ? '已加入生成历史' : job.status === 'error' ? job.error : job.status === 'pending' ? '等待上传' : `${job.progress || 0}%`)}</small></div>`).join('')}</div>`;
   }
   const mediaDurations = new Map();
   let activePreview = null;
@@ -131,7 +135,8 @@ export function createAssetLibrary(ctx) {
       <button type="button" class="al-history-preview" data-al-preview="${id}" aria-label="预览 ${esc(asset.name)}">${kind==='audio'?`<span class="al-history-note">${musicNote}</span>`:kind==='video'?`<video data-media-src="${safeUrl(asset.url)}" preload="none" muted loop playsinline></video>`:`<img data-media-src="${safeUrl(asset.url)}" alt="${esc(asset.name)}" decoding="async">`}</button>
       <input class="al-history-check" type="checkbox" data-al-select="${id}" aria-label="选择 ${esc(asset.name)}" ${ui.selected.has(asset.id)?'checked':''}>
       ${kind==='audio'||kind==='video'?`<span class="al-history-duration" data-duration-for="${id}" ${duration?'':'hidden'}>${duration.toFixed(1)}s</span>`:''}
-      <div class="al-history-actions"><button type="button" data-al-download="${id}" aria-label="下载 ${esc(asset.name)}" title="下载">${icon('download')}</button><button type="button" data-al-delete="${id}" aria-label="删除 ${esc(asset.name)}" title="删除">${icon('trash')}</button></div>
+      ${asset.file_status==='failed'?'<span class="al-history-file-error">文件下载失败 · 可重试</span>':''}
+      <div class="al-history-actions"><button type="button" data-al-save="${id}" ${saving.has(asset.id)?'disabled':''} aria-label="${asset.in_library?'移出资产库':'保存至资产库'}" title="${asset.in_library?'移出资产库':'保存至资产库'}">${icon(asset.in_library?'libraryRemove':'library')}</button><button type="button" data-al-download="${id}" aria-label="下载 ${esc(asset.name)}" title="下载">${icon('download')}</button><button type="button" data-al-delete="${id}" aria-label="删除 ${esc(asset.name)}" title="删除">${icon('trash')}</button></div>
     </article>`;
   }
   function readDurations(host) {
@@ -148,19 +153,51 @@ export function createAssetLibrary(ctx) {
     });
   }
   const historyMedia = createViewportObserver(card => { revealMedia(card); readDurations(card); });
+  function moveTabSlider(group) {
+    const selected=group.querySelector('[aria-selected="true"]');
+    if(!selected?.offsetWidth)return;
+    let slider=group.querySelector('.al-tab-slider');
+    const fresh=!slider;
+    if(fresh){slider=document.createElement('span');slider.className='al-tab-slider';slider.setAttribute('aria-hidden','true');}
+    slider.style.width=selected.offsetWidth+'px';slider.style.height=selected.offsetHeight+'px';
+    slider.style.transform=`translate(${selected.offsetLeft}px,${selected.offsetTop}px)`;
+    if(fresh){group.prepend(slider);group.classList.add('has-tab-slider');}
+  }
+  const tabResize=new ResizeObserver(entries=>{
+    for(const entry of entries){const group=entry.target.closest('.al-collection-tabs,.al-history-tabs');if(group?.isConnected)moveTabSlider(group);}
+  });
   function render() {
     const host=$('#libraryGrid');if(!host)return;
     stopPreviews();
     host.classList.add('asset-library-host');
     const assets=filteredAssets(),groups=new Map();
     for(const asset of assets){const date=calendarDate(asset.created_at);if(!groups.has(date))groups.set(date,[]);groups.get(date).push(asset);}
-    const pool=state.assets.filter(asset=>matchesType(asset,'all'));
-    host.innerHTML=`<div id="alLibrary" class="al-library al-history">
-      <div class="al-history-heading"><h1>生成历史</h1><div class="al-history-filters"><button type="button" id="alHistorySort" aria-label="${ui.sort==='newest'?'当前最新优先，切换最早优先':'当前最早优先，切换最新优先'}" title="${ui.sort==='newest'?'最新优先':'最早优先'}">${icon('sort')}<span class="sr-only">切换排序</span></button></div></div>
+    const pool=state.assets.filter(asset=>matchesType(asset,'all')&&(ui.collection==='history'||asset.in_library));
+    // Keep tabs mounted so their slider transitions and keyboard focus survive filtering.
+    if(!$('#alLibrary',host)){
+      tabResize.disconnect();
+      host.innerHTML=`<div id="alLibrary" class="al-library al-history">
+      <div class="al-history-heading"><div class="al-collection-tabs" role="tablist" aria-label="内容范围">${[['history','生成历史'],['library','资产库']].map(([value,label])=>`<button type="button" role="tab" data-al-collection="${value}" aria-selected="${ui.collection===value}">${label}</button>`).join('')}</div><div class="al-history-filters"><button type="button" data-al-action="upload">${icon('upload')}导入</button><button type="button" id="alHistorySort" aria-label="${ui.sort==='newest'?'当前最新优先，切换最早优先':'当前最早优先，切换最新优先'}" title="${ui.sort==='newest'?'最新优先':'最早优先'}">${icon('sort')}<span class="sr-only">切换排序</span></button></div></div>
+      <p class="al-collection-note"></p><div class="al-history-jobs"></div>
       <div class="al-history-tabs" role="tablist" aria-label="素材分类">${[['all','全部'],...Object.entries(TYPES).map(([key,value])=>[key,value[0]])].map(([type,label])=>`<button type="button" role="tab" aria-selected="${ui.type===type}" data-al-tab="${type}">${label}<small>${pool.filter(asset=>matchesType(asset,type)).length}</small></button>`).join('')}</div>
-      ${ui.error?`<div class="al-error" role="alert">${esc(ui.error)} ${action('retry','重新读取')}</div>`:''}
-      ${ui.selected.size?`<div class="al-history-selection"><label><input id="alSelectAll" type="checkbox" ${assets.length&&assets.every(asset=>ui.selected.has(asset.id))?'checked':''}>全选</label><span>已选 ${ui.selected.size} 项</span><button type="button" data-al-action="download-selected">下载</button><button type="button" data-al-action="delete-selected">删除</button><button type="button" data-al-action="clear-selection">取消选择</button></div>`:''}
-      <div class="al-history-groups">${[...groups].map(([date,list])=>`<section class="al-history-day" aria-label="${date}"><h2>${date}</h2><div class="al-history-grid">${list.map(historyCard).join('')}</div></section>`).join('')||(!ui.loading&&ui.loaded?'<div class="al-history-empty">暂无素材</div>':'')}</div></div>`;
+      <div class="al-history-error"></div><div class="al-history-selection-slot"></div><div class="al-history-groups"></div></div>`;
+      host.querySelectorAll('.al-collection-tabs,.al-history-tabs').forEach(group=>{
+        tabResize.observe(group);group.querySelectorAll('button').forEach(button=>tabResize.observe(button));
+      });
+    }
+    $$('[data-al-collection]',host).forEach(button=>button.setAttribute('aria-selected',String(button.dataset.alCollection===ui.collection)));
+    $$('[data-al-tab]',host).forEach(button=>{
+      button.setAttribute('aria-selected',String(button.dataset.alTab===ui.type));
+      button.querySelector('small').textContent=pool.filter(asset=>matchesType(asset,button.dataset.alTab)).length;
+    });
+    $('.al-collection-note',host).textContent=ui.collection==='history'?'生成和导入的内容会保留在这里，点击「保存至资产库」即可收藏复用。':'这里展示你手动保存的内容，可从生成历史添加。';
+    $('.al-history-jobs',host).innerHTML=uploadJobs();
+    $('.al-history-error',host).innerHTML=ui.error?`<div class="al-error" role="alert">${esc(ui.error)} ${action('retry','重新读取')}</div>`:'';
+    $('.al-history-selection-slot',host).innerHTML=ui.selected.size?`<div class="al-history-selection"><label><input id="alSelectAll" type="checkbox" ${assets.length&&assets.every(asset=>ui.selected.has(asset.id))?'checked':''}>全选</label><span>已选 ${ui.selected.size} 项</span><button type="button" data-al-action="download-selected">下载</button><button type="button" data-al-action="delete-selected">删除</button><button type="button" data-al-action="clear-selection">取消选择</button></div>`:'';
+    $('.al-history-groups',host).innerHTML=[...groups].map(([date,list])=>`<section class="al-history-day" aria-label="${date}"><h2>${date}</h2><div class="al-history-grid">${list.map(historyCard).join('')}</div></section>`).join('')||(!ui.loading&&ui.loaded?'<div class="al-history-empty">暂无素材</div>':'');
+    $('#alHistorySort',host).title=ui.sort==='newest'?'最新优先':'最早优先';
+    $('#alHistorySort',host).setAttribute('aria-label',ui.sort==='newest'?'当前最新优先，切换最早优先':'当前最早优先，切换最新优先');
+    host.querySelectorAll('.al-collection-tabs,.al-history-tabs').forEach(moveTabSlider);
     $('#alLibrary',host).setAttribute('aria-busy', String(ui.loading));
     bindLibrary(host);bindPreviews(host);
     historyMedia.observe(host.querySelectorAll('.al-history-card'));
@@ -188,6 +225,7 @@ export function createAssetLibrary(ctx) {
     placeAssetMenu(card);
   }
   function bindCards(root, onPick) {
+    $$('[data-al-save]', root).forEach(button => button.onclick = async event => { event.stopPropagation();button.disabled=true;await setLibraryMembership(button.dataset.alSave);if(button.isConnected)button.disabled=false; });
     $$('[data-al-preview]', root).forEach(element => { element.onclick = event => { event.stopPropagation(); preview(byId(element.dataset.alPreview), onPick); }; });
     $$('[data-al-add]', root).forEach(button => button.onclick = event => { event.stopPropagation(); closeAssetMenus(); const asset = byId(button.dataset.alAdd); if (!asset) return; if (onPick) onPick(asset); else if (!state.project) toast('请先创建或打开一个项目'); else ctx.onAddAsset(asset); });
     $$('[data-al-menu]', root).forEach(button => button.onclick = event => { event.stopPropagation(); toggleAssetMenu(button); });
@@ -198,6 +236,7 @@ export function createAssetLibrary(ctx) {
   }
   function bindLibrary(root) {
     bindCards(root);
+    $$('[data-al-collection]',root).forEach(button=>button.onclick=()=>{ui.collection=button.dataset.alCollection;ui.selected.clear();render();});
     $$('[data-al-tab]', root).forEach(button => button.onclick = () => { ui.type = button.dataset.alTab; ui.selected.clear(); ui.query = ''; render(); });
     $$('[data-al-folder]', root).forEach(button => button.onclick = () => { ui.folder = button.dataset.alFolder; ui.selected.clear(); render(); });
     $$('[data-al-select]', root).forEach(input => input.onchange = () => { input.checked ? ui.selected.add(input.dataset.alSelect) : ui.selected.delete(input.dataset.alSelect); render(); });
@@ -286,8 +325,15 @@ export function createAssetLibrary(ctx) {
     const media = kind === 'image' ? `<img class="al-preview-backdrop" src="${url}" alt="" aria-hidden="true"><img class="al-preview-original" src="${url}" alt="${esc(asset.name)}">`
       : kind === 'video' ? `<video class="al-preview-backdrop" src="${url}" muted preload="auto" playsinline aria-hidden="true" tabindex="-1"></video><video class="al-preview-original" src="${url}" controls preload="auto" playsinline></video>`
       : `${thumbnail(asset,true)}`;
-    showModal(`<div class="al-preview-layout" id="alPreviewLayout"><div class="al-preview-stage al-preview-stage-${kind}">${media}<div class="al-preview-wait">${loadingMarkup(`正在加载${label}…`)}</div></div><aside class="al-preview-sidebar"><h2>${label}</h2><div class="al-preview-info">${loadingMarkup('正在读取素材信息…')}</div><footer class="al-preview-actions"><button type="button" class="al-preview-delete" id="alPreviewDelete">${icon('trash')}删除</button><button type="button" id="alPreviewDownload" ${url?'':'disabled'}>${icon('download')}下载</button></footer></aside></div>`, 'asset-modal asset-preview-modal');
+    showModal(`<div class="al-preview-layout" id="alPreviewLayout"><div class="al-preview-stage al-preview-stage-${kind}">${media}<div class="al-preview-wait">${loadingMarkup(`正在加载${label}…`)}</div></div><aside class="al-preview-sidebar"><h2>${label}</h2><div class="al-preview-info">${loadingMarkup('正在读取素材信息…')}</div><footer class="al-preview-actions"><button type="button" id="alPreviewSave">${icon(asset.in_library?'libraryRemove':'library')}${asset.in_library?'移出资产库':'保存至资产库'}</button><button type="button" id="alPreviewAdd">${icon('plus')}${onPick?'选择素材':'添加到画布'}</button><button type="button" class="al-preview-delete" id="alPreviewDelete">${icon('trash')}删除</button><button type="button" id="alPreviewDownload" ${url?'':'disabled'}>${icon('download')}下载</button></footer></aside></div>`, 'asset-modal asset-preview-modal');
     const root = $('#alPreviewLayout'), original = $('.al-preview-original', root), background = $('.al-preview-backdrop', root), wait = $('.al-preview-wait', root);
+    const updateSaveButton = value => {
+      const button=$('#alPreviewSave',root), current=byId(asset.id)||value;
+      button.disabled=saving.has(asset.id);
+      button.innerHTML=icon(current.in_library?'libraryRemove':'library')+(current.in_library?'移出资产库':'保存至资产库');
+    };
+    $('#alPreviewSave',root).onclick=async event=>{const button=event.currentTarget;button.disabled=true;button.textContent=(byId(asset.id)||asset).in_library?'正在移出…':'正在保存…';await setLibraryMembership(asset);if(root.isConnected)updateSaveButton(asset);};
+    $('#alPreviewAdd',root).onclick=()=>{if(!onPick&&!state.project)return toast('请先创建或打开一个项目');closeModal();if(onPick)onPick(byId(asset.id)||asset);else ctx.onAddAsset(byId(asset.id)||asset);};
     $('#alPreviewDelete').onclick = () => deleteAssets([asset.id]);
     $('#alPreviewDownload').onclick = () => downloadAsset(asset);
     let dimensions = '', duration = Number(asset.duration) || 0;
@@ -314,11 +360,16 @@ export function createAssetLibrary(ctx) {
     } else wait.hidden = true;
     const drawInfo = details => {
       if (!root.isConnected) return;
+      if(!saving.has(asset.id))updateSaveButton(details);
       const generation = details.generation, prompt = generation?.prompt || '', refs = generation?.references || [];
       const created = details.created_at ? new Date(Number(details.created_at)*1000).toLocaleString('zh-CN',{hour12:false}) : '未记录';
       const badges = [generation?.model_name || generation?.model_id, generation?.aspect_ratio, generation?.size || generation?.resolution, generation?.duration ? `${generation.duration} 秒` : ''].filter(Boolean);
       $('.al-preview-info',root).innerHTML = `<dl class="al-preview-properties"><div><dt>名称</dt><dd>${esc(details.name)}</dd></div><div><dt>创作者</dt><dd>${esc(details.creator_name||'未记录')}</dd></div><div><dt>创建于</dt><dd>${esc(created)}</dd></div><div><dt>来源</dt><dd>${sourceOf(details)==='generated'?'AI 生成':'上传素材'}</dd></div><div><dt>尺寸</dt><dd id="alPreviewDimensions">${esc(dimensions||'—')}</dd></div>${kind==='video'||kind==='audio'?`<div><dt>时长</dt><dd id="alPreviewDuration">${duration?`${duration.toFixed(1)} 秒`:'—'}</dd></div>`:''}<div><dt>文件大小</dt><dd>${esc(bytes(details.size_bytes)||'—')}</dd></div></dl><div class="al-preview-section-heading"><span>生成信息</span>${prompt?`<button type="button" id="alPreviewCopy" aria-label="复制生成提示词" title="复制提示词">${icon('copy')}</button>`:''}</div><p class="al-preview-prompt ${prompt?'':'is-empty'}">${esc(prompt||'暂无生成信息')}</p>${badges.length?`<div class="al-preview-badges">${badges.map(text=>`<span title="${esc(text)}">${esc(text)}</span>`).join('')}</div>`:''}${refs.length?`<div class="al-preview-section-heading">参考素材</div><div class="al-preview-references">${refs.map(ref=>`<button type="button" data-preview-reference="${esc(ref.id)}" title="${esc(ref.name)}">${['image','prop'].includes(ref.kind)?`<img src="${safeUrl(ref.url)}" alt="${esc(ref.name)}">`:icon(ref.kind==='video'?'video':'audio')}</button>`).join('')}</div>`:''}${details.description?`<div class="al-preview-section-heading">素材说明</div><p class="al-preview-prompt">${esc(details.description)}</p>`:''}`;
       $('#alPreviewCopy',root)?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(prompt);toast('提示词已复制');}catch{toast('复制失败，请选择提示词手动复制');}});
+      if(details.file_status==='failed'){
+        $('.al-preview-info',root).insertAdjacentHTML('afterbegin','<div class="al-error" role="alert">视频已生成，文件下载失败。<button type="button" id="alRetryFile">重试下载</button></div>');
+        $('#alRetryFile',root).onclick=async event=>{const button=event.currentTarget;button.disabled=true;const result=await retryFile(details);if(result&&root.isConnected)preview(result,onPick);else button.disabled=false;};
+      }
       $$('[data-preview-reference]',root).forEach(button=>button.onclick=()=>preview(byId(button.dataset.previewReference)||refs.find(ref=>ref.id===button.dataset.previewReference)));
     };
     const loadInfo = async () => {
@@ -327,10 +378,39 @@ export function createAssetLibrary(ctx) {
     };
     loadInfo();
   }
-  function saveNode() { toast('素材库仅保存图片、视频和音频'); }
-  async function saveTask(task) {
-    if (!task?.id || task.status !== 'done') return toast('视频生成完成后可以保存到素材库');
-    try { await api('/api/assets/from-task', json({ task_id: task.id, name: task.params?.prompt?.slice(0, 40) || '生成视频', folder_id: ui.folder === '*' ? '' : ui.folder })); await refresh(); toast('生成视频已保存到视频资产'); } catch (error) { toast(error.message); }
+  function rememberAsset(asset) {
+    const index=state.assets.findIndex(item=>item.id===asset.id);
+    if(index<0)state.assets.unshift(asset);else Object.assign(state.assets[index],asset);
+    for(const task of Object.values(state.nodeTasks||{})){
+      if(task.asset_id===asset.id||asset.kind==='video'&&task.id===asset.task_id){
+        task.asset_id=asset.id;task.asset_save_status=asset.in_library?'saved':'history';
+      }
+    }
+    if(!asset.in_library&&ui.collection==='library')ui.selected.delete(asset.id);
+    document.dispatchEvent(new CustomEvent('asset-library-change',{detail:asset}));
+    changed();return asset;
+  }
+  const saving = new Map();
+  async function setLibraryMembership(value, inLibrary) {
+    const id=typeof value==='string'?value:value?.id;
+    if(!id){toast('请先生成或导入内容');return null;}
+    if(saving.has(id))return saving.get(id);
+    inLibrary??=!(byId(id)||value)?.in_library;
+    const promise=(async()=>{
+      try {const asset=rememberAsset(await api(`/api/assets/${encodeURIComponent(id)}/library`,inLibrary?json({}):{method:'DELETE'}));toast(inLibrary?'已保存至资产库':'已移出资产库，仍保留在生成历史');return asset;}
+      catch(error){toast(error.message);return null;}
+    })();
+    saving.set(id,promise);try{return await promise;}finally{saving.delete(id);redraw();}
+  }
+  async function retryFile(asset) {
+    try {const result=rememberAsset(await api(`/api/assets/${encodeURIComponent(asset.id)}/retry-file`,json({})));toast(result.file_status==='cached'?'视频文件已下载，已保留在生成历史':'文件下载失败，请稍后重试');return result;}
+    catch(error){toast(error.message);return null;}
+  }
+  function saveNode(node) { return setLibraryMembership(node?.assetId || node?.asset_id); }
+  async function saveTask(task, inLibrary) {
+    if (!task?.id || task.status !== 'done') {toast('视频生成完成后可以保存至资产库');return null;}
+    try {const history=await api(`/api/tasks/${encodeURIComponent(task.id)}/history-asset`,json({}));const saved=await setLibraryMembership(history,inLibrary??!history.in_library);if(saved){task.asset_id=saved.id;task.asset_save_status=saved.in_library?'saved':'history';task.status_message='生成完成';task.video_cache_status=saved.file_status;task.video_url=saved.url;changed();}return saved;}
+    catch(error){toast(error.message);return null;}
   }
 
   function editFolder(folder) {
@@ -373,8 +453,9 @@ export function createAssetLibrary(ctx) {
       const request = new XMLHttpRequest(), form = new FormData();
       form.append('file', file); if (state.project?.id) form.append('project_id', state.project.id); if (folder) form.append('folder_id', folder); if (kind) form.append('kind', kind);
       request.open('POST', '/api/assets');
+      withMarketSession({}, '/api/assets').headers.forEach((value,key)=>request.setRequestHeader(key,value));
       request.upload.onprogress = event => { if (event.lengthComputable) onProgress(Math.min(99, Math.round(event.loaded / event.total * 100))); };
-      request.onload = () => { let data; try { data = JSON.parse(request.responseText || '{}'); } catch { return reject(new Error('上传响应异常，请重试')); } if (request.status >= 200 && request.status < 300) resolve(data); else reject(new Error(typeof data.detail === 'string' ? data.detail : `上传失败（${request.status}）`)); };
+      request.onload = () => { let data; try { data = JSON.parse(request.responseText || '{}'); } catch { return reject(new Error('上传响应异常，请重试')); } if (request.status >= 200 && request.status < 300) resolve(marketResponseData(data)); else reject(new Error(typeof data.detail === 'string' ? data.detail : `上传失败（${request.status}）`)); };
       request.onerror = () => reject(new Error('网络中断，素材未上传完成')); request.onabort = () => reject(new Error('上传已取消'));
       request.send(form);
     });
@@ -424,19 +505,20 @@ export function createAssetLibrary(ctx) {
     } catch (error) { toast(error.message || '音频生成页面打开失败，请重试'); }
   }
   async function openPicker(options = {}) {
-    pickerOptions = { kind: 'image', ...options }; panelQuery = ''; panelMode = 'picker'; renderPicker();
+    pickerOptions = { kind: 'image', ...options }; ui.pickerCollection='history'; panelQuery = ''; panelMode = 'picker'; renderPicker();
     if (!ui.loaded) await refresh();
   }
   function renderPicker() {
     if (!pickerOptions) return;
     const kind = pickerOptions.kind, query = panelQuery.trim().toLowerCase();
-    const assets = state.assets.filter(asset => (Array.isArray(kind) ? kind.includes(kindOf(asset)) : kindOf(asset) === kind) && (!query || [asset.name, ...tagsOf(asset)].join(' ').toLowerCase().includes(query)));
+    const assets = state.assets.filter(asset => (ui.pickerCollection==='history'||asset.in_library) && (Array.isArray(kind) ? kind.includes(kindOf(asset)) : kindOf(asset) === kind) && (!query || [asset.name, ...tagsOf(asset)].join(' ').toLowerCase().includes(query)));
     const label = Array.isArray(kind) ? '参考' : TYPES[kind]?.[0] || (kind === 'script' ? '脚本' : '文本'), focused = document.activeElement?.id === 'alPickerSearch', caret = document.activeElement?.selectionStart;
-    ctx.openCanvasPanel(pickerOptions.title || `${label}素材库`, `选择${label}素材作为画布节点 · ${LIMITS[kind] || ''}`, `<div id="alPicker" class="al-picker"><div class="al-filter-row"><label class="al-search"><input id="alPickerSearch" value="${esc(panelQuery)}" placeholder="搜索${label}名称或标签"></label><button class="al-btn al-primary" id="alPickerUpload">${icon('upload','ui-icon-sm')}上传</button>${kind === 'image' || kind === 'prop' ? `<button type="button" class="al-btn al-ai-button" id="alPickerGenerate">${icon('wand','ui-icon-sm')}AI 生成图片</button>` : ''}</div>${kind === 'script' ? `<p class="al-section-note"><a href="${marketMediaUrl('/api/scripts/template')}" download>下载分镜 Excel 模板 ↗</a></p>` : ''}${uploadJobs()}<div class="al-picker-grid">${ui.loading||!ui.loaded&&!ui.error?loadingMarkup("正在读取素材…"):ui.error?`<div class="al-error" role="alert">${esc(ui.error)}<button type="button" id="alPickerRetry">重新加载</button></div>`:assets.length ? assets.map(asset => assetCard(asset, true)).join('') : `<div class="al-empty">${icon('search')}<h3>暂无匹配素材</h3><p>上传文件，或换一个关键词。</p></div>`}</div></div>`);
+    ctx.openCanvasPanel(pickerOptions.title || `${label}资产库`, `选择${label}素材作为画布节点 · ${LIMITS[kind] || ''}`, `<div id="alPicker" class="al-picker"><div class="al-collection-tabs" role="tablist" aria-label="选择内容范围">${[["history","生成历史"],["library","资产库"]].map(([value,text])=>`<button type="button" role="tab" data-picker-collection="${value}" aria-selected="${ui.pickerCollection===value}">${text}</button>`).join("")}</div><div class="al-filter-row"><label class="al-search"><input id="alPickerSearch" value="${esc(panelQuery)}" placeholder="搜索${label}名称或标签"></label><button class="al-btn al-primary" id="alPickerUpload">${icon('upload','ui-icon-sm')}上传</button>${kind === 'image' || kind === 'prop' ? `<button type="button" class="al-btn al-ai-button" id="alPickerGenerate">${icon('wand','ui-icon-sm')}AI 生成图片</button>` : ''}</div>${kind === 'script' ? `<p class="al-section-note"><a href="${marketMediaUrl('/api/scripts/template')}" download>下载分镜 Excel 模板 ↗</a></p>` : ''}${uploadJobs()}<div class="al-picker-grid">${ui.loading||!ui.loaded&&!ui.error?loadingMarkup("正在读取素材…"):ui.error?`<div class="al-error" role="alert">${esc(ui.error)}<button type="button" id="alPickerRetry">重新加载</button></div>`:assets.length ? assets.map(asset => assetCard(asset, true)).join('') : `<div class="al-empty">${icon('search')}<h3>暂无匹配素材</h3><p>上传文件，或换一个关键词。</p></div>`}</div></div>`);
     if (kind === 'audio') {
       $('#alPicker .al-filter-row')?.insertAdjacentHTML('beforeend', `<button type="button" class="al-btn al-ai-button" id="alPickerGenerateAudio">${icon('sparkle','ui-icon-sm')}AI 生成音频</button>`);
     }
     const root = $('#alPicker');
+    $$('[data-picker-collection]',root).forEach(button=>button.onclick=()=>{ui.pickerCollection=button.dataset.pickerCollection;renderPicker();});
     $('#alPickerRetry')?.addEventListener('click',()=>refresh());
     $('#alPickerSearch').oninput = event => { panelQuery = event.target.value; renderPicker(); };
     const options = pickerOptions, projectId = state.project?.id || '';
@@ -444,14 +526,14 @@ export function createAssetLibrary(ctx) {
       if (options !== pickerOptions || panelMode !== 'picker' || !$('#alPicker') || projectId !== (state.project?.id || '')) return;
       if (!['image', 'prop'].includes(kindOf(asset))) return toast('生成结果不是图片，请重新选择素材');
       if (options.onPick) return options.onPick(asset);
-      if (!state.project) return toast('图片已保存到素材库，请先打开项目再添加到画布');
+      if (!state.project) return toast('图片已加入生成历史，请先打开项目再添加到画布');
       return ctx.onAddAsset(asset);
     } });
     if ($('#alPickerGenerateAudio')) $('#alPickerGenerateAudio').onclick = () => generateAudio({ onUse: asset => {
       if (options !== pickerOptions || panelMode !== 'picker' || !$('#alPicker') || projectId !== (state.project?.id || '')) return;
       if (kindOf(asset) !== 'audio') return toast('生成结果不是音频，请重新选择素材');
       if (options.onPick) return options.onPick(asset);
-      if (!state.project) return toast('音频已保存到素材库，请先打开项目再添加到画布');
+      if (!state.project) return toast('音频已加入生成历史，请先打开项目再添加到画布');
       return ctx.onAddAsset(asset);
     } });
     $('#alPickerUpload').onclick = () => upload(kind, asset => { if (options !== pickerOptions || panelMode !== 'picker') return; if (Array.isArray(kind) ? kind.includes(kindOf(asset)) : kindOf(asset) === kind) options.onPick ? options.onPick(asset) : ctx.onAddAsset(asset); else toast('文件已保存，请选择对应类型的素材'); });
@@ -463,5 +545,5 @@ export function createAssetLibrary(ctx) {
   const editCharacter = openCharacters;
   document.addEventListener('pointerdown', event => { if (event.target.closest('.al-card-menu, .al-card-more')) return; closeAssetMenus(); });
   document.addEventListener('keydown', event => { if (event.key === 'Escape') closeAssetMenus(); });
-  return { render, openPicker, openCharacters, editCharacter, saveNode, saveTask, refresh, upload, stopPreviews, preview };
+  return { render, openPicker, openCharacters, editCharacter, saveNode, saveTask, setLibraryMembership, retryFile, refresh, upload, stopPreviews, preview };
 }

@@ -148,6 +148,8 @@ class AgentService:
         run = self.get(rid, owner)
         self.repair_canvas(rid)
         events = sorted((e for e in self.h.listing('agent_event') if e['run_id'] == rid and e['seq'] > after), key=lambda e: e['seq'])
+        events = [self.h.hydrate_task_assets(dict(event)) if event.get('asset') else event for event in events]
+        events = [event for event in events if event.get('kind') not in ('media', 'delivery') or event.get('asset')]
         project = self.h.raw_record('conversation', run['project_id']) or self.h.raw_record('project', run['project_id']) or {}
         return {'run': run, 'events': events, 'project_revision': project.get('revision', 0)}
 
@@ -718,7 +720,12 @@ class AgentService:
             if kind=='video' and task.get('polling_interrupted'):
                 raise HTTPException(408, '供应商查询中断，任务编号已保留。点击继续查询可恢复，不会重新生成。')
             if task['status'] in ('done', 'succeeded'):
-                asset = self.h.save_task_asset(self.h.AssetFromTask(task_id=task['id'])) if kind == 'video' else task.get('asset')
+                if kind == 'video' and task.get('video_cache_status') == 'pending':
+                    time.sleep(1)
+                    continue
+                if kind == 'video' and task.get('video_cache_status') == 'failed':
+                    raise HTTPException(502, '视频已生成，文件下载失败。请在生成历史中重试下载，再继续创作。')
+                asset = self.h.video_history_asset(task['id']) if kind == 'video' else task.get('asset')
                 if not asset:
                     raise HTTPException(422, '任务结束但没有实际素材')
                 if kind != 'image':
@@ -736,7 +743,7 @@ class AgentService:
                 op = self.h.get('agent_operation', oid)
                 self.h.save('agent_operation', {**op, 'status': 'failed', 'error': task.get('error', '生成失败')})
                 if task.get('submit_unknown') or any(word in str(task.get('error','')) for word in ('服务已重启','读取超时')):
-                    self.patch(rid,retry_warning='上次提交结果未知，请先核对素材库和服务商记录。重新生成可能再次计费。')
+                    self.patch(rid,retry_warning='上次提交结果未知，请先核对生成历史和服务商记录。重新生成可能再次计费。')
                 raise HTTPException(422, task.get('error') or '生成失败')
             time.sleep(.75)
         raise HTTPException(408, '生成仍在进行，已保存任务编号。点击继续查询可恢复，不会重复提交。')
@@ -913,7 +920,7 @@ class AgentService:
             if spec['id'] in existing:
                 continue
             if scene['id'] in run.get('materialized_video_ids', []) or scene['id'] in run.get('videos', {}):
-                raise HTTPException(409, '已生成镜头的画布节点被删除，请同步分镜后继续。已有视频保留在素材库。')
+                raise HTTPException(409, '已生成镜头的画布节点被删除，请同步分镜后继续。已有视频保留在生成历史。')
             projected['nodes'].append(spec)
             projected['edges'].extend(self.video_node_edges(run, scene, spec['id']))
         return projected
@@ -1324,7 +1331,7 @@ class AgentService:
             self.patch(rid,status='running',phase='music',approved_inputs=run['planned_inputs'])
         elif gate=='G4':
             self.patch(rid,status='completed',phase='delivery')
-            self.event(rid,'delivery','视频已完成并保存到素材库。',asset=run['render_asset'])
+            self.event(rid,'delivery','视频已完成并加入生成历史。',asset=run['render_asset'])
             self.say(rid, 'delivery')
 
     def polish(self,rid):

@@ -10,8 +10,8 @@ button, input, textarea, select { font-family: var(--font-ui); }
 .canvas-active { background: #141414; font-size: 14px; }
 .canvas-active main { grid-template-rows: 0 1fr; width: 100%; }
 .canvas-active .sidebar { display: none; }
-.canvas-active header { position: absolute; inset: 0 0 auto; height: 56px; padding: 10px 12px; z-index: 18; border: 0; background: transparent; pointer-events: none; gap: 10px; }
-.canvas-active header > * { pointer-events: auto; }
+.canvas-active main > header { position: absolute; inset: 0 0 auto; height: 56px; padding: 10px 12px; z-index: 18; border: 0; background: transparent; pointer-events: none; gap: 10px; }
+.canvas-active main > header > * { pointer-events: auto; }
 .canvas-active #projectBreadcrumb { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px 0 5px; max-width: 460px; border: 1px solid #303030; border-radius: 10px; background: #242424; box-shadow: 0 2px 6px #0002; }
 .canvas-active #projectBreadcrumb .crumb { display: none; }
 .canvas-active #projectName { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }

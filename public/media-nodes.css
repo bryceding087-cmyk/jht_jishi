@@ -58,12 +58,12 @@
 .frame-name b { min-width: 0; padding-block: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 1.5; font-weight: 500; color: #dedede; }
 .frame-icon { width: 16px; height: 16px; flex: none; background: transparent; color: #c8c8c8; }
 .frame-icon .ui-icon { width: 15px; height: 15px; }
-.frame-dims { flex: none; color: #bdbdbd; font-size: 12px; font-variant-numeric: tabular-nums; }
+.frame-dims { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #bdbdbd; font-size: 12px; font-variant-numeric: tabular-nums; }
 .visual-frame .node-title button { margin-left: 0; }
 .visual-frame .node-menu { width: 18px; height: 18px; padding: 0; color: #cfcfcf; opacity: 0; }
 .visual-frame:hover .node-menu, .visual-frame.selected .node-menu, .visual-frame .node-menu:focus-visible { opacity: 1; }
 .visual-frame .status-dot { position: relative; }
-.visual-frame .node-meta { flex: none; max-width: 48%; margin: 0; gap: 6px; color: #b7b7b7; font-size: 11px; }
+.visual-frame .node-meta { flex: none; margin: 0; white-space: nowrap; color: #b7b7b7; font-size: 11px; }
 .visual-frame .node-model-name { max-width: 100%; }
 .visual-frame .node-model-label { max-width: 72px; }
 .frame-stage { position: relative; width: 100%; height: var(--frame-h); }

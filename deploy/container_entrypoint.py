@@ -6,11 +6,12 @@ import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from server import load_deployment_config
+from model_gateway import DOCKER_MODEL_ORIGIN
 from sqlalchemy import create_engine, text
 
 
 def main():
-    load_deployment_config()
+    load_deployment_config(model_origin_default=DOCKER_MODEL_ORIGIN)
     engine = create_engine(os.environ['JIANHUITONG_DATABASE_URL'], connect_args={'connect_timeout': 3})
     for attempt in range(30):
         try:

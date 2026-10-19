@@ -264,6 +264,6 @@ def dialogue(stage, run, result=None, **facts):
     if stage == 'delivery':
         if storyboard_only:
             return f'{topic}的创意与分镜已保存到当前对话。想调整哪个镜头，可以在这里接着改。'
-        return f'{topic}已经完成并保存到素材库。之后想调整某个镜头或片尾文字，也可以在这里接着改。'
+        return f'{topic}已经完成并加入生成历史。之后想调整某个镜头或片尾文字，也可以在这里接着改。'
 
     return ''

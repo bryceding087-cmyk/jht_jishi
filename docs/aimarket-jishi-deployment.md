@@ -4,6 +4,15 @@
 
 ## 默认模型
 
+文本、图片和视频共享环境对应的 Base URL：
+
+| 运行方式 | 默认 Base URL |
+| --- | --- |
+| 本地 `npm start` / `server.py` | `https://aimarket.hncig.cn:4090` |
+| Docker 镜像 / 容器入口 | `http://192.168.241.202:4091` |
+
+下表列出服务器部署时的完整接口；本地只替换 Base URL，保留 `/v1` 接口路径及视频查询路径。`JIANHUITONG_MARKET_MODEL_ORIGIN` 可显式覆盖默认值，进程环境变量优先于 `.env`。已保存模型使用上述两个标准网关地址时，会在读取时切换到当前环境，模型 ID、Key 和数据库原记录不因切换而改写；其他自定义网关保留原地址。
+
 | 用途 | 模型 ID | 接口 | 鉴权 |
 | --- | --- | --- | --- |
 | 文本 | `deepseek-v4-flash-vision-exp-0817` | `http://192.168.241.202:4091/v1/chat/completions` | `Authorization: Bearer <SDK 会话 Key>` |
@@ -22,7 +31,7 @@
 
 1. AI 集市中应用 URL 使用现有代理地址 `https://aimarket.hncig.cn:4193/market`。服务端 `JIANHUITONG_PUBLIC_ORIGIN` 默认 `https://aimarket.hncig.cn:4193`，用于代理场景的写请求来源校验；它不同于 4090 端口的集市父页面 origin。
 2. `public/vendor/aimarket.js` 与提供的 `url-agent/aimarket.js` 一致。SDK 向直接父窗口发送 `aimarket:connect`，验证来源、版本及 `requestId` 后接收 `aimarket:context`。
-3. 根目录 `.env` 和 `.env.example` 的服务端模型网关 `JIANHUITONG_MARKET_MODEL_ORIGIN` 已设为 `http://192.168.241.202:4091`，各接口路径包含 `/v1`。浏览器握手的父页面来源 `JIANHUITONG_MARKET_ORIGIN` 仍为 `https://aimarket.hncig.cn:4090`，它必须与用户实际打开的集市网页 origin 一致，不由服务端模型网关地址推断。如果集市网页也迁入内网，应将此变量设置为其准确 origin。`.env` 保存服务端音频密钥并被 `.gitignore` 排除；`.env.example` 不包含真实密钥。
+3. 根目录 `.env` 和 `.env.example` 的模型网关 `JIANHUITONG_MARKET_MODEL_ORIGIN` 使用本地地址 `https://aimarket.hncig.cn:4090`。Dockerfile 与容器入口默认使用 `http://192.168.241.202:4091`；离线打包脚本也会将服务器配置写为内网地址，不沿用开发机的公网网关。各接口路径包含 `/v1`。浏览器握手的父页面来源 `JIANHUITONG_MARKET_ORIGIN` 仍为 `https://aimarket.hncig.cn:4090`，必须与用户实际打开的集市网页 origin 一致。`.env` 被 Git 和 Docker 构建排除；`.env.example` 不包含真实密钥。服务器的 `--env-file` 应使用部署配置，不直接复用本地 `.env`。
 4. 应用 ID 默认 `020884f4-99f0-4d6f-bbc4-74426e6fed1c`，通过 `JIANHUITONG_MARKET_AGENT_ID` 配置。`JIANHUITONG_MARKET_SDK_LOGIN=1` 默认启用按已确认 SDK context 的免登录。
 5. 配置真实的 `JIANHUITONG_DATABASE_URL`，或运行 `scripts/setup_local_postgres.ps1` 初始化本地 PostgreSQL。当前源码目录没有历史业务数据库，未代填数据库凭据。
 6. 使用 Python 3.11+ 安装 `requirements.txt`，Node.js 18+ 运行 `npm start`。启动器加载 `.env`，已有进程环境变量优先。保持单 worker 部署。

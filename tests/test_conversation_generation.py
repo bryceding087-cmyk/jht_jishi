@@ -91,6 +91,52 @@ class ConversationGenerationTests(unittest.TestCase):
         self.assertEqual(self.conversation(self.a, 'image', 'image')['id'], contexts['image']['id'])
         self.assertEqual(len(self.workers), 4)
 
+    def test_conversation_list_discovers_persisted_media_tasks_without_submitting(self):
+        contexts = {kind: self.conversation(self.a, kind, 'return-' + kind) for kind in ('image', 'video', 'audio')}
+        tasks = {kind: self.submit(self.a, kind, context, 'return-' + kind) for kind, context in contexts.items()}
+        foreign = self.conversation(self.b, 'image', 'foreign-return')
+        self.submit(self.b, 'image', foreign, 'foreign-return')
+        self.submit(self.a, 'image', self.pa, 'canvas-return')
+        count = len(self.workers)
+        listing = self.request(self.a, 'GET', '/api/conversations')
+        self.assertEqual({item['id'] for item in listing}, {c['id'] for c in contexts.values()})
+        for item in listing:
+            self.assertEqual(item['active_task'], {'id': tasks[item['kind']]['id'], 'kind': item['kind'], 'status': 'queued'})
+            self.assertEqual(item['status'], 'queued')
+            self.assertNotIn('api_key', json.dumps(item))
+            detail = self.request(self.a, 'GET', '/api/conversations/' + item['id'])
+            self.assertEqual(detail['tasks'][0]['id'], tasks[item['kind']]['id'])
+        self.assertEqual(len(self.workers), count, 'listing/reopening live jobs cannot create another worker')
+        self.finish('image', tasks['image'])
+        updated = {c['id']: c for c in self.request(self.a, 'GET', '/api/conversations')}
+        self.assertIsNone(updated[contexts['image']['id']]['active_task'])
+        self.assertEqual(updated[contexts['image']['id']]['status'], 'succeeded')
+        self.request(self.a, 'DELETE', '/api/recent-items/conversation/' + contexts['audio']['id'], expected=204)
+        self.assertNotIn(contexts['audio']['id'], {c['id'] for c in self.request(self.a, 'GET', '/api/conversations')})
+
+    def test_interrupted_video_is_discoverable_even_after_a_later_failed_submission(self):
+        context = self.conversation(self.a, 'video', 'return-interrupted')
+        task = self.submit(self.a, 'video', context, 'return-interrupted')
+        self.h.update_task(task['id'], status='blocked', provider_task_id='existing-id', polling_interrupted=True)
+        self.h.save('task', {**self.h.get('task', task['id']), 'id': 'later-failure', 'status': 'failed',
+            'polling_interrupted': False, 'provider_task_id': None, 'created_at': 9999999999})
+        item = self.request(self.a, 'GET', '/api/conversations')[0]
+        self.assertEqual(item['active_task']['id'], task['id'])
+        self.assertEqual(item['status'], 'running')
+        self.h.update_task(task['id'], deleted_at=1)
+        self.assertIsNone(self.request(self.a, 'GET', '/api/conversations')[0]['active_task'])
+
+    def test_reopening_images_and_audio_recovers_interrupted_status_without_resubmission(self):
+        for kind in ('image', 'audio'):
+            context = self.conversation(self.a, kind, 'interrupted-' + kind)
+            task = self.submit(self.a, kind, context, 'interrupted-' + kind)
+            getattr(self.h, 'ACTIVE_' + kind.upper() + '_TASKS').clear()
+            count = len(self.workers)
+            detail = self.request(self.a, 'GET', '/api/conversations/' + context['id'])
+            self.assertEqual(detail['tasks'][0]['id'], task['id'])
+            self.assertEqual(detail['tasks'][0]['status'], 'failed')
+            self.assertEqual(len(self.workers), count)
+
     def test_simultaneous_different_conversations_start_independent_tasks(self):
         for kinds in [('image', 'audio'), ('image', 'image')]:
             with self.subTest(kinds=kinds):

@@ -193,6 +193,11 @@ class AgentRuntimeTests(unittest.TestCase):
         run=self.step(rid)
         self.assertEqual(run['status'],'waiting_user',run.get('error'))
         self.assertEqual(run['pending_review']['gate'],'G4')
+        self.assertTrue(self.host.assets())
+        self.assertEqual(self.host.assets(collection='library'), [])
+        saved = self.host.save_asset_to_library(run['render_asset']['id'])
+        self.assertTrue(saved['in_library'])
+        self.assertEqual(len(self.host.assets(collection='library')), 1)
         graph=self.host.creation_context(run['project_id'])
         nodes={n['agent_key']:n for n in graph['nodes'] if n.get('agent_run_id')==rid}
         pairs={(e['from'],e['to']) for e in graph['edges']}

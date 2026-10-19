@@ -38,7 +38,8 @@ await first.onclick();
 const panel=body.querySelector('.visual-style-picker');
 assert.equal(panel.getAttribute('role'),'dialog');
 assert.equal(panel.classList.contains('home-preference-panel'),true,'reuse the existing parameter popup surface and transitions');
-assert.equal(panel.popoverOpen,true);assert.equal(panel.querySelectorAll('[data-style]').length,42);
+assert.equal(panel.popoverOpen,true);assert.equal(panel.querySelectorAll('[data-style]').length,154);
+assert.deepEqual(panel.querySelectorAll('[data-style-category]').map(button=>button.dataset.styleCategory),['全部','真人','2D','3D','建筑']);
 assert.equal(first.getAttribute('aria-expanded'),'true');
 const click=async target=>{
   // Browser focus leaves the search field before the button's click. In that
@@ -50,12 +51,18 @@ const click=async target=>{
   panel.onclick({target});
   await tick();
 };
-for(const [category,count] of [['真人',16],['2D',13],['3D',11]]){
+for(const [category,count] of [['真人',53],['2D',44],['3D',35],['建筑',20]]){
   await click(panel.querySelector(`[data-style-category="${category}"]`));
   assert.equal(panel.popoverOpen,true,'internal mouse focus must not close the popup');
   assert.equal(panel.querySelectorAll('[data-style]').length,count);
   assert.equal(panel.querySelector(`[data-style-category="${category}"]`).getAttribute('aria-pressed'),'true');
 }
+panel.querySelector('input').oninput({target:{value:'parametric architecture'}});
+assert.equal(panel.querySelectorAll('[data-style]').length,1,'search aliases also works for new styles without a source name');
+await click(panel.querySelector('[data-style="architecture-parametric-fluid"]'));await tick();
+assert.deepEqual(value,{id:'architecture-parametric-fluid'});
+assert.equal(first.querySelector('.visual-style-label').textContent,'参数化流线建筑');
+await first.onclick();await click(panel.querySelector('[data-style-category="3D"]'));
 panel.querySelector('input').oninput({target:{value:'圆润动画'}});
 assert.equal(panel.querySelectorAll('[data-style]').length,1);
 await click(panel.querySelector('[data-style="feature-animation"]'));await tick();

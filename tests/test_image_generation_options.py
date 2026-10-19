@@ -6,7 +6,26 @@ from PIL import Image
 from fastapi import HTTPException
 from pydantic import ValidationError
 from test_canvas_groups import CanvasGroupsTests as Storage
-from image_service import image_capabilities, image_output_size, IMAGE_RATIOS
+from image_service import image_capabilities, image_output_size, generated_image_name, IMAGE_RATIOS
+
+
+class GeneratedImageNameTests(unittest.TestCase):
+    def test_mentions_become_short_reference_labels(self):
+        names = ['生成一个大熊猫.jpg', '微信图片_2026-10-18_114611_958.png', '生成一个女人.jpg']
+        prompt = f'将@{names[0]}的背景换成 @{names[1]}，并将熊猫本体换成 @{names[2]} 中的女人'
+        self.assertEqual(generated_image_name(prompt, names), '图1的背景换成图2')
+        self.assertEqual(generated_image_name('把@背景(1).png改成冬日街景', ['背景(1).png']), '图1改成冬日街景')
+        self.assertEqual(generated_image_name('将@参考图高清调整为暖色', ['参考图', '参考图高清']), '图2调整为暖色')
+
+    def test_titles_are_short_safe_and_have_fallbacks(self):
+        self.assertEqual(generated_image_name('请帮我生成一张清晨的城市天际线，柔和光线'), '清晨的城市天际线')
+        self.assertEqual(generated_image_name('@参考.png', ['参考.png']), '参考图创作')
+        self.assertEqual(generated_image_name('＠已改名的图片.png'), '参考图创作')
+        self.assertEqual(generated_image_name('...'), 'AI 生成图片')
+        title = generated_image_name('城市夜景与霓虹灯下的街道' * 8)
+        self.assertLessEqual(len(title), 24)
+        self.assertTrue(title.startswith('城市夜景'))
+        self.assertEqual(generated_image_name('a/b\\c:d*e?更多内容'), 'a b c d e')
 
 
 class ImageGenerationOptionsTests(unittest.TestCase):
@@ -52,6 +71,44 @@ class ImageGenerationOptionsTests(unittest.TestCase):
         self.assertEqual(self.enqueue(size='1.5K',aspect_ratio='3:4',count=3)['id'],task['id'])
         with self.assertRaises(HTTPException) as changed:self.enqueue(size='1.5K',aspect_ratio='3:4',count=4)
         self.assertEqual(changed.exception.status_code,409)
+
+    def test_automatic_names_preserve_full_prompt_references_and_retry_identity(self):
+        names = ['生成一个大熊猫.jpg', '微信图片_2026-10-18_114611_958.png', '生成一个女人.jpg']
+        references = [self.host.store_uploaded_asset(self.image, name) for name in names]
+        prompt = f'将@{names[0]}的背景换成@{names[1]}，并将熊猫本体换成@{names[2]}中的女人'
+        request = self.host.ImageGenerationRequest(prompt=prompt, count=2, request_id='short-names',
+            reference_asset_ids=[asset['id'] for asset in references])
+        with patch.object(self.host, 'internal_image_config', return_value=self.config), patch.object(self.host.threading, 'Thread'):
+            task = self.host.create_image_generation(request)
+        with patch.object(self.host, 'provider_json', return_value={'data':[{'url':'https://fixture.invalid/image.png'}]}) as upstream, patch.object(self.host, 'download_generated_image', return_value=(self.image,'.png')):
+            self.host.run_image_generation(task['id'], self.config)
+        result = self.host.image_generation_status(task['id'])
+        self.assertEqual(result['status'], 'succeeded')
+        self.assertEqual([asset['name'] for asset in result['assets']], ['图1的背景换成图2-1.png', '图1的背景换成图2-2.png'])
+        self.assertEqual(result['prompt'], prompt)
+        self.assertEqual(upstream.call_count, 2)
+        for call in upstream.call_args_list:
+            self.assertEqual(call.args[3]['prompt'], prompt)
+            self.assertEqual(len(call.args[3]['image']), 3)
+        details = self.host.asset_details(result['asset']['id'])
+        self.assertEqual(details['generation']['prompt'], prompt)
+        self.assertEqual(len(details['generation']['references']), 3)
+        # Reference labels may change, but retrying a request must reuse its original result.
+        self.host.save('asset', {**self.host.get('asset', references[0]['id']), 'name':'已重命名.png'})
+        with patch.object(self.host.threading, 'Thread') as worker:
+            retried = self.host.create_image_generation(request)
+        self.assertEqual(retried['id'], task['id'])
+        self.assertEqual(retried['asset']['name'], result['asset']['name'])
+        worker.assert_not_called()
+
+    def test_explicit_image_name_is_preserved(self):
+        name = '冬日城市的人物海报_手动指定的完整名称_最终版本.png'
+        request = self.host.ImageGenerationRequest(prompt='重新绘制人物和背景', name=name, request_id='explicit-name')
+        with patch.object(self.host, 'internal_image_config', return_value=self.config), patch.object(self.host.threading, 'Thread'):
+            task = self.host.create_image_generation(request)
+        with patch.object(self.host, 'provider_json', return_value={'data':[{'url':'https://fixture.invalid/image.png'}]}), patch.object(self.host, 'download_generated_image', return_value=(self.image,'.png')):
+            self.host.run_image_generation(task['id'], self.config)
+        self.assertEqual(self.host.image_generation_status(task['id'])['asset']['name'], name)
 
     def test_cached_client_and_legacy_task_cannot_enable_watermark(self):
         task=self.enqueue(watermark=True)
