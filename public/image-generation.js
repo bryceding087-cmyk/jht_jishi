@@ -1,3 +1,4 @@
+import { beginMediaRequest, requestVersion, stoppedTask, captureMediaRequestFocus, mountMediaRequestButton, stopMediaRequest } from './media-request-stop.js?v=stop-1';
 import { icon } from './iconography.js?v=library-toggle-1';
 import { createVisualStylePicker } from './visual-style-picker.js?v=4';
 import { loadingMarkup } from './loading-state.js?v=1';
@@ -16,7 +17,7 @@ export function createImageGenerator(ctx) {
   };
   const requestId = () => globalThis.crypto?.randomUUID?.() || `image-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const active = session => current === session && !session.suspended && session.overlay.isConnected;
-  const busy = session => session.submitting || ['queued', 'running'].includes(session.status);
+  const busy = session => session.stopping || session.submitting || ['queued', 'running'].includes(session.status);
 
   function close() {
     if (!current) return;
@@ -113,6 +114,7 @@ export function createImageGenerator(ctx) {
 
   function render(session) {
     if (!active(session)) return;
+    captureMediaRequestFocus(session);
     stylePicker.close();
     const generating = busy(session), config = session.config;
     session.overlay.innerHTML = `<section class="ig-dialog" role="dialog" aria-modal="true" aria-labelledby="igTitle"><header class="ig-header"><div><span class="ig-kicker">图片创作</span><h2 id="igTitle">AI 生成图片</h2><p>生成结果保留在生成历史，可手动保存至资产库</p></div><button class="ig-close" data-ig-action="close" aria-label="关闭图片生成">${icon('close')}</button></header><div class="ig-body"><div class="ig-controls"><div class="ig-model"><div><span class="ig-model-icon">${icon('image')}</span><strong>${esc(config?.name || '图片生成模型')}</strong></div><button class="ig-link" data-ig-action="settings" ${session.loading || generating ? 'disabled' : ''}>模型管理</button></div><p class="ig-model-state ${config?.configured ? 'is-ready' : ''}">${session.loading ? '正在读取模型配置…' : config?.configured ? `已配置 · ${esc(config.model)}${config.api_key_hint ? ` · ${esc(config.api_key_hint)}` : ''}` : '请先绑定图片生成模型'}</p><label class="ig-model-select-label">本次生成模型<select id="igModelSelect" ${session.loading || generating || !session.models.length ? 'disabled' : ''}>${session.models.length ? session.models.map(model => `<option value="${esc(model.id)}" ${model.id === session.selectedModelId ? 'selected' : ''}>${esc(model.name || model.model)}${model.is_default ? ' · 默认' : ''}${model.configured ? '' : ' · 未配置密钥'}</option>`).join('') : '<option value="">暂无图片模型</option>'}</select></label>${!session.loading && !config?.configured ? '<button type="button" class="ig-btn ig-manage-empty" data-ig-action="settings">前往模型管理</button>' : ''}${session.modelWarning ? `<div class="ig-model-warning" role="status">${esc(session.modelWarning)}<button class="ig-link" data-ig-action="reload-models" ${generating ? 'disabled' : ''}>重新加载</button></div>` : ''}<form id="igGenerateForm" class="ig-prompt-form"><label>素材名称<input id="igName" maxlength="160" value="${esc(session.name)}" placeholder="例如：智慧工地晨景" ${generating ? 'disabled' : ''}></label><label class="ig-prompt-label">画面描述<span id="igPromptCount">${session.prompt.length}/4000</span><textarea id="igPrompt" rows="9" maxlength="4000" required placeholder="${esc((session.references || []).length ? '描述希望如何使用这些参考图，例如：保留人物与构图，改成黄昏暖光、电影感宽银幕画面。' : '描述你想生成的画面，例如：清晨的智慧工地全景，塔吊与建筑轮廓被金色晨光照亮，电影感、写实摄影、广角构图。')}" ${generating ? 'disabled' : ''}>${esc(session.prompt)}</textarea></label>${referenceHtml(session)}<div class="ig-options"><div><span>图片尺寸</span><strong>2K</strong></div><span class="ig-watermark-note">无水印输出</span></div><button id="igGenerate" type="submit" class="ig-btn ig-primary ig-generate" ${session.loading || generating || !config?.configured ? 'disabled' : ''}>${generating ? '生成中…' : session.asset ? '重新生成一张' : `${icon('sparkle','ui-icon-sm')}生成图片`}</button><p class="ig-note">每次生成一张图片，按所绑定模型的实际调用计费。</p></form>${session.error ? `<div class="ig-error" role="alert">${esc(session.error)}${session.pollError ? '<button class="ig-link" data-ig-action="check-task">重新查询任务</button>' : ''}</div>` : ''}</div><div class="ig-preview">${previewHtml(session)}</div></div><footer class="ig-footer"><p>${session.asset ? '图片已加入生成历史，可使用或保存至资产库。' : '支持从画布、资产库和脚本资源中创建图片。'}</p><button class="ig-btn" data-ig-action="close">${generating ? '后台继续生成' : '关闭'}</button>${session.asset ? `<button class="ig-btn" data-ig-action="save-library" >${icon(session.asset.in_library?"libraryRemove":"library")}${session.asset.in_library?"移出资产库":"保存至资产库"}</button><button class="ig-btn ig-primary" data-ig-action="use" ${session.using ? 'disabled' : ''}>${session.using ? '正在关联…' : session.options.onUse ? '使用这张图片' : '完成'}</button>` : ''}</footer></section>`;
@@ -121,6 +123,8 @@ export function createImageGenerator(ctx) {
     stylePicker.button(styleContainer,{getValue:()=>session.visual_style,onChange:value=>{session.visual_style=value;},disabled:generating});
     find('#igName').oninput = event => { session.name = event.target.value; };
     find('#igPrompt').oninput = event => { session.prompt = event.target.value; find('#igPromptCount').textContent = `${session.prompt.length}/4000`; };
+    mountMediaRequestButton(session,find('#igGenerate'),{sendLabel:'生成图片',onStop:()=>stop(session)},
+      session.stopping?'stopping':generating?'running':'idle',session.loading||!session.config?.configured);
     find('#igGenerateForm').onsubmit = event => { event.preventDefault(); generate(session); };
     find('#igModelSelect').onchange = event => {
       if (busy(session)) return;
@@ -143,9 +147,18 @@ export function createImageGenerator(ctx) {
     if (preview) preview.onerror = () => { const note = document.createElement('p'); note.textContent = '图片预览加载失败，图片仍保存在生成历史中。'; preview.replaceWith(note); };
   }
 
+  async function stop(session) {
+    if(!active(session))return;
+    if(!busy(session)){render(session);return;}
+    await stopMediaRequest(session,{api,json,target:{kind:'image',project_id:session.options.project_id||undefined,
+      request_id:session.requestId||undefined,task_id:session.taskId||undefined},
+      render:()=>render(session),resume:result=>{if(result?.tasks?.[0]?.id)session.taskId=result.tasks[0].id;poll(session);}});
+  }
+
   async function generate(session) {
     if (!active(session) || busy(session) || session.loading || !session.config?.configured) return;
     if (!session.prompt.trim()) { session.error = '请先填写画面描述'; render(session); return; }
+    const version=beginMediaRequest(session);
     session.submitting = true; session.error = ''; session.pollError = false; session.asset = null; session.pollFailures = 0;
     const payload = { visual_style:session.visual_style||null, prompt: session.prompt.trim(), name: session.name.trim() || 'AI 生成图片', project_id: session.options.project_id || '', folder_id: session.options.folder_id || '', asset_kind: session.options.asset_kind === 'prop' ? 'prop' : 'image', size: '2K', watermark: false };
     const referenceIds = [...new Set((session.references || []).map(item => String(item.id || '').trim()).filter(Boolean))].slice(0, 10);
@@ -159,18 +172,22 @@ export function createImageGenerator(ctx) {
     render(session);
     try {
       const task = await api('/api/images/generations', json({ ...payload, request_id: session.requestId }));
-      if (!active(session)) return;
+      if (!active(session)||version!==requestVersion(session)) return;
+      session.taskId=task.id;
+      if(session.stopping)return;
       session.submissionUnknown = false;
       session.taskId = task.id; session.status = task.status || 'queued'; session.submitting = false;
       if (!session.taskId) throw new Error('任务已提交，但未返回任务编号。请稍后在生成历史查看结果。');
       if (['succeeded', 'failed', 'done'].includes(task.status)) await acceptTask(session, task);
       else { render(session); poll(session); }
     } catch (error) {
-      if (active(session)) { session.error = error.message || '图片生成任务提交失败'; session.status = 'failed'; }
-    } finally { session.submitting = false; render(session); }
+      if (active(session)&&version===requestVersion(session)&&!session.stopping) { session.error = error.message || '图片生成任务提交失败'; session.status = 'failed'; }
+    } finally { if(version===requestVersion(session)){session.submitting = false; render(session);} }
   }
 
   async function acceptTask(session, task) {
+    if(!active(session)||session.stopping)return;
+    if(stoppedTask(task)){session.status='cancelled';session.error=task.status_message||'已停止等待，已有结果可在生成历史查看';render(session);return;}
     if (!active(session)) return;
     session.status = task.status || session.status;
     if (['succeeded', 'done'].includes(task.status)) {
@@ -186,15 +203,18 @@ export function createImageGenerator(ctx) {
 
   async function poll(session) {
     if (!active(session) || !session.taskId) return;
+    const version=requestVersion(session),taskId=session.taskId;
+    if(session.stopping)return;
+    const pollVersion=session.pollVersion=(session.pollVersion||0)+1;
     clearTimeout(session.timer);
     try {
       const task = await api(`/api/images/generations/${encodeURIComponent(session.taskId)}`);
-      if (!active(session)) return;
+      if (!active(session)||version!==requestVersion(session)||pollVersion!==session.pollVersion||taskId!==session.taskId||session.stopping) return;
       session.pollFailures = 0; session.pollError = false; session.error = '';
       await acceptTask(session, task);
-      if (active(session) && ['queued', 'running'].includes(session.status)) session.timer = setTimeout(() => poll(session), 1800);
+      if (active(session) && version===requestVersion(session) && pollVersion===session.pollVersion && !session.stopping && ['queued', 'running'].includes(session.status)) session.timer = setTimeout(() => poll(session), 1800);
     } catch (error) {
-      if (!active(session)) return;
+      if (!active(session)||version!==requestVersion(session)||pollVersion!==session.pollVersion||taskId!==session.taskId||session.stopping) return;
       session.pollFailures += 1;
       if (session.pollFailures >= 3) {
         session.pollError = true; session.error = '暂时无法查询生成进度，后台任务仍会继续。可以重新查询，或稍后在生成历史查看。'; render(session);

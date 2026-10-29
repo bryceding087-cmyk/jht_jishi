@@ -20,10 +20,23 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 from market_identity import login_market_context_user
 from model_gateway import with_model_gateway
+from account_video_models import is_account_video, require_account_video_access
 
 
 _credential_scope = ContextVar('jianhuitong_market_credentials', default=None)
 _video_query_scope = ContextVar('jianhuitong_video_query', default=None)
+_account_video_scope = ContextVar('jianhuitong_account_video', default=None)
+
+
+@contextmanager
+def account_video_credentials(config):
+    """Use a provisioned key only for its owner's exact video submission URL."""
+    direct = require_account_video_access(config) if is_account_video(config) else None
+    token = _account_video_scope.set(direct)
+    try:
+        yield
+    finally:
+        _account_video_scope.reset(token)
 
 
 @contextmanager
@@ -165,6 +178,7 @@ class MarketIntegration:
                 'key': key, 'expires_at': expires, 'sdk_login': True, 'profile': profile, 'media_token': media}
         with self.auth.connect() as db:
             db.execute('DELETE FROM auth_login_limits WHERE bucket=?', (bucket,))
+        request.state.audit_user = {**user, 'market_user': profile}
         return {'connected': True, 'binding_id': bid, 'media_token': media, 'expires_at': expires}
 
     def user_for_request(self, request):
@@ -322,6 +336,15 @@ def model_api_key(url, original):
             if not active or not active[0]:
                 raise HTTPException(403, '任务所属账号不可用')
         return query[1]
+    direct = _account_video_scope.get()
+    if direct:
+        require_account_video_access(direct)
+        if url != direct['base_url'] + direct['api_path']:
+            raise HTTPException(403, '账号专属凭据只能用于指定的视频接口')
+        scope = _credential_scope.get()
+        if scope:
+            scope[0].binding(scope[1], scope[2])
+        return direct['api_key']
     scope = _credential_scope.get()
     if not scope:
         return original
@@ -334,6 +357,12 @@ def model_api_key(url, original):
 def model_for_generation(config):
     """Return a transient copy; callers must never persist this result."""
     config = with_model_gateway(config)
+    if is_account_video(config):
+        require_account_video_access(config)
+        scope = _credential_scope.get()
+        if scope:
+            scope[0].binding(scope[1], scope[2])
+        return dict(config)
     if is_direct_seed_audio(config):
         return {**config, 'api_key': audio_api_key(SEED_AUDIO_ORIGIN + SEED_AUDIO_PATH, config.get('api_key', ''))}
     return {**config, 'api_key': model_api_key(config.get('base_url', ''), config.get('api_key', ''))}
@@ -350,6 +379,9 @@ def audio_api_key(url, original):
 
 
 def model_session_state(config):
+    if is_account_video(config):
+        require_account_video_access(config)
+        return None
     scope = _credential_scope.get()
     if not scope:
         return None
@@ -366,12 +398,21 @@ def open_model_request(request, *, timeout, fallback):
     if query:
         if request.get_method() != 'GET' or request.full_url != query[0]:
             raise HTTPException(403, '后台查询凭据不能提交新任务')
-        if not _credential_scope.get():
+        if not _credential_scope.get() and not _account_video_scope.get():
             return fallback(request, timeout=timeout)
         class QueryRedirect(HTTPRedirectHandler):
             def redirect_request(self, *args, **kwargs):
                 raise HTTPException(502, '视频查询接口跳转已停止，请核对接口配置')
         return build_opener(QueryRedirect()).open(request, timeout=timeout)
+    direct = _account_video_scope.get()
+    if direct:
+        require_account_video_access(direct)
+        if request.get_method() != 'POST' or request.full_url != direct['base_url'] + direct['api_path']:
+            raise HTTPException(403, '账号专属凭据只能用于指定的视频提交接口')
+        class AccountVideoRedirect(HTTPRedirectHandler):
+            def redirect_request(self, *args, **kwargs):
+                raise HTTPException(502, '官网视频接口跳转已停止，请核对接口配置')
+        return build_opener(AccountVideoRedirect()).open(request, timeout=timeout)
     scope = _credential_scope.get()
     if not scope:
         return fallback(request, timeout=timeout)

@@ -43,9 +43,22 @@ class ConversationGenerationTests(unittest.TestCase):
             return SimpleNamespace(start=start)
         self.thread_patch = patch.object(self.h.threading, 'Thread', side_effect=thread_factory)
         self.thread_patch.start()
+        original_enqueue = self.h.generation_queue.enqueue
+        def enqueue(kind, task, config):
+            previous = self.h.generation_queue.job(kind, task['id'])
+            result = original_enqueue(kind, task, config)
+            if previous is None:
+                with self.h.database.engine.connect() as db:
+                    persisted = db.execute(select(records.c.body).where(records.c.id == task['id'])).scalar_one()
+                self.assertEqual(persisted['id'], task['id'])
+                self.workers.append((kind, (task['id'], config)))
+            return result
+        self.enqueue_patch = patch.object(self.h.generation_queue, 'enqueue', side_effect=enqueue)
+        self.enqueue_patch.start()
 
     def tearDown(self):
         self.thread_patch.stop()
+        self.enqueue_patch.stop()
 
     def conversation(self, browser, kind, key):
         return self.request(browser, 'POST', '/api/conversations',
@@ -78,10 +91,11 @@ class ConversationGenerationTests(unittest.TestCase):
         task = self.submit(self.a, 'image', contexts['image'], 'first')
         state = self.state(self.a, contexts['image'])
         self.assertEqual(state, {'is_busy': True, 'conversation_id': contexts['image']['id'],
-            'task': {'id': task['id'], 'kind': 'image', 'status': 'queued'}})
+            'task': {'id': task['id'], 'kind': 'image', 'status': 'queued', 'request_id': 'first'}, 'allow_queue': True})
         self.assertFalse(self.state(self.a)['is_busy'], 'home has no existing conversation to block')
         self.assertEqual(self.submit(self.a, 'image', contexts['image'], 'first')['id'], task['id'])
-        for kind in contexts:
+        self.submit(self.a, 'image', contexts['image'], 'next-image')
+        for kind in ('audio',):
             blocked = self.submit(self.a, kind, contexts['image'], 'same-' + kind, 409)
             self.assertEqual(blocked['detail']['code'], 'conversation_generation_busy')
         for kind in ('audio', 'video'):
@@ -89,7 +103,7 @@ class ConversationGenerationTests(unittest.TestCase):
         another = self.conversation(self.a, 'image', 'new')
         self.submit(self.a, 'image', another, 'new')
         self.assertEqual(self.conversation(self.a, 'image', 'image')['id'], contexts['image']['id'])
-        self.assertEqual(len(self.workers), 4)
+        self.assertEqual(len(self.workers), 5)
 
     def test_conversation_list_discovers_persisted_media_tasks_without_submitting(self):
         contexts = {kind: self.conversation(self.a, kind, 'return-' + kind) for kind in ('image', 'video', 'audio')}
@@ -134,7 +148,7 @@ class ConversationGenerationTests(unittest.TestCase):
             count = len(self.workers)
             detail = self.request(self.a, 'GET', '/api/conversations/' + context['id'])
             self.assertEqual(detail['tasks'][0]['id'], task['id'])
-            self.assertEqual(detail['tasks'][0]['status'], 'failed')
+            self.assertEqual(detail['tasks'][0]['status'], 'queued' if kind == 'image' else 'failed')
             self.assertEqual(len(self.workers), count)
 
     def test_simultaneous_different_conversations_start_independent_tasks(self):
@@ -160,8 +174,8 @@ class ConversationGenerationTests(unittest.TestCase):
             barrier.wait()
             return self.a.request('POST', self.route('image'), self.payload('image', context, f'request-{index}'))[0]
         with ThreadPoolExecutor(max_workers=2) as pool:
-            self.assertEqual(sorted(pool.map(submit, range(2))), [202, 409])
-        self.assertEqual(len(self.workers), 1)
+            self.assertEqual(sorted(pool.map(submit, range(2))), [202, 202])
+        self.assertEqual(len(self.workers), 2)
 
     def test_scoped_state_rejects_foreign_missing_and_deleted_conversations(self):
         context = self.conversation(self.a, 'image', 'private')
@@ -191,12 +205,12 @@ class ConversationGenerationTests(unittest.TestCase):
         running = self.submit(self.a, 'video', context, 'busy-video')
         self.h.update_task(running['id'], status='running', provider_task_id='existing-video-job')
         self.assertTrue(self.state(self.a, context)['is_busy'])
-        self.submit(self.a, 'video', context, 'same-video', 409)
+        self.submit(self.a, 'video', context, 'same-video')
         for kind in ('image', 'video', 'audio'):
             other = self.conversation(self.a, kind, 'independent-' + kind)
             self.assertFalse(self.state(self.a, other)['is_busy'])
             self.submit(self.a, kind, other, 'independent-' + kind)
-        self.assertEqual(len(self.workers), 4)
+        self.assertEqual(len(self.workers), 5)
         self.assertEqual(self.h.get('task', running['id'])['provider_task_id'], 'existing-video-job')
 
     def test_success_failure_and_new_context_allow_next_submission(self):
@@ -230,7 +244,7 @@ class ConversationGenerationTests(unittest.TestCase):
         task = self.submit(self.admin, 'image', context, 'admin-submission')
         self.assertEqual(self.state(self.admin, context)['task']['id'], task['id'])
         self.assertEqual(self.state(self.a, context)['task']['id'], task['id'])
-        self.submit(self.a, 'image', context, 'member-same-context', 409)
+        self.submit(self.a, 'image', context, 'member-same-context')
         another = self.conversation(self.a, 'audio', 'member-still-free')
         self.submit(self.a, 'audio', another, 'member-submission')
 
@@ -274,20 +288,21 @@ class ConversationGenerationTests(unittest.TestCase):
         context = self.conversation(self.a, 'image', 'restart')
         first = self.submit(self.a, 'image', context, 'before-restart')
         self.h.ACTIVE_IMAGE_TASKS.clear()
-        self.assertFalse(self.state(self.a, context)['is_busy'])
+        self.assertTrue(self.state(self.a, context)['is_busy'])
         self.assertEqual(self.h.get('image_task', first['id'])['status'], 'queued')
         second = self.submit(self.a, 'image', context, 'after-restart')
-        self.assertEqual(self.h.get('image_task', first['id'])['status'], 'failed')
-        self.assertEqual(self.state(self.a, context)['task']['id'], second['id'])
+        self.assertEqual(self.h.get('image_task', first['id'])['status'], 'queued')
+        self.assertEqual(len(self.request(self.a, 'GET', '/api/generation-queue')['tasks']), 2)
 
     def test_interrupted_video_resumes_existing_query_and_still_blocks(self):
         context = self.conversation(self.a, 'video', 'video-restart')
         first = self.submit(self.a, 'video', context, 'video-before')
         self.h.update_task(first['id'], provider_task_id='existing-provider-job')
+        self.h.generation_queue.patch(self.h.generation_queue.job('task', first['id']), state='provider')
         self.h.ACTIVE_VIDEO_TASKS.clear()
-        self.submit(self.a, 'video', context, 'video-after', 409)
-        self.assertEqual(len(self.workers), 2)
-        self.assertTrue(self.workers[-1][1][-1])
+        self.submit(self.a, 'video', context, 'video-after')
+        self.assertEqual(len(self.workers), 3)
+        self.assertTrue(any(entry[0]=='task' and entry[1][-1] is True for entry in self.workers))
         self.assertEqual(self.state(self.a, context)['task']['id'], first['id'])
         self.finish('video', first, 'done')
         self.submit(self.a, 'video', context, 'video-after')
@@ -297,12 +312,14 @@ class ConversationGenerationTests(unittest.TestCase):
         first = self.submit(self.a, 'video', context, 'before')
         self.h.ACTIVE_VIDEO_TASKS.clear()
         second = self.submit(self.a, 'video', context, 'after')
-        self.assertEqual(self.h.get('task', first['id'])['status'], 'blocked')
+        self.assertEqual(self.h.get('task', first['id'])['status'], 'queued')
         self.finish('video', second, 'failed')
         image = self.conversation(self.a, 'image', 'failed-start')
         with patch.object(self.h.threading, 'Thread', return_value=SimpleNamespace(start=lambda: (_ for _ in ()).throw(RuntimeError('start failed')))):
-            self.submit(self.a, 'image', image, 'failed-start', 503)
-        self.assertFalse(self.state(self.a, image)['is_busy'])
+            waiting = self.submit(self.a, 'image', image, 'failed-start')
+            self.h.generation_queue.tick()
+        self.assertTrue(self.state(self.a, image)['is_busy'])
+        self.assertEqual(self.h.generation_queue.job('image_task', waiting['id'])['state'], 'waiting')
         self.submit(self.a, 'image', image, 'retry-start')
 
 

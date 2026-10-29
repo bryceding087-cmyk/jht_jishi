@@ -30,3 +30,8 @@
 - 实际检查画布信息弹窗、节点统计和素材详情创作者；预览截图为 `outputs/canvas-info-preview.png` 与 `outputs/asset-creator-preview.png`，截图内容均为一次性测试数据。
 
 浏览器加载测试脚本 `tests/verify_loading_states.cjs` 已同步为无列表加载动画的断言；本次页面交互验证通过 Codex 浏览器完成，未单独运行该脚本。
+
+
+项目管理左上角使用「对话项目」「画布项目」两个页签，不提供「全部」。图片、视频和音频对话使用正方形预览，菜单仅包含打开、信息、重命名和移入回收站。Agent 对话归入画布项目：未生成画布时展示对话入口，已有 `canvas_project_id` 时只展示对应画布；删除画布不会让原始 Agent 对话重复出现在项目列表。
+
+对话回收站通过 `DELETE /api/conversations/{id}`、`POST /api/conversations/{id}/restore` 和 `GET /api/conversations?trashed=true` 管理。永久删除必须显式指定 `?permanent=true` 且记录已在回收站中。回收标记 `trashed_at` 与删除最后一段生成后隐藏的空对话区分；恢复保留资产和历史，不重新提交模型请求。信息接口 `GET /api/conversations/{id}/info` 只读取元数据，不查询生成服务商。

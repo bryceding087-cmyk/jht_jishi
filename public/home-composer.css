@@ -44,8 +44,8 @@
 .home-references{display:flex;gap:8px;flex-wrap:wrap}.home-references:not(:empty){margin-bottom:14px}
 .home-reference{flex:0 0 58px;width:58px;height:58px;min-width:0;min-height:0;border-radius:10px;background:#383e3e;position:relative;display:grid;place-items:center}
 .home-reference>img{position:absolute;inset:0;display:block;width:100%;height:100%;max-width:100%;max-height:100%;min-width:0;min-height:0;object-fit:cover;border-radius:inherit}.home-reference>.ui-icon{width:25px;height:25px;color:#afbeba}
-.home-reference small{position:absolute;top:3px;left:3px;background:#161919c9;color:white;min-width:16px;height:16px;border-radius:50%;font-size:10px;text-align:center}
-.home-reference button{position:absolute;right:-4px;top:-5px;background:#555;border-radius:50%;font-size:15px;width:18px;height:18px;line-height:16px}
+.home-reference small{position:absolute;top:3px;left:3px;background:#161919c9;color:white;min-width:16px;height:16px;border-radius:50%;font-size:10px;text-align:center;pointer-events:none}
+.home-reference [data-home-remove]{position:absolute;right:-4px;top:-5px;background:#555;border-radius:50%;font-size:15px;width:18px;height:18px;line-height:16px}
 .home-results,.home-recent{width:min(940px,calc(100% - 72px));margin:30px auto 0;flex-shrink:0}
 .home-results{display:grid;gap:18px;grid-template-columns:repeat(2,minmax(0,1fr))}
 .home-results article{min-width:0;border:1px solid #373b3a;border-radius:18px;overflow:hidden;padding:16px;background:#212424;animation:home-content-enter 220ms ease both}

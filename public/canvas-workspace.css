@@ -3,8 +3,6 @@
 .frame-canvas, .video-preview { position: relative; }
 .video-drag-surface { position: absolute; inset: 0 0 42px; z-index: 2; cursor: grab; touch-action: none; }
 .video-drag-surface:active { cursor: grabbing; }
-.canvas.is-moving .floating-editor, .canvas.is-panning .floating-editor,
-.canvas.is-moving .node-context-toolbar, .canvas.is-panning .node-context-toolbar,
 .canvas .gesture-hidden { visibility: hidden !important; pointer-events: none !important; }
 button, input, textarea, select { font-family: var(--font-ui); }
 .canvas-active { background: #141414; font-size: 14px; }
@@ -81,7 +79,7 @@ button, input, textarea, select { font-family: var(--font-ui); }
 .workspace-minimap > div { display: flex; align-items: center; justify-content: space-between; color: #888; font-size: 10px; margin-bottom: 5px; }
 .workspace-minimap button { width: 20px; height: 20px; padding: 2px; }
 .workspace-minimap .ui-icon { width: 13px; height: 13px; }
-.workspace-minimap svg { width: 200px; height: 115px; cursor: crosshair; display: block; background: #171717; border-radius: 5px; }
+.workspace-minimap > svg { width: 200px; height: 115px; cursor: crosshair; display: block; background: #171717; border-radius: 5px; }
 .map-node { fill: #555; }
 .map-node.selected { fill: #b8dcea; }
 .map-viewport { fill: #ffffff05; stroke: #b3b3b3; stroke-width: .8; pointer-events: none; }

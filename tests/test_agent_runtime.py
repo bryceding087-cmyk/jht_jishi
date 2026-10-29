@@ -114,7 +114,7 @@ class AgentRuntimeTests(unittest.TestCase):
                                      'video_url':asset['url'],'params':request.model_dump()})
 
     def create(self,text=None,preferences=None,project_id=None):
-        body=CreateRun(text=text or '小林回到家，母亲说：“欢迎回家。”两人相拥。片尾：一起回家。',
+        body=CreateRun(workflow='video',text=text or '小林回到家，母亲说：“欢迎回家。”两人相拥。片尾：一起回家。',
                        request_id=str(uuid.uuid4()),preferences=preferences or Preferences(),project_id=project_id)
         return self.service.create(body,1)['run']['id']
 

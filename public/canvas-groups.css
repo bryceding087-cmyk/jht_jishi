@@ -1,7 +1,7 @@
 .canvas-groups-layer { position:absolute; inset:0; pointer-events:none; z-index:-1; }
-.canvas-group { position:absolute; pointer-events:auto; background:color-mix(in srgb,var(--group-color) 14%,#202020); border:1px solid color-mix(in srgb,var(--group-color) 50%,transparent); border-radius:5px; cursor:grab; touch-action:none; }
+.canvas-group { position:absolute; pointer-events:auto; --group-tint:color-mix(in srgb,var(--group-color) 55%,#999999); background:color-mix(in srgb,var(--group-tint) 8%,transparent); border:1px solid color-mix(in srgb,var(--group-tint) 28%,transparent); border-radius:24px; cursor:grab; touch-action:none; }
 .canvas-group:active { cursor:grabbing; }
-.canvas-group.is-selected { border-color:var(--group-color); }
+.canvas-group.is-selected { border-color:color-mix(in srgb,var(--group-tint) 65%,transparent); }
 /* Group names inherit canvas zoom, just like node titles. */
 .canvas-group-name { position:absolute; left:0; bottom:100%; margin-bottom:6px; min-width:80px; max-width:340px; color:#aaa; font-size:13px; line-height:20px; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
 .canvas-group-name input { display:block; width:230px; height:25px; border:1px solid var(--line); border-radius:4px; padding:2px 6px; background:var(--panel2); color:var(--text); caret-color:var(--text); box-shadow:none; font:inherit; outline:none; }

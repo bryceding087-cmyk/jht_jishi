@@ -49,7 +49,7 @@ class ProfileTests(unittest.TestCase):
                                      'SEEDANCE_API_KEY': 'old-video', 'SEEDAUDIO_API_KEY': AUDIO_KEY}):
             models = {kind: self.h.internal_registry_model(kind) for kind in ('text', 'image', 'video', 'audio')}
         for kind, model_id, path in (
-            ('text', 'deepseek-v4-flash-vision-exp-0817', '/v1/chat/completions'),
+            ('text', 'deepseek-v4.1-flash', '/v1/chat/completions'),
             ('image', 'doubao-seedream-5.0-pro', '/v1/images/generations'),
             ('video', 'minimax-h3', '/v1/video_generation'),
         ):
@@ -81,9 +81,30 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(request.full_url, self.gateway + '/v1/chat/completions')
         self.assertEqual(request.get_header('Authorization'), 'Bearer ' + fixtures.KEY)
         body = json.loads(request.data)
-        self.assertEqual(body['model'], 'deepseek-v4-flash-vision-exp-0817')
+        self.assertEqual(body['model'], 'deepseek-v4.1-flash')
         self.assertEqual(body['messages'], messages)
         self.assert_not_persisted()
+
+    def test_saved_legacy_text_default_upgrades_without_persisting_credentials(self):
+        legacy = {**self.h.DEFAULT_LLM, 'model_id': 'deepseek-v4-flash-vision-exp-0817',
+                  'name': 'DeepSeek V4 Flash Vision（默认）', 'base_url': LOCAL_MODEL_ORIGIN,
+                  'api_key': 'old-administrator-fixture-key'}
+        self.h.save('llm_config', legacy)
+        self.test_text_request_uses_sdk_key_and_exact_model()
+        resolved = self.h.internal_llm_config()
+        self.assertEqual(resolved['model_id'], 'deepseek-v4.1-flash')
+        self.assertEqual(resolved['name'], 'DeepSeek V4.1 Flash（默认）')
+        self.assertEqual(self.h.raw_record('llm_config', legacy['id'])['model_id'], legacy['model_id'])
+
+    def test_custom_text_models_are_preserved(self):
+        for changes in (
+            {'id': 'custom-text'},
+            {'model_id': 'custom-model'},
+            {'base_url': 'https://custom-provider.invalid'},
+        ):
+            config = {**self.h.DEFAULT_LLM, 'model_id': 'deepseek-v4-flash-vision-exp-0817', **changes}
+            self.h.save('llm_config', config)
+            self.assertEqual(self.h.internal_registry_model('text', config['id'])['model_id'], config['model_id'])
 
     def test_image_worker_sends_n_without_ark_switches_and_saves_result(self):
         binding = self.bind()

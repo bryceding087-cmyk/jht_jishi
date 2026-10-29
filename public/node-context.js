@@ -80,8 +80,9 @@ export function createNodeContext(api, canvas, inspector, refresh) {
     if (!event.target.closest('.node-option-popover,.composer-option')) closeOptions();
   });
   const row=$('.composer-reference-row');
-  $('#chooseReferenceBtn').innerHTML=icon('plus')+'<span>参考</span>';
-  $('#chooseReferenceBtn').title='从资产库添加图片、视频或音频参考';
+  $('#chooseReferenceBtn').innerHTML='<span class="reference-mention-symbol" aria-hidden="true">@</span><span>参考</span>';
+  $('#chooseReferenceBtn').setAttribute('aria-label','引用素材');
+  $('#chooseReferenceBtn').title='引用素材（也可在提示词中输入 @）';
   row.insertAdjacentHTML('beforeend',`<button type="button" id="composerUpload" title="上传参考图片">${icon('upload')}<span>上传</span></button>`);
   $('#composerUpload').onclick=()=>$('#fileInput').click();
   function sync() {
@@ -112,6 +113,7 @@ export function createNodeContext(api, canvas, inspector, refresh) {
   }
   async function action(name) {
     const node=api.selectedNode(); if (!node || busy) return;
+    const projectId=state.project?.id;
     const card=$(`.node[data-node="${CSS.escape(node.id)}"]`), video=card?.querySelector('video');
     const asset=api.nodeAsset(node), task=state.nodeTasks[node.id];
     try {
@@ -124,7 +126,10 @@ export function createNodeContext(api, canvas, inspector, refresh) {
       if (name==='save') {busy=true;toolbar.querySelector('[data-context="save"]').disabled=true;await api.saveNode(node);}
       if (name==='image') api.generateNodeImage(node);
       if (name==='audio') api.generateNodeAudio(node);
-      if (name==='reference') api.generateFromImage(asset || await api.prepareVideoReference(node),node);
+      if (name==='reference') {
+        const reference=asset || await api.prepareVideoReference(node);
+        if(state.project?.id===projectId&&state.nodes.some(item=>item.id===node.id))api.generateFromImage(reference,node);
+      }
       if (name==='pick') api.chooseNodeMedia(node);
       if (name==='upload') api.uploadNodeMedia(node);
       if (name==='polish') $('#polishPromptBtn')?.click();
@@ -139,7 +144,7 @@ export function createNodeContext(api, canvas, inspector, refresh) {
   function paint(node,visible) {
     videoControls.sync(node,visible);
     if (selectedId!==node?.id || !visible) {closeOptions(); selectedId=node?.id;}
-    toolbar.classList.toggle('gesture-hidden',!!state.drag?.moved);
+    toolbar.classList.toggle('gesture-hidden',!!state.drag?.moved&&state.drag.kind!=='pan');
     if (!visible) {setSurfaceVisible(toolbar,false);return;}
     sync();
     const asset=api.nodeAsset(node), card=$(`.node[data-node="${CSS.escape(node.id)}"]`);
@@ -172,8 +177,8 @@ export function createNodeContext(api, canvas, inspector, refresh) {
       toolbar.style.transformOrigin='top left';
       toolbar.style.transform=`scale(${state.zoom})`;
       const desiredLeft=r.left-bounds.left+r.width/2-toolbar.offsetWidth*state.zoom/2;
-      toolbar.style.left=Math.max(12,Math.min(canvas.clientWidth-toolbar.offsetWidth*state.zoom-12,desiredLeft))+'px';
-      toolbar.style.top=Math.max(60,r.top-bounds.top-(toolbar.offsetHeight+10)*state.zoom)+'px';
+      toolbar.style.left=desiredLeft+'px';
+      toolbar.style.top=(r.top-bounds.top-(toolbar.offsetHeight+10)*state.zoom)+'px';
     }
     positionOptions();
   }

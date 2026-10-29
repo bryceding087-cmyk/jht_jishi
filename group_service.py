@@ -13,7 +13,7 @@ def normalize_groups(groups, node_ids):
             raise HTTPException(422, '分组 ID 不能为空或重复')
         seen.add(gid)
         members = group.get('node_ids', [])
-        if not isinstance(members, list) or len(members) > 200 or any(not isinstance(item, str) for item in members):
+        if not isinstance(members, list) or len(members) > 400 or any(not isinstance(item, str) for item in members):
             raise HTTPException(422, '分组节点列表无效')
         members = list(dict.fromkeys(item for item in members if item in node_ids))
         if not members:

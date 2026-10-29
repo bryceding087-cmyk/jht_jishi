@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+from model_gateway import video_download_url
 
 
 MAX_VIDEO_BYTES = 100 * 1024 * 1024
@@ -45,6 +46,7 @@ class PublicVideoRedirectHandler(HTTPRedirectHandler):
         self.trusted_origin = trusted_origin
 
     def redirect_request(self, request, fp, code, msg, headers, newurl):
+        newurl = video_download_url(newurl, self.trusted_origin)
         validate_video_url(newurl, self.trusted_origin)
         return super().redirect_request(request, fp, code, msg, headers, newurl)
 
@@ -70,6 +72,7 @@ def download_generated_video(url, trusted_origin=None):
     Returns ``(bytes, suffix)``.  The caller owns persistence and can perform
     an atomic write to its configured uploads directory.
     """
+    url = video_download_url(url, trusted_origin)
     validate_video_url(url, trusted_origin)
     request = Request(str(url), headers={'User-Agent': 'JianHuiTong/1.0', 'Accept': 'video/*'})
     with build_opener(PublicVideoRedirectHandler(trusted_origin)).open(request, timeout=VIDEO_DOWNLOAD_TIMEOUT) as response:

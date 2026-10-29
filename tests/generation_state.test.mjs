@@ -9,9 +9,13 @@ const pending = () => {
   return { promise, resolve, reject };
 };
 function harness() {
-  const requests = [], changes = [];
+  const requests = [], stops = [], changes = [];
   const context = vm.createContext({
     api: (url, options) => {
+      if (url === '/api/generation/stop') {
+        assert.equal(options.method, 'POST');
+        const request = pending(); request.body = JSON.parse(options.body); stops.push(request); return request.promise;
+      }
       assert.ok(url.startsWith('/api/conversations/generation-state?conversation_id='));
       assert.equal(options.background, true);
       const request = pending(); request.scope=decodeURIComponent(url.split('conversation_id=')[1]); requests.push(request); return request.promise;
@@ -19,7 +23,20 @@ function harness() {
     onChange: state => changes.push(state),
   });
   vm.runInContext(source.replace(/^export /gm, '') + '\nglobalThis.guard=createGenerationGuard({api,onChange});', context);
-  return { guard: context.guard, requests, changes };
+  return { guard: context.guard, requests, stops, changes };
+}
+
+// A confirmed queue receipt frees the composer, while each POST stays exclusive.
+for (const kind of ['image', 'video']) {
+  const env=harness(),{guard}=env;
+  assert.equal(guard.beginSubmission('draft:queue'),true);
+  guard.finishSubmission('draft:queue',{id:'queued',status:'queued',queue_state:'waiting'},kind,'queue-conversation');
+  assert.equal(guard.isBlocked('queue-conversation'),false);
+  assert.equal(guard.beginSubmission('queue-conversation'),true);
+  assert.equal(guard.beginSubmission('queue-conversation'),false);
+  guard.finishSubmission('queue-conversation',{id:'queued-2',status:'queued',queue_state:'waiting'},kind,'queue-conversation');
+  await answer(env,{is_busy:true,allow_queue:true,task:{id:'queued',status:'running'}},'queue-conversation');
+  assert.equal(guard.isBlocked('queue-conversation'),false);
 }
 async function answer(env, state, scope='conversation-1') {
   const result = env.guard.refresh(scope);
@@ -171,3 +188,63 @@ console.log('PASS: generation restore, synchronous same-conversation exclusion, 
   assert.equal(env.requests.length, 0);
 }
 console.log('PASS: independent conversation/draft submissions, draft binding, navigation races and creation retry.');
+
+// Stop is available before either conversation creation or generation POST
+// returns. Double clicks share one request, and late results cannot own a new send.
+for (const kind of ['image', 'video', 'audio']) {
+  const env = harness(), {guard} = env, scope = 'draft:stop-' + kind;
+  guard.beginSubmission(scope, {requestId: 'old-request', kind});
+  assert.equal(guard.isActive(scope), true);
+  const first = guard.stop(scope), second = guard.stop(scope);
+  assert.equal(first, second);
+  assert.equal(guard.snapshot(scope).stopping, true);
+  assert.equal(guard.wasStopped(scope, 'old-request'), true, 'pending stop must already protect the draft');
+  await Promise.resolve();
+  assert.equal(env.stops.length, 1);
+  assert.deepEqual(env.stops[0].body, {request_id: 'old-request', kind});
+  env.stops[0].resolve({status: 'stopped', tasks: []});
+  await first;
+  assert.equal(guard.isActive(scope), false);
+  assert.equal(guard.beginSubmission(scope, {requestId: 'new-request', kind}), true);
+  assert.equal(guard.bindConversation(scope, 'late-old-conversation', 'old-request'), false);
+  assert.equal(guard.finishSubmission(scope, {id: 'late-old-task', status: 'running'}, kind, 'late-old-conversation', 'old-request'), false);
+  assert.equal(guard.snapshot(scope).request.request_id, 'new-request');
+  assert.equal(guard.isSubmitting(scope), true);
+  guard.finishSubmission(scope, {id: 'new-task', status: 'running'}, kind, 'new-conversation', 'new-request');
+  assert.equal(guard.snapshot(scope).task.id, 'new-task');
+}
+
+// Restored tasks supply the exact original request, never the current draft's
+// new ID. Stopping one conversation has no effect on another conversation.
+{
+  const env = harness(), {guard} = env;
+  await answer(env, {is_busy: true, allow_queue: true, task: {id: 'restored-task', kind: 'video', status: 'running', request_id: 'restored-request'}}, 'old-conversation');
+  guard.beginSubmission('draft:other', {requestId: 'other-request', kind: 'image'});
+  const stale = guard.refresh('old-conversation'), staleRequest = env.requests.at(-1);
+  const stopping = guard.stop('old-conversation');
+  await Promise.resolve();
+  assert.deepEqual(env.stops[0].body, {request_id: 'restored-request', task_id: 'restored-task', kind: 'video', conversation_id: 'old-conversation'});
+  env.stops[0].resolve({status: 'stopped'}); await stopping;
+  staleRequest.resolve({is_busy: true, task: {id: 'restored-task', kind: 'video'}});
+  assert.equal(await stale, false);
+  assert.equal(guard.snapshot('draft:other').request.request_id, 'other-request');
+  assert.equal(guard.isSubmitting('draft:other'), true);
+  assert.equal(guard.isActive('old-conversation'), false);
+}
+
+// A failed stop remains active and retryable. Old restored records without a
+// request ID can use the task ID without inventing a new request identity.
+{
+  const env = harness(), {guard} = env;
+  await answer(env, {is_busy: true, task: {id: 'legacy-audio', kind: 'audio', status: 'running'}});
+  const stopping = guard.stop('conversation-1'); await Promise.resolve();
+  assert.deepEqual(env.stops[0].body, {task_id: 'legacy-audio', kind: 'audio', conversation_id: 'conversation-1'});
+  env.stops[0].reject(new Error('stop offline')); await assert.rejects(stopping, /stop offline/);
+  assert.equal(guard.isActive('conversation-1'), true);
+  assert.equal(guard.snapshot('conversation-1').stopping, false);
+  const retry = guard.stop('conversation-1'); await Promise.resolve();
+  assert.equal(env.stops.length, 2);
+  env.stops[1].resolve({status: 'stopped'}); await retry;
+  assert.equal(guard.isBlocked('conversation-1'), false);
+}
+console.log('PASS: request-scoped stop before task IDs, double-click deduplication, retained drafts, exact restored IDs, failure retry and late-result isolation.');

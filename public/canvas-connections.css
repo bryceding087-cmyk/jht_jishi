@@ -3,7 +3,9 @@
   width: 64px; height: 132px; top: 50%; padding: 0; border: 0; border-radius: 0;
   background: transparent; box-shadow: none; color: #999; transform: translateY(-50%);
   pointer-events: auto; touch-action: none; user-select: none; cursor: crosshair;
+  opacity: 0; transition: opacity 240ms ease-in-out, color 150ms ease;
 }
+.canvas-active #canvas .node:hover .port { opacity: 1; }
 .canvas-active #canvas .node .port.in { left: -54px; }
 .canvas-active #canvas .node .port.out { right: -54px; }
 .canvas-active #canvas .node .port::before, .canvas-active #canvas .node .port::after { content: none; display: none; }
@@ -39,7 +41,7 @@
 .canvas-active #canvas .connection-landed .frame-canvas { animation: connection-land 360ms ease-out; }
 @keyframes connection-land { 0% { transform: scale(1.012); border-color: #91d9ff; box-shadow: 0 0 0 2px #70caff55; } 100% { transform: none; } }
 @media (prefers-reduced-motion: reduce) {
-  .canvas-active #canvas .node .port-mark, .canvas-active #canvas .node .frame-canvas,
+  .canvas-active #canvas .node .port, .canvas-active #canvas .node .port-mark, .canvas-active #canvas .node .frame-canvas,
   .canvas-active #canvas .node > .frame-head { transition: none; }
   .canvas-active #canvas .node.connection-target .frame-canvas,
   .canvas-active #canvas .node.connection-target > .frame-head { transform: none; }

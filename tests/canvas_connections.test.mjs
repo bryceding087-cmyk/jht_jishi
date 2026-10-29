@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { installCanvasConnections, portAttraction, connectionTargetGeometry } from '../public/canvas-connections.js';
+import { JHT_LIMITS, assertReferenceLink } from '../public/studio-contract.js';
 
 const app = readFileSync(new URL('../public/app.js',import.meta.url),'utf8');
 const connectSource = app.slice(app.indexOf('function connectionProblem('),app.indexOf('function startNodeDrag('));
@@ -43,7 +44,7 @@ function setup({zoom=1,reduced=false}={}) {
   const target=new Element('node',rect(500,140,360,240),canvas,{node:'target'});
   target.frame=new Element('frame',target.rect,target);target.input=new Element('port',rect(446,194,64,132),target,{nodePort:'target',port:'in'});
   const errors=[];let controller;
-  const context=vm.createContext({state,nodeAsset:node=>state.assets.find(a=>a.id===node?.assetId),
+  const context=vm.createContext({state,JHT_LIMITS,assertReferenceLink,nodeAsset:node=>state.assets.find(a=>a.id===node?.assetId),
     isMediaNode:node=>['asset','prop','video-asset','audio'].includes(node?.type),prepareVideoReference:async()=>{},
     toast:message=>errors.push(message),updatePortHighlights:()=>controller?.sync(),renderEdges:()=>renders++,
     loadNodeSettings:()=>{},scheduleSave:()=>saves++});

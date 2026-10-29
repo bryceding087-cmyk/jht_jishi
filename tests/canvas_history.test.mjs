@@ -52,7 +52,34 @@ history.redo();
 history.reset();
 state.nodes[0].mediaWidth = 1200; history.record(); await Promise.resolve();
 assert.equal(history.undo(), false, 'metadata updates do not create entries');
+// Arrange combines graph/group placement and its fit-to-screen camera change.
+state.groups = [{ id: 'layout-group', node_ids: [state.nodes[0].id], x: -40, y: 20, width: 700, height: 500 }];
+history.reset();
+const layoutBefore = structuredClone({ nodes: state.nodes, groups: state.groups, zoom: state.zoom, panX: state.panX, panY: state.panY });
+history.transaction(() => {
+  state.nodes[0].x = 100; state.nodes[0].y = 100;
+  state.groups[0].x = 76; state.groups[0].y = 76;
+  history.record();
+  state.zoom = .36; state.panX = 80; state.panY = 120;
+}, { includeViewport: true });
+await Promise.resolve();
+const layoutAfter = structuredClone({ nodes: state.nodes, groups: state.groups, zoom: state.zoom, panX: state.panX, panY: state.panY });
+assert.equal(history.undo(), true);
+assert.deepEqual({ nodes: state.nodes, groups: state.groups, zoom: state.zoom, panX: state.panX, panY: state.panY }, layoutBefore);
+assert.equal(history.undo(), false, 'arrange is one atomic step');
+assert.equal(history.redo(), true);
+assert.deepEqual({ nodes: state.nodes, groups: state.groups, zoom: state.zoom, panX: state.panX, panY: state.panY }, layoutAfter);
+// Repeating arrange on an already-arranged graph may only fit the viewport.
+history.transaction(() => { state.zoom = .6; state.panX = 40; }, { includeViewport: true });
+assert.equal(history.undo(), true);
+assert.equal(state.zoom, layoutAfter.zoom);
+assert.equal(state.panX, layoutAfter.panX);
+state.zoom = .9; state.panY = 25; history.record(); await Promise.resolve();
+await step(() => { state.nodes[0].title = 'After arrange'; });
+history.undo();
+assert.equal(state.zoom, .9, 'ordinary edits still preserve the current camera');
+assert.equal(state.panY, 25);
 state.project = { id: 'second' }; state.nodes = []; state.edges = []; history.record(); await Promise.resolve();
 assert.equal(history.undo(), false, 'history does not cross projects');
 assert.ok(restored > 8);
-console.log('PASS: chronological mixed undo/redo, repeated deletions, graph integrity/order, redo branches, atomic node+edge edits, metadata/tasks/viewport preserved, project isolation.');
+console.log('PASS: chronological mixed undo/redo, atomic arrange with viewport restoration, ordinary edits preserve camera and tasks, graph integrity/order, redo branches, project isolation.');

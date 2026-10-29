@@ -1,6 +1,6 @@
 // Resolve from graph edges at read/submission time; never copy over the video's own draft.
 import { resourceKind } from './script-resources.js?v=asset-library-2';
-import { expandAssetMentions } from './asset-mentions.js?v=inline-chips-1';
+import { expandAssetMentions } from './asset-mentions.js?v=studio-references-2';
 
 const isImageAsset = asset => ['image', 'prop'].includes(asset?.kind || 'image');
 // The two editable fields in script step 3 are the prompt source of truth.
@@ -26,7 +26,7 @@ export function resolveVideoInput(video, nodes, edges) {
 export function resolveVideoAssets(video, nodes, edges, assets, characters = []) {
   const entries = [], missing = [];
   const add = (assetId, source = null) => {
-    const asset = assets.find(item => item.id === assetId);
+    const asset = assets.find(item => item.id === assetId&&!item.deleted_at);
     if (!asset) { missing.push({ assetId, source }); return; }
     if (!isImageAsset(asset) && !['audio','video'].includes(asset.kind)) { missing.push({ assetId, source, reason: '当前参考类型尚未接入' }); return; }
     let entry = entries.find(item => item.asset.id === assetId);
@@ -57,7 +57,11 @@ export function resolveVideoAssets(video, nodes, edges, assets, characters = [])
   for (const id of video?.settings?.asset_ids || []) add(id);
   for(const owner of [video,resolveVideoInput(video,nodes,edges).source].filter(Boolean)) {
     const settings=owner.settings||{};
-    for(const mention of settings.mentions||[])if(mention.asset_id&&!['text','script'].includes(mention.kind)&&String(settings.prompt||'').includes(mention.token))add(mention.asset_id,owner===video?null:owner);
+    for(const mention of settings.mentions||[])if(!['text','script'].includes(mention.kind)&&String(settings.prompt||'').includes(mention.token)){
+      const source=nodes.find(n=>n.id===mention.node_id);
+      const id=mention.node_id?referenceAssetId(source,characters):mention.asset_id;
+      if(mention.node_id||id)add(id,source|| (owner===video?null:owner));
+    }
   }
   // Keep user ordering only for references which still exist in the graph/current draft.
   const order = video?.settings?.reference_order || [];

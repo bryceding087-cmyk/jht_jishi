@@ -85,3 +85,16 @@
   .projects-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 24px; }
 }
 @media (prefers-reduced-motion: reduce) { .projects-card-menu > summary { transition: none; } }
+
+/* Separate conversation and canvas collections; conversation previews are square. */
+.projects-location{flex-wrap:wrap;gap:12px}
+.projects-type-tabs{display:flex;gap:4px;padding:4px;border:1px solid #363636;border-radius:11px;background:#222}
+.projects-type-tabs button{padding:8px 14px;border-radius:7px;color:#999;font-size:14px;white-space:nowrap;transition:background-color 160ms,color 160ms}
+.projects-type-tabs button[aria-selected=true]{background:#393939;color:#f2f2f2}
+.projects-type-tabs button:hover{color:#fff}
+.projects-type-tabs button:focus-visible{outline:2px solid #aaa;outline-offset:2px}
+.projects-library[data-project-category=conversation] .projects-cover{aspect-ratio:1}
+.projects-library[data-project-category=conversation] .projects-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.projects-tile>p{color:#929292}
+@media(max-width:700px){.projects-type-tabs button{padding:8px 10px;font-size:13px}.projects-tools{min-width:0;width:100%}.projects-library[data-project-category=conversation] .projects-grid{grid-template-columns:repeat(auto-fill,minmax(min(180px,100%),1fr))}}
+@media(prefers-reduced-motion:reduce){.projects-type-tabs button{transition:none}}

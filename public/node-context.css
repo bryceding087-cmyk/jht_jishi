@@ -1,6 +1,7 @@
 /* The selected-node composer and asset toolbar share LibTV's compact surfaces. */
 .node-context-toolbar { width: max-content; max-width: none; }
-.canvas-active .floating-editor { border-radius: 16px; max-height: min(520px,calc(100% - 160px)); }
+.canvas-active .floating-editor { border-radius: 16px; max-height: min(520px,calc(100% - 160px)); scrollbar-width: none; }
+.canvas-active .floating-editor::-webkit-scrollbar { display: none; }
 .canvas-active .floating-editor-head { padding: 8px 14px 0 18px; justify-content: flex-end; font-size: 12px; }
 .canvas-active .floating-editor .inspector-content { padding: 10px 18px 18px; }
 /* Generation composers share their first row with the close control. */
@@ -12,8 +13,13 @@
 .canvas-active .composer-reference-row { flex-wrap: wrap; gap: 6px; }
 .canvas-active .composer-reference-row button { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 6px 10px; font-weight: 400; }
 .composer-reference-row .ui-icon { width: 15px; height: 15px; }
+.reference-mention-symbol { font-size: 16px; line-height: 1; font-weight: 500; }
+.canvas-active .composer-reference-row button:disabled { opacity: .45; cursor: default; }
 .canvas-active .floating-editor .prompt-source { font-size: 11px; color: #858585; }
-.canvas-active .floating-editor .composer-parameters { padding-right: 120px; gap: 4px; min-height: 38px; }
+.canvas-active .floating-editor .composer-parameters { flex-wrap: nowrap; min-width: 0; margin-right: 120px; padding-right: 0; gap: 6px; min-height: 38px; overflow-x: auto; scrollbar-width: none; }
+.canvas-active .floating-editor .composer-parameters::-webkit-scrollbar { display: none; }
+.canvas-active .floating-editor .composer-parameters > .composer-option { flex-shrink: 0; }
+.canvas-active .floating-editor .composer-parameters > #modelSelect + .composer-option { flex-shrink: 1; min-width: 120px; }
 .canvas-active .floating-editor .composer-native-select { display: none !important; }
 .composer-option { display: inline-flex; align-items: center; gap: 5px; height: 34px; max-width: 170px; padding: 6px 8px; border-radius: 7px; color: #c7c7c7; font-size: 12px; background: #303030; }
 .composer-option > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

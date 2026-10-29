@@ -106,8 +106,11 @@ class MarketSDKLoginTests(unittest.TestCase):
         conversation, task, params = self.pending_video(status='blocked')
         fresh = self.login()['binding_id']
         with patch.object(self.h.threading, 'Thread') as workers:
-            blocked = self.call('POST', '/api/tasks', {**params, 'request_id': 'different'}, binding=fresh, expected=409)
-        self.assertEqual(blocked['detail']['task']['id'], task['id'])
+            queued = self.call('POST', '/api/tasks', {**params, 'request_id': 'different'}, binding=fresh, expected=202)
+        self.assertNotEqual(queued['id'], task['id'])
+        state = self.call('GET', '/api/conversations/generation-state?conversation_id='+conversation['id'], binding=fresh)
+        self.assertEqual(state['task']['id'], task['id'])
+        self.assertTrue(state['allow_queue'])
         self.assertEqual(workers.call_count, 1)
         self.assertIs(workers.call_args.kwargs['args'][-1], True)
         self.assertEqual(self.h.get('task', task['id'])['_market_binding_id'], fresh)

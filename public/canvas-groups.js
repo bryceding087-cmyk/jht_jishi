@@ -1,3 +1,4 @@
+import { gridDragDelta } from './canvas-grid.js?v=1';
 export const GROUP_COLORS = [
   ['灰色','#999999'],['红色','#ef5350'],['橙色','#ff982e'],['黄色','#f6c44b'],['绿色','#2dcc79'],
   ['青色','#15b9d0'],['蓝色','#4285f4'],['紫色','#9061f9'],['粉色','#ef3394'],['白色','#dddddd'],
@@ -29,6 +30,28 @@ export function groupBounds(group,nodes,size) {
   const x=Math.min(content.x,group.x),y=Math.min(content.y,group.y);
   return {x,y,width:Math.max(content.x+content.width,group.x+group.width)-x,
     height:Math.max(content.y+content.height,group.y+group.height)-y};
+}
+
+// Compact only the exact old Agent grid; preserve any hand-moved layout.
+export function compactStudioGroups(groups,nodes,size) {
+  let changed=false;
+  for(const group of groups){
+    const members=nodes.filter(node=>group.node_ids.includes(node.id)).sort((a,b)=>a.y-b.y||a.x-b.x);
+    if(!members.length||!members.every(node=>node.mujian?.runId===members[0].mujian?.runId&&node.mujian?.runId))continue;
+    const roles=members.map(node=>node.mujian.role);
+    const oldStep=roles.every(role=>role==='video')?360:members.every(node=>node.mujian.role==='reference'&&node.mujian.assetType!=='scene')?500:380;
+    const columns=Math.min(members.length,Math.round((group.width-24)/460));
+    if(columns<1||Math.abs(group.width-(columns*460+24))>1)continue;
+    if(!members.every((node,i)=>Math.abs(node.x-(group.x+24+i%columns*460))<1&&Math.abs(node.y-(group.y+54+Math.floor(i/columns)*oldStep))<1))continue;
+    let y=group.y+24;
+    for(let offset=0;offset<members.length;offset+=columns){
+      const row=members.slice(offset,offset+columns);let x=group.x+24;
+      for(const node of row){node.x=x;node.y=y;x+=size(node).width+32;}
+      y+=Math.max(...row.map(node=>size(node).height))+32;
+    }
+    Object.assign(group,contentBounds(group,nodes,size));changed=true;
+  }
+  return changed;
 }
 
 export function createCanvasGroups(ctx) {
@@ -141,8 +164,9 @@ export function createCanvasGroups(ctx) {
         const bottom=corner.includes('s')?Math.max(box.y+box.height+dy,content.y+content.height):box.y+box.height;
         Object.assign(group,{x:left,y:top,width:right-left,height:bottom-top});
       } else {
-        members.forEach(({node,x,y})=>{node.x=x+dx;node.y=y+dy;const card=stage.querySelector(`[data-node="${CSS.escape(node.id)}"]`);if(card){card.style.left=node.x+'px';card.style.top=node.y+'px';}});
-        Object.assign(group,{...box,x:box.x+dx,y:box.y+dy});ctx.renderEdges();
+        const delta=gridDragDelta(box,dx,dy,state.snapToGrid);
+        members.forEach(({node,x,y})=>{node.x=x+delta.dx;node.y=y+delta.dy;const card=stage.querySelector(`[data-node="${CSS.escape(node.id)}"]`);if(card){card.style.left=node.x+'px';card.style.top=node.y+'px';}});
+        Object.assign(group,{...box,x:box.x+delta.dx,y:box.y+delta.dy});ctx.renderEdges();
       }
       refresh();ctx.refreshWorkspace();
     };

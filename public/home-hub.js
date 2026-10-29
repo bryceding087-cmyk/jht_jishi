@@ -8,7 +8,7 @@ export function createHomeHub({state,composer,chat,icon,escapeHtml:esc,onCreateC
   try{if(sessionStorage.getItem('jht.home.method')==='canvas')stage='canvas';}catch{}
   root.classList.add('home-landing');root.dataset.homeStage=stage;
   installOverlayScrollbar(root, { floating: true, enabled: () => root.classList.contains('home-landing') && root.classList.contains('active-view') && !root.classList.contains('agent-docked') });
-  welcome.innerHTML=`<h1>你好，和建绘通聊聊你的灵感</h1><div class="home-method-switch" role="tablist" aria-label="创作方式"><span class="home-method-thumb" aria-hidden="true"></span><button type="button" id="homeGenerateMethod" role="tab" aria-selected="true" aria-controls="homeGenerationArea" data-home-method="generate">生成</button><button type="button" id="homeCanvasMethod" role="tab" aria-selected="false" aria-controls="homeCanvasArea" data-home-method="canvas" tabindex="-1">画布</button></div>`;
+  welcome.innerHTML=`<h1><span class="home-welcome-lead">你好，和<span class="brand-wordmark" role="img" aria-label="建绘通">建绘通</span></span><span class="home-welcome-tail">聊聊你的灵感</span></h1><div class="home-method-switch" role="tablist" aria-label="创作方式"><span class="home-method-thumb" aria-hidden="true"></span><button type="button" id="homeGenerateMethod" role="tab" aria-selected="true" aria-controls="homeGenerationArea" data-home-method="generate">生成</button><button type="button" id="homeCanvasMethod" role="tab" aria-selected="false" aria-controls="homeCanvasArea" data-home-method="canvas" tabindex="-1">画布</button></div>`;
   root.querySelector('.agent-composer-wrap').id='homeGenerationArea';
   const referenceMarkup=`${icon('plus')}<span>参考素材</span>`;
   const mediaReference=document.createElement('button');mediaReference.type='button';mediaReference.className='home-reference-entry';mediaReference.setAttribute('aria-label','添加参考素材');mediaReference.innerHTML=referenceMarkup;
@@ -49,10 +49,6 @@ export function createHomeHub({state,composer,chat,icon,escapeHtml:esc,onCreateC
     host.onclick=e=>{const button=e.target.closest('[data-open-canvas]');if(button)onOpenCanvas(button.dataset.openCanvas);if(e.target.closest('[data-all-canvases]'))onProjects();};
   }
   discover.onclick=e=>{const button=e.target.closest('[data-discover]');if(!button)return;setStage('generate');composer.select(button.dataset.discover,true);root.querySelector('.agent-composer-wrap').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth',block:'center'});};
-  document.addEventListener('submit',e=>{
-    if(root.classList.contains('agent-docked')||!root.contains(e.target)||!['agentComposer','homeMediaComposer'].includes(e.target.id))return;
-    const input=e.target.querySelector('textarea');if(input?.value.trim()){landing=false;stage='generate';sync();}
-  },true);
   document.addEventListener('click',e=>{if(!root.classList.contains('agent-docked')&&root.contains(e.target)&&e.target.closest('[data-command=new]')){landing=true;stage='generate';sync();}},true);
   new MutationObserver(sync).observe(root,{attributes:true,attributeFilter:['class']});
   renderCanvases();sync();

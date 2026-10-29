@@ -27,3 +27,25 @@ def with_model_gateway(config):
     except ValueError:
         pass
     return result
+
+
+def video_download_url(value, target_origin):
+    """Use this deployment's gateway for AI Market's own video files.
+
+    Only the known video asset route is translated. CDN URLs and their
+    signatures remain untouched, as do the path and query of gateway URLs.
+    """
+    url = str(value)
+    if not target_origin:
+        return url
+    try:
+        parsed = urlsplit(url)
+        source_origin = f'{parsed.scheme}://{parsed.netloc.lower()}'
+        if (source_origin not in (LOCAL_MODEL_ORIGIN, DOCKER_MODEL_ORIGIN)
+                or parsed.username or parsed.password
+                or not parsed.path.startswith('/v1/video-assets/')):
+            return url
+        target = urlsplit(str(target_origin))
+        return parsed._replace(scheme=target.scheme, netloc=target.netloc).geturl()
+    except ValueError:
+        return url

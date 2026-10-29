@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import {mentionReference,assertReferenceLink,detachReference,isHiddenStudioEdge,groupStudioAudio,resolveInputs} from '../public/studio-contract.js';
+import {resolveVideoAssets} from '../public/node-inputs.js';
+
+const source={id:'hero',type:'asset',title:'小林'},target={id:'clip',type:'video',mujian:{runId:'run',inputs:[{nodeId:'hero',kind:'image'}]},settings:{prompt:'@小林 走进 @小林（雨衣）',mentions:[{token:'@小林',node_id:'hero',name:'小林',kind:'image',asset_id:'old'},{token:'@小林（雨衣）',asset_id:'coat',kind:'image'}]}};
+const graph={nodes:[source,target],edges:[{from:'hero',to:'clip'}],groups:[]},assets=[{id:'old',kind:'image'},{id:'new',kind:'image',url:'/uploads/new.png'},{id:'coat',kind:'image'}];
+assert.equal(mentionReference(target.settings.mentions[0],graph.nodes,assets).pending,true);
+assert.equal(resolveInputs(target,graph,assets).missing.length,1);
+source.assetId='new';
+assert.equal(mentionReference(target.settings.mentions[0],graph.nodes,assets).assetId,'new');
+assert.deepEqual(resolveVideoAssets(target,graph.nodes,graph.edges,assets).assetIds,['new','coat']);
+assert.equal(isHiddenStudioEdge(graph.edges[0],graph.nodes),true);
+assert.equal(isHiddenStudioEdge({from:'a',to:'b'},[{id:'a',type:'asset'},{id:'b',type:'video'}]),false);
+assert.throws(()=>assertReferenceLink(graph,'clip','hero'),/循环/);
+assertReferenceLink(graph,'hero','clip');
+detachReference(graph,target,'hero','new');
+assert.equal(target.settings.prompt,' 走进 @小林（雨衣）');
+assert.equal(target.mujian.inputs.length,0);assert.equal(graph.edges.length,0);
+assert.equal(target.settings.mentions.length,1);
+graph.nodes.push({id:'voice',type:'audio',x:100,y:100},{id:'music',type:'audio',x:200,y:100});
+assert.equal(groupStudioAudio(graph),true);
+assert.deepEqual(graph.groups[0].node_ids,['voice','music']);
+assert.equal(groupStudioAudio(graph),false);
+assert.equal(graph.groups[0].title,'声音素材');
+assert.deepEqual(resolveInputs({id:'character',type:'character',image_settings:{reference_asset_ids:['new']}},{nodes:[],edges:[]},assets).refs.map(r=>r.assetId),['new']);
+console.log('PASS: pending references, current media, removal, cycles, invisible dependencies and sound groups');

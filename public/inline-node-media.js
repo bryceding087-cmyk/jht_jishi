@@ -1,6 +1,8 @@
+import { beginMediaRequest, requestVersion, stoppedTask, captureMediaRequestFocus, mountMediaRequestButton, stopMediaRequest } from './media-request-stop.js?v=stop-1';
 import { createHomePreferences } from './home-preferences.js?v=parameter-escape-8';
-import { expandAssetMentions } from './asset-mentions.js?v=inline-chips-1';
+import { expandAssetMentions } from './asset-mentions.js?v=studio-references-2';
 import { createVisualStylePicker } from './visual-style-picker.js?v=4';
+import { resolveInputs } from './studio-contract.js?v=studio-references-2';
 // Canvas-native media composers. Drafts and task IDs live on their owning node;
 // a task may finish while another node is selected without changing selection.
 export function createInlineNodeMedia(ctx) {
@@ -11,9 +13,10 @@ export function createInlineNodeMedia(ctx) {
   let registry=null;
   const kindFor=node=>node.type==='audio'?'audio':node.type==='video-asset'?'video':'image';
   const valid=entry=>state.project?.id===entry.projectId && state.nodes.includes(entry.node);
-  const busy=entry=>entry.submitting||['queued','running'].includes(entry.status);
+  const busy=entry=>entry.stopping||entry.submitting||['queued','running'].includes(entry.status);
   const settingsKey=node=>node.type==='audio'?'audio_settings':'image_settings';
   const taskKey=node=>node.type==='audio'?'audio_task_id':'image_task_id';
+  const currentTaskId=entry=>entry.activeTaskId!==undefined?entry.activeTaskId:entry.node[taskKey(entry.node)];
   function draft(entry,patch) {
     if(!valid(entry)) return;
     entry.node[settingsKey(entry.node)]={...entry.node[settingsKey(entry.node)],...patch};
@@ -23,6 +26,7 @@ export function createInlineNodeMedia(ctx) {
     return state.edges.filter(edge=>edge.to===node.id&&edge.relation!=='agent-flow').map(edge=>state.nodes.find(item=>item.id===edge.from)).filter(Boolean);
   }
   function references(entry) {
+    if(kindFor(entry.node)==='image')return resolveInputs(entry.node,{nodes:state.nodes,edges:state.edges},state.assets,state.characters).refs.map(ref=>ref.asset);
     const ids=[...new Set([...sources(entry.node).map(node=>ctx.nodeAsset(node)?.id),...(entry.node[settingsKey(entry.node)]?.reference_asset_ids||[])].filter(Boolean))];
     return ids.map(id=>state.assets.find(asset=>asset.id===id)).filter(asset=>asset && (kindFor(entry.node)==='audio'?['audio','image','prop']:['image','prop']).includes(asset.kind||'image'));
   }
@@ -104,11 +108,13 @@ export function createInlineNodeMedia(ctx) {
   }
   function render(entry) {
     if(!valid(entry))return;
+    captureMediaRequestFocus(entry);
     preferences.close();stylePicker.close();
     const node=entry.node,audio=kindFor(node)==='audio',saved=node[settingsKey(node)]||{},linked=upstream(node),refs=references(entry),locked=busy(entry);
+    const pending=audio?[]:resolveInputs(node,state,state.assets,state.characters).missing.filter(ref=>ref.nodeId);
     const model=entry.models.find(item=>item.id===entry.modelId);
     const mode=saved.mode||'sfx';
-    entry.root.innerHTML=`<div class="inline-composer-tools"><button type="button" data-inline-action="reference">${icon('plus')}参考</button><button type="button" data-inline-action="upload-reference">${icon('upload')}上传参考</button>${audio?`<button type="button" data-inline-action="replace">${icon('library')}资产库</button><button type="button" data-inline-action="upload">${icon('upload')}上传音频</button><button type="button" data-inline-action="models">${icon('settings')}管理模型</button>`:''}</div>
+    entry.root.innerHTML=`<div class="inline-composer-tools"><button type="button" data-inline-action="reference" title="${linked?'请在上游提示词中输入 @ 引用素材':'引用素材（也可在提示词中输入 @）'}" ${linked?'disabled':''}><span class="reference-mention-symbol" aria-hidden="true">@</span>参考</button><button type="button" data-inline-action="upload-reference">${icon('upload')}上传参考</button>${audio?`<button type="button" data-inline-action="replace">${icon('library')}资产库</button><button type="button" data-inline-action="upload">${icon('upload')}上传音频</button><button type="button" data-inline-action="models">${icon('settings')}管理模型</button>`:''}</div>
       ${audio?`<div class="inline-audio-modes">${[['sfx','音效'],['voice','配音'],['music','音乐']].map(([value,label])=>`<button type="button" data-inline-mode="${value}" aria-pressed="${mode===value}" ${locked?'disabled':''}>${label}</button>`).join('')}</div>`:''}
       <div class="inline-reference-list">${refs.map((asset,index)=>`<div title="${esc(asset.name)}" ${asset.kind==='audio'?`data-audio-preview="${esc(asset.url)}"`:''}>${asset.kind==='audio'?'<span class="reference-audio-icon">♪</span>':`<img src="${esc(asset.url)}" alt="${esc(asset.name)}">`}<span class="reference-number">${index+1}</span>${asset.kind==='audio'&&asset.duration?`<small class="reference-duration">${Number(asset.duration).toFixed(1)}s</small>`:''}<button type="button" data-inline-remove="${esc(asset.id)}" aria-label="移除参考 ${esc(asset.name)}" ${locked?'disabled':''}>${icon('close')}</button></div>`).join('')}</div>
       <textarea class="inline-generation-prompt" aria-label="${audio?'音频':'图片'}生成描述" maxlength="${audio?3000:4000}" placeholder="${audio?'描述声音、配音内容或音乐氛围…':'描述画面内容、构图、光线与风格…'}" ${locked?'disabled':''} ${linked?'readonly':''}>${esc(linked||saved.prompt||'')}</textarea>
@@ -116,6 +122,8 @@ export function createInlineNodeMedia(ctx) {
       <div class="inline-generation-status" role="status" aria-live="polite">${esc(entry.error|| (entry.uploading?'正在上传…':entry.loading?'正在加载模型…':locked?entry.status==='queued'?'任务排队中…':'正在生成…':entry.status==='succeeded'?'已生成并更新当前节点':!model?.api_key_set?'请先在模型管理中配置对应模型':'') )}${entry.pollErrors>=3?'<button type="button" class="inline-retry-status">重新查询进度</button>':''}</div>
       <div class="inline-composer-bottom"><select class="inline-model-select" aria-label="${audio?'音频':'图片'}生成模型" ${entry.loading||locked?'disabled':''}>${entry.models.length?entry.models.map(item=>`<option value="${esc(item.id)}" ${entry.modelId===item.id?'selected':''}>${esc(item.name||item.model_id)}${item.is_default?' · 默认':''}</option>`).join(''):'<option value="">暂无可用模型</option>'}</select>${audio?`<span class="inline-output-label">${String(saved.audio_config?.format||'wav').toUpperCase()}</span>`:'<div class="inline-image-parameters"></div>'}<button class="inline-generate-button" type="button" ${entry.loading||locked||entry.uploading||!model?.api_key_set?'disabled':''}>${icon('play')}${locked?'生成中…':audio?'生成音频':'生成图片'}</button></div>`;
     const find=selector=>entry.root.querySelector(selector);
+    find('.inline-reference-list').insertAdjacentHTML('beforeend',pending.map(ref=>`<div title="${esc(ref.title)} · 待生成"><span class="reference-pending-cover">${icon('imageNode')}<small>待生成</small></span><button type="button" data-inline-remove-node="${esc(ref.nodeId)}" aria-label="移除参考 ${esc(ref.title)}" ${locked?'disabled':''}>${icon('close')}</button></div>`).join(''));
+    entry.root.querySelectorAll('[data-inline-remove-node]').forEach(button=>button.onclick=()=>{ctx.removeReferenceEdge(button.dataset.inlineRemoveNode,node.id);render(entry);});
     find('.inline-generation-prompt').oninput=event=>draft(entry,{prompt:event.target.value});
     find('.inline-model-select').onchange=event=>{entry.modelId=event.target.value;draft(entry,{model_config_id:entry.modelId});render(entry);};
     if(!audio){
@@ -144,31 +152,47 @@ export function createInlineNodeMedia(ctx) {
     entry.root.querySelectorAll('[data-inline-mode]').forEach(button=>button.onclick=()=>{draft(entry,{mode:button.dataset.inlineMode});render(entry);});
     entry.root.querySelectorAll('[data-inline-remove]').forEach(button=>button.onclick=()=>{
       const id=button.dataset.inlineRemove;
-      const graph=sources(node).find(item=>ctx.nodeAsset(item)?.id===id);
-      if(graph)ctx.removeReferenceEdge(graph.id,node.id);
+      const linked=sources(node).filter(item=>ctx.nodeAsset(item)?.id===id);
+      for(const graph of linked)ctx.removeReferenceEdge(graph.id,node.id,id);
+      if(!linked.length)ctx.removeReferenceEdge('',node.id,id);
       draft(entry,{reference_asset_ids:(saved.reference_asset_ids||[]).filter(value=>value!==id)});render(entry);
     });
     entry.root.querySelectorAll('[data-inline-action]').forEach(button=>button.onclick=async()=>{
       const action=button.dataset.inlineAction;
-      if(action==='reference')library(entry.root,{kind:audio?['audio','image','prop']:['image','prop'],exclude:refs.map(item=>item.id),title:'添加参考素材',onPick:asset=>addReference(entry,asset)});
+      if(action==='reference')ctx.openMentions(find('.inline-generation-prompt'));
       if(action==='replace')pick(node);
       if(action==='upload'||action==='upload-reference')chooseFile({host:entry.root,kind:action==='upload-reference'?(audio?'reference-audio':'image'):audio?'audio':'image',onFile:file=>upload(file,entry,action==='upload-reference')});
       if(action==='models')ctx.manageModels(audio?'audio':'image',{onReturn:async()=>{registry=null;entry.loading=true;render(entry);await load(entry);}});
     });
-    find('.inline-generate-button').onclick=()=>generate(entry);
+    const requestButton=mountMediaRequestButton(entry,find('.inline-generate-button'),{
+      sendLabel:audio?'生成音频':'生成图片',onStop:()=>stop(entry),
+    },entry.stopping?'stopping':locked?'running':'idle',entry.loading||entry.uploading||!model?.api_key_set);
+    requestButton.onclick=()=>{if(!busy(entry))generate(entry);};
     if(find('.inline-retry-status'))find('.inline-retry-status').onclick=()=>{entry.pollErrors=0;poll(entry);};
     if(locked)entry.root.querySelectorAll('[data-inline-action="reference"],[data-inline-action="upload-reference"],[data-inline-action="replace"],[data-inline-action="upload"]').forEach(button=>button.disabled=true);
     ctx.refresh();
   }
-  async function accept(entry,task) {
+  async function stop(entry) {
     if(!valid(entry))return;
+    if(!busy(entry)){render(entry);return;}
+    await stopMediaRequest(entry,{api,json,target:{kind:kindFor(entry.node),project_id:entry.projectId,
+      request_id:entry.requestId||undefined,task_id:entry.activeTaskId||(!entry.submitting?entry.node[taskKey(entry.node)]:undefined)},
+      render:()=>render(entry),resume:result=>{if(result?.tasks?.[0]?.id)entry.activeTaskId=result.tasks[0].id;poll(entry);}});
+  }
+  async function accept(entry,task) {
+    if(!valid(entry)||entry.stopping)return;
+    const version=requestVersion(entry);
+    if(stoppedTask(task)){entry.status='cancelled';entry.error=task.status_message||'已停止等待，已有结果可在生成历史查看';render(entry);return;}
     entry.status=task.status;entry.error='';
     if(['succeeded','done'].includes(task.status)) {
       if(!task.asset)throw new Error('任务已完成但未返回素材，请在生成历史查看');
-      if(entry.appliedId!==task.asset.id) {
-        entry.appliedId=task.asset.id;
+      if(entry.appliedId!==task.asset.id||!entry.node.assetId||(entry.node.assetId===task.asset.id&&entry.node.assetUrl!==task.asset.url)) {
+        ctx.upsertAsset(task.asset);
+        if(ctx.bindAsset(entry.node,task.asset)===false)throw new Error('素材已生成，但尚未绑定到当前节点，请重新查询进度或从生成历史选择素材');
         draft(entry,{last_result_asset_id:task.asset.id});
-        ctx.upsertAsset(task.asset);ctx.bindAsset(entry.node,task.asset);await ctx.flushSave();
+        await ctx.flushSave();
+        if(!valid(entry)||version!==requestVersion(entry)||entry.stopping)return;
+        entry.appliedId=task.asset.id;
       }
       entry.status='succeeded';
     }else if(['failed','blocked'].includes(task.status))entry.error=typeof task.error==='string'?task.error:task.error?.message||'生成未完成，请调整描述后重试';
@@ -177,12 +201,15 @@ export function createInlineNodeMedia(ctx) {
   async function poll(entry) {
     clearTimeout(entry.timer);
     if(!valid(entry))return;
-    const id=entry.node[taskKey(entry.node)];if(!id)return;
+    const id=currentTaskId(entry),version=requestVersion(entry);if(!id||entry.stopping)return;
+    const pollVersion=entry.pollVersion=(entry.pollVersion||0)+1;
     try {
       const task=await api(`/api/${kindFor(entry.node)==='audio'?'audio':'images'}/generations/${encodeURIComponent(id)}`);
+      if(!valid(entry)||version!==requestVersion(entry)||pollVersion!==entry.pollVersion||id!==currentTaskId(entry)||entry.stopping)return;
+      if(entry.node[taskKey(entry.node)]!==id){entry.node[taskKey(entry.node)]=id;ctx.save();}
       entry.pollErrors=0;await accept(entry,task);
-      if(valid(entry)&&['queued','running'].includes(entry.status))entry.timer=setTimeout(()=>poll(entry),1800);
-    }catch(error){entry.error='读取进度失败：'+error.message;entry.pollErrors++;if(valid(entry)&&entry.pollErrors<3)entry.timer=setTimeout(()=>poll(entry),2500);render(entry);}
+      if(valid(entry)&&version===requestVersion(entry)&&pollVersion===entry.pollVersion&&!entry.stopping&&['queued','running'].includes(entry.status))entry.timer=setTimeout(()=>poll(entry),1800);
+    }catch(error){if(version!==requestVersion(entry)||pollVersion!==entry.pollVersion||entry.stopping)return;entry.error='读取进度失败：'+error.message;entry.pollErrors++;if(valid(entry)&&entry.pollErrors<3)entry.timer=setTimeout(()=>poll(entry),2500);render(entry);}
   }
   function imageOutput(entry) {
     const saved=entry.node.image_settings||{};
@@ -193,22 +220,30 @@ export function createInlineNodeMedia(ctx) {
   async function generate(entry) {
     if(!valid(entry)||busy(entry))return;
     const node=entry.node,audio=kindFor(node)==='audio',saved=node[settingsKey(node)]||{},prompt=expandAssetMentions(upstream(node)||saved.prompt,saved.mentions,state.nodes,state.assets).trim(),refs=references(entry);
+    if(!audio){
+      const {missing}=resolveInputs(node,{nodes:state.nodes,edges:state.edges},state.assets,state.characters);
+      if(node.mujian?.needsReview||node.mujian?.mediaStale||missing.length){entry.error=missing.length?'请先生成前置素材：'+missing.map(m=>m.title||m.reason).join('、'):'剧本或素材有变化，请先核对节点';render(entry);return;}
+    }
     if(!prompt){entry.error='请先填写生成描述';render(entry);return;}
     if(audio&&(refs.length>3||(refs.some(asset=>asset.kind!=='audio')&&(refs.length>1||saved.speaker)))){entry.error='参考图片不能与其他参考素材或音色 ID 混用';render(entry);return;}
     const payload={project_id:entry.projectId,name:saved.name||node.title,prompt,model_config_id:entry.modelId,watermark:!!saved.watermark,reference_asset_ids:refs.map(asset=>asset.id),...(audio?{mode:saved.mode||'sfx',speaker:saved.speaker||'',audio_config:{format:'wav',sample_rate:40000,speech_rate:0,loudness_rate:0,pitch_rate:0,enable_subtitle:false,...saved.audio_config}}:{asset_kind:node.type==='prop'?'prop':'image',...imageOutput(entry)})};
     const fingerprint=JSON.stringify(payload);
     if(!entry.uncertain||entry.fingerprint!==fingerprint)entry.requestId=crypto.randomUUID();
+    const version=beginMediaRequest(entry);entry.activeTaskId=null;
     entry.fingerprint=fingerprint;entry.uncertain=true;entry.submitting=true;entry.error='';render(entry);
     try {
       await ctx.flushSave();
-      const task=await api(`/api/${audio?'audio':'images'}/generations`,json({...payload,request_id:entry.requestId}));
-      if(!valid(entry))return;
+      if(version!==requestVersion(entry)||entry.stopping)return;
+      const task=await api(`/api/${audio?'audio':'images'}/generations`,json({...payload,...(!audio&&['asset','prop','character'].includes(node.type)?{node_id:node.id}:{}),request_id:entry.requestId}));
+      if(!valid(entry)||version!==requestVersion(entry))return;
+      entry.activeTaskId=task.id;
+      if(entry.stopping)return;
       if(!task.id)throw new Error('任务未返回编号，请在生成历史查看');
       entry.uncertain=false;node[taskKey(node)]=task.id;ctx.save();entry.submitting=false;
       await accept(entry,task);
-      if(['queued','running'].includes(entry.status))entry.timer=setTimeout(()=>poll(entry),1800);
-    }catch(error){entry.error=error.message;entry.status='failed';}
-    finally{entry.submitting=false;render(entry);}
+      if(version===requestVersion(entry)&&!entry.stopping&&['queued','running'].includes(entry.status))entry.timer=setTimeout(()=>poll(entry),1800);
+    }catch(error){if(version!==requestVersion(entry)||entry.stopping)return;entry.error=error.message;entry.status='failed';}
+    finally{if(version===requestVersion(entry)){entry.submitting=false;render(entry);}}
   }
   function mount(node,host) {
     for(const [key,entry] of entries)if(!valid(entry)){clearTimeout(entry.timer);entries.delete(key);}

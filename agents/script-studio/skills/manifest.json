@@ -1,0 +1,103 @@
+{
+  "version": "jht-skillhub-2026-10-22.1",
+  "skills": [
+    {
+      "id": "@user_b26ab084/seedance-prompt-expert",
+      "title": "Seedance 2.0 提示词专家",
+      "version": "2.1.7",
+      "source_url": "https://api.skillhub.cn/api/v1/skills/seedance-prompt-expert?namespace=user_b26ab084",
+      "reviewed_on": "2026-10-22",
+      "downloads_at_review": 47838,
+      "archive_sha256": "cf4cf2e5ca664edff4e1a917230282c679f083aa9a988f54bd1fc2223be5406d",
+      "source_files": {
+        "SKILL.md": "80ed074d9dd19be7d2d012513ec2059a810af36d815df7e5887bd1173265d14e"
+      },
+      "rules": "seedance-prompt-expert.md",
+      "stages": [
+        "image",
+        "video"
+      ]
+    },
+    {
+      "id": "@davtime/manjuduanjushengcheng",
+      "title": "AI 漫剧/短剧全流程一站式生成助手",
+      "version": "1.0.0",
+      "source_url": "https://api.skillhub.cn/api/v1/skills/manjuduanjushengcheng?namespace=davtime",
+      "reviewed_on": "2026-10-22",
+      "downloads_at_review": 24728,
+      "archive_sha256": "30a6cf0400f73a0454f720a2baf3672b455a33c683b2f7da557e37445ef5bd46",
+      "source_files": {
+        "SKILL.md": "efd0986a54101faaa7bfe05ff490c8873ab540d4e452c8c7318e3c080534d470",
+        "references/storyboard-rules.md": "509f0eadd2c6d38898a696fa4d9ac6aa9dcf196ff9dd0e83b788d5fd2ae4ab1e",
+        "references/prompt-library.md": "66c8577f13eac24fa8f0a78256e6066d837616b5c0b9c67971fc4e3ac93b1ab9"
+      },
+      "rules": "manjuduanjushengcheng.md",
+      "stages": [
+        "writing",
+        "extraction",
+        "image",
+        "video"
+      ]
+    },
+    {
+      "id": "@org-bzwfrdvh/aipdd-movie-tools",
+      "title": "影视短剧创作工具集（AIPDD）",
+      "version": "1.0.9",
+      "source_url": "https://api.skillhub.cn/api/v1/skills/aipdd-movie-tools?namespace=org-bzwfrdvh",
+      "reviewed_on": "2026-10-22",
+      "downloads_at_review": 1872,
+      "archive_sha256": "08ee2f0814802ca27cfbe6b3b7d00e82258ad8a9e7670f306cf69943fdc19793",
+      "source_files": {
+        "SKILL.md": "e6c300af6fb393902b7687ce15dc4193f8250f9e3252db2f8ed71894f66f2351",
+        "prompt/prompt-video.md": "80e5b7c0d956f1f94681051e33b54ccf70812243c52d461cdd06e9e203ffeeac",
+        "prompt/prompt-image.md": "f2ba42b153d23de15c001715abab731fced2fdb37a3105e52d238d4ce34d8025"
+      },
+      "rules": "aipdd-movie-tools.md",
+      "stages": [
+        "writing",
+        "extraction",
+        "image",
+        "video"
+      ],
+      "document_version": "1.9.0"
+    },
+    {
+      "id": "@user_5d00e27d/image-prompt-skill",
+      "title": "提示词生成大师",
+      "version": "1.0.15",
+      "source_url": "https://api.skillhub.cn/api/v1/skills/image-prompt-skill?namespace=user_5d00e27d",
+      "reviewed_on": "2026-10-22",
+      "downloads_at_review": 59669,
+      "archive_sha256": "d0f531c446c295b42c80d7bb615388f4e3ac74006449a567bf588c30771b6183",
+      "source_files": {
+        "SKILL.md": "39702e796f77bae15eea3c1501fa48e8a56ed99751bc6ee2f95a2ff397083964"
+      },
+      "rules": "image-prompt-skill.md",
+      "stages": [
+        "image",
+        "video"
+      ]
+    },
+    {
+      "id": "@davtime/xiaoshuojubenzhuanfenjing",
+      "title": "小说·剧本转分镜",
+      "version": "1.0.1",
+      "source_url": "https://api.skillhub.cn/api/v1/skills/xiaoshuojubenzhuanfenjing?namespace=davtime",
+      "reviewed_on": "2026-10-22",
+      "downloads_at_review": 34328,
+      "archive_sha256": "7e3382ea94178725eccc17e7f8d770970c38aa3a77d92ec734db822f080ca5f8",
+      "source_files": {
+        "SKILL.md": "0d1df8416fb1bb06de498a359a9558cbee56cb48049a6f412d11278d50f27950",
+        "references/script-to-storyboard.md": "130f999cede408358a1e0fe27fe50dbdaa610028833ad9fbe0e9b3de18b12984"
+      },
+      "rules": "xiaoshuojubenzhuanfenjing.md",
+      "stages": [
+        "writing",
+        "extraction",
+        "image",
+        "video"
+      ],
+      "document_version": "1.0.0"
+    }
+  ]
+}

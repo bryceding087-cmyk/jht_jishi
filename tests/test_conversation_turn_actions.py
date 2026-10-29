@@ -59,6 +59,43 @@ class ConversationTurnActionTests(test_sidebar_metadata.SidebarMetadataTests):
         self.assertNotIn('deleted_at', self.host.get(record_kind, tid))
         self.assertNotIn('deleted_at', self.host.get('conversation', cid))
 
+    def test_deleted_image_and_audio_outputs_remain_identifiable_in_conversations(self):
+        for kind in ('image', 'audio'):
+            with self.subTest(kind=kind):
+                cid, tid, aid, record_kind = self.make_turn(kind, 'deleted-output')
+                self.assertEqual(self.request('DELETE', '/api/assets/' + aid)[0], 204)
+                status, _, conversation = self.request('GET', '/api/conversations/' + cid)
+                self.assertEqual(status, 200)
+                task = conversation['tasks'][0]
+                self.assertEqual(task['deleted_asset_ids'], [aid])
+                self.assertIsNone(task['asset'])
+                if kind == 'image':
+                    self.assertEqual(task['assets'], [])
+                self.assertEqual(task['status'], 'done')
+                self.assertEqual(task['prompt'], '本段\n完整内容')
+                self.assertEqual(task['generation_settings']['size'], '2K')
+                endpoint = '/api/images/generations/' if kind == 'image' else '/api/audio/generations/'
+                self.assertEqual(self.request('GET', endpoint + tid)[2]['deleted_asset_ids'], [aid])
+                self.assertNotIn('deleted_at', self.host.get(record_kind, tid))
+
+    def test_partial_image_deletion_keeps_live_results_and_does_not_mark_failed_tasks(self):
+        cid, tid, first, record_kind = self.make_turn('image', 'partial-output')
+        second = self.host.save('asset', {'id': 'remaining-image', 'kind': 'image', 'name': '第二张',
+            'task_id': tid, 'project_id': cid, 'url': '/uploads/second.png'})
+        task = self.host.get(record_kind, tid)
+        task['assets'].append(second)
+        self.host.save(record_kind, task)
+        self.assertEqual(self.request('DELETE', '/api/assets/' + first)[0], 204)
+        public = self.request('GET', '/api/conversations/' + cid)[2]['tasks'][0]
+        self.assertEqual(public['deleted_asset_ids'], [first])
+        self.assertEqual([asset['id'] for asset in public['assets']], [second['id']])
+        self.assertEqual(self.request('DELETE', '/api/assets/' + second['id'])[0], 204)
+        public = self.request('GET', '/api/conversations/' + cid)[2]['tasks'][0]
+        self.assertEqual(set(public['deleted_asset_ids']), {first, second['id']})
+        self.assertEqual(public['assets'], [])
+        for serializer in (self.host.image_task_public, self.host.audio_task_public):
+            self.assertNotIn('deleted_asset_ids', serializer({'id': 'failed-no-output', 'status': 'failed', 'error': '生成失败'}))
+
     def test_delete_checks_ownership_task_scope_and_pending_state(self):
         cid, tid, aid, record_kind = self.make_turn('image', 'scoped')
         other, _, _, _ = self.make_turn('image', 'other')

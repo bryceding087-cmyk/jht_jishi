@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { createGenerationGuard } from '../public/generation-state.js';
+import { createRequestButton } from '../public/request-button.js';
 import { buildRegenerationRequest } from '../public/generation-request.js';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -52,40 +53,44 @@ const resultJob = (id, assets, status = 'done') => ({
 
 function homeHarness(jobs = [], initialKind = 'image') {
   const root = new Element('section'), results = new Element('section'), form = new Element('form');
-  const prompt = new Element('textarea'), send = new Element('button'), error = new Element('div');
+  const prompt = new Element('textarea'), send = new Element('button'), enqueue = new Element('button'), error = new Element('div');
   send.className = 'home-send';
+  send.classList.remove = name => send.classList.toggle(name, false);
+  enqueue.className='home-enqueue';enqueue.setAttribute('data-home-enqueue','');
   prompt.value = '下一张图片';
-  form.append(prompt, send);
+  form.append(prompt, enqueue, send);
   root.append(form, results);
   const heading=new Element('span'),query=root.querySelector.bind(root);
   root.querySelector=selector=>selector==='.agent-location span'?heading:query(selector);
   const d = { viewConversationId: 'conversation-1', prompt: prompt.value, model: initialKind+'-model', ratio:'16:9',resolution:'720p',duration:5,videoMode:'all', references: [], frames: [], count: 1, imageRatio: 'adaptive', imageSize: '2K' };
   const previews = [], referencePreviews = [], requests = [], notifications = [], stateReads = [];
   const windowEvents = new Map(), documentEvents = new Map(), timers = new Map();
-  let serverBusy = false, serverResponse, mediaResponse, taskResponse = { id: 'submitted-task', status: 'queued' }, context, timerId = 0, requestId = 0, conversationResponse = { id: 'created-conversation', title: 'New conversation' };
+  let serverBusy = false, serverResponse, mediaResponse, taskResponse = { id: 'submitted-task', status: 'queued' }, stopResponse={status:'stopped',tasks:[]}, context, timerId = 0, requestId = 0, conversationResponse = { id: 'created-conversation', title: 'New conversation' };
   const api = async (url, body) => {
     if (url.startsWith('/api/conversations/generation-state?conversation_id=')) { stateReads.push(url); return serverResponse ?? { is_busy: serverBusy }; }
     if (body?.method==='DELETE') return {conversation_deleted:true,deleted_asset_ids:[]};
     if (url === '/api/assets') return [];
     if (url.startsWith('/api/conversations/') && !body) return { id: url.split('/').at(-1), kind: 'image', settings: { model_config_id: 'image-model' }, tasks: [] };
-    requests.push({ url, body });
+    requests.push({ url, body: url==='/api/generation/stop'?JSON.parse(body.body):body });
+    if(url==='/api/generation/stop'){if(stopResponse instanceof Error)throw stopResponse;return stopResponse;}
     if(body?.background && mediaResponse)return mediaResponse;
     if (url === '/api/conversations') { if (conversationResponse instanceof Error) throw conversationResponse; return conversationResponse; }
     if (taskResponse instanceof Error) throw taskResponse;
     return taskResponse;
   };
   const generation = createGenerationGuard({ api, onChange: () => context?.update?.() });
+  const requestButton=createRequestButton(send,{onStop:()=>context.stopCurrent(),onError:error=>notifications.push(error.message),sendLabel:'开始生成'});
   context = vm.createContext({
-    root, results, form, prompt, error, jobs, generation, kind: initialKind,
-    drafts: { image:initialKind==='image'?d:{...d,model:'image-model',viewConversationId:null,generationScope:'draft:image'}, video:initialKind==='video'?d:{...d,model:'video-model',viewConversationId:null,generationScope:'draft:video'} }, draft: () => context.drafts[context.kind], uploading: false, navigationRevision: 0,
+    root, results, form, prompt, error, jobs, generation, requestButton, kind: initialKind,
+    drafts: { image:initialKind==='image'?d:{...d,model:'image-model',viewConversationId:null,generationScope:'draft:image'}, video:initialKind==='video'?d:{...d,model:'video-model',viewConversationId:null,generationScope:'draft:video'}, audio:initialKind==='audio'?d:{...d,model:'audio-model',viewConversationId:null,generationScope:'draft:audio'} }, draft: () => context.drafts[context.kind], uploading: false, navigationRevision: 0,
     visible: false, polling: null, pollTimer: null, statePollError: false,
-    models: ['image','video'].map(kind=>({id:kind+'-model',kind,name:kind,api_key_set:true})),
+    models: ['image','video','audio'].map(kind=>({id:kind+'-model',kind,name:kind,api_key_set:true})),
     TYPES: [['image', '', '图片生成'], ['video', '', '视频生成'], ['audio', '', '音频生成']],
     document: { createElement: tag => new Element(tag), hidden: false, addEventListener: (name, callback) => documentEvents.set(name, callback) },
     window: { addEventListener: (name, callback) => windowEvents.set(name, callback) },
     clearTimeout: id => timers.delete(id), setTimeout: callback => { const id = ++timerId; timers.set(id, callback); return id; },
     CSS: { escape: value => value },
-    $: selector => { assert.equal(selector, '.home-send'); return send; },
+    $: selector => { assert.ok(['.home-send','.home-enqueue'].includes(selector)); return selector==='.home-send'?send:enqueue; },
     pending: task => ['queued', 'running', 'waiting_tool'].includes(task.status),
     complete: task => ['done', 'succeeded'].includes(task.status),
     esc: escapeHtml, icon: () => '', normalizeContentError: value => value,
@@ -98,7 +103,7 @@ function homeHarness(jobs = [], initialKind = 'image') {
     crypto: { randomUUID: () => 'fixture-request-'+(++requestId) }, structuredClone,
     toast: message => notifications.push(message), onConversations: async () => {},
     editTurn: () => {}, renderRecent: () => {}, drawReferences: () => {},
-    state: {}, preferences: { close() {} }, details: { open: false }, onModeChange() {},
+    state: {}, preferences: { close() {} }, details: { open: false }, onModeChange() {}, onConversationReady() {},
     select: next => { context.kind=next; prompt.value=context.drafts[next]?.prompt||''; context.update(); },
     mentions: { refresh() {}, close() {} }, matchMedia: () => ({ matches: true }),
   });
@@ -106,6 +111,7 @@ function homeHarness(jobs = [], initialKind = 'image') {
     sourceBetween(homeSource, 'const needsPoll=', 'const complete='),
     sourceBetween(homeSource, '  const generationScope=', '  const modeControl='),
     sourceBetween(homeSource, '  function updateSend()', '  function select('),
+    sourceBetween(homeSource, "  prompt.addEventListener('keydown'", '  modelSelect.onchange='),
     sourceBetween(homeSource, '  const endpoint=job=>', '  function metadata(job)'),
     sourceBetween(homeSource, '  function metadata(job)', '  function editTurn(job)'),
     sourceBetween(homeSource, '  async function regenerateTurn(job,button)', '  async function deleteTurn('),
@@ -118,17 +124,22 @@ function homeHarness(jobs = [], initialKind = 'image') {
     'globalThis.update=updateSend; globalThis.render=renderResults; globalThis.regenerate=regenerateTurn;',
   ].join('\n'), context);
   return {
-    root, results, form, prompt, send, get d() { return context.drafts[context.kind]; }, previews, referencePreviews, requests, notifications, generation, stateReads, timers,
+    root, results, form, prompt, send, enqueue, get d() { return context.drafts[context.kind]; }, previews, referencePreviews, requests, notifications, generation, stateReads, timers,
     render: () => context.render(), update: () => context.update(),
     libraryChange: asset => documentEvents.get('asset-library-change')({detail:asset}),
+    assetDelete: asset => documentEvents.get('asset-deleted')({detail:asset}),
     click: target => results.onclick({ target }),
     submit: () => form.onsubmit({ preventDefault() {} }),
+    enqueueSubmit: () => form.onsubmit({ preventDefault() {},submitter:enqueue }),
+    stop: () => context.stopCurrent(),
+    enter: () => prompt.events.get('keydown')({key:'Enter',preventDefault(){}}),
     regenerate: job => context.regenerate(job, results.querySelector(`[data-home-regenerate="${job.task.id}"]`)),
     async setServerBusy(value) { serverBusy = value; await generation.refresh('conversation-1'); },
     setServerResponse(value) { serverResponse = value; },
     setMediaResponse(value) { mediaResponse=value; },
     selectMode: kind => context.select(kind),
     setTaskResponse(value) { taskResponse = value; },
+    setStopResponse(value) {stopResponse=value;},
     setConversationResponse(value) { conversationResponse = value; },
     resetHome() { context.controller.resetHome(); context.select('image'); },
     newConversation() { const button=new Element('button'); button.setAttribute('data-command','new'); root.events.get('click')({target:button,preventDefault(){},stopImmediatePropagation(){}}); },
@@ -149,6 +160,11 @@ function homeHarness(jobs = [], initialKind = 'image') {
       await callback();
     },
   };
+}
+
+function assertRunning(env, message) {
+  assert.equal(env.send.dataset.requestState,'running',message);
+  assert.equal(env.send.disabled,false,'Stop must remain operable during a request');
 }
 
 // A saved result is disabled; removing through the library enables it again.
@@ -182,6 +198,90 @@ function homeHarness(jobs = [], initialKind = 'image') {
   assert.equal(env.results.querySelector('[data-home-save]').disabled,false);
   assert.equal(env.results.querySelector('video'),video);
 }
+
+// Deleted videos retain their prompt and regeneration actions, never the old media URL.
+for (const flag of ['asset_save_status', 'video_cache_status']) {
+  const job={kind:'video',conversationId:'conversation-1',prompt:'保留这段视频提示词',
+    settings:{aspect_ratio:'9:16'},task:{id:'deleted-video',status:'done',
+      video_url:'/uploads/deleted.mp4',asset_id:'deleted-asset',video_cache_status:'failed'}};
+  const env=homeHarness([job],'video');env.render();
+  assert.ok(env.results.querySelector('video'));
+  assert.ok(env.results.querySelector('[data-home-retry-file]'));
+  job.task[flag]='deleted';env.render();
+  assert.ok(env.results.querySelector('.home-deleted-media'));
+  assert.equal(env.results.querySelector('.home-deleted-media').querySelector('p').textContent,'原素材已删除，提示词与生成参数仍保留');
+  assert.equal(env.results.querySelector('video'),null);
+  assert.equal(env.results.querySelector('[data-home-save]'),null);
+  assert.equal(env.results.querySelector('[data-home-retry-file]'),null);
+  assert.equal(env.results.querySelector('.home-turn-note'),null);
+  assert.equal(env.results.innerHTML.includes('/uploads/deleted.mp4'),false);
+  assert.equal(env.results.querySelector('.home-user-prompt').textContent,job.prompt);
+  assert.ok(env.results.querySelector('[data-home-edit]'));
+  assert.ok(env.results.querySelector('[data-home-regenerate]'));
+}
+{
+  const job={kind:'video',conversationId:'conversation-1',prompt:'保留删除记录',settings:{},
+    task:{id:'deleted-event-video',status:'done',video_url:'/uploads/old.mp4',asset_id:'event-asset'}};
+  const env=homeHarness([job],'video');env.render();
+  const video=env.results.querySelector('video'),saveButton=env.results.querySelector('[data-home-save]');
+  env.assetDelete({id:'unrelated',kind:'video',task_id:'unrelated'});
+  assert.equal(env.results.querySelector('video'),video,'deleting another result must preserve playback');
+  env.assetDelete({id:'event-asset',kind:'video',task_id:job.task.id});
+  assert.equal(env.results.querySelector('video'),null,'deletion immediately removes the cached player');
+  job.task={id:job.task.id,status:'done',video_url:'/uploads/old.mp4',asset_id:'event-asset',asset_save_status:'history'};
+  env.render();
+  assert.ok(env.results.querySelector('.home-deleted-media'),'a stale task response must not restore a deleted player');
+  await env.click(saveButton);
+  assert.equal(job.task.asset_save_status,'history','a stale save click must not save a deleted result');
+  await env.setServerBusy(false);
+  assert.equal(env.results.querySelector('[data-home-regenerate]').disabled,false);
+  await env.regenerate(job);
+  assert.equal(env.requests.find(request=>request.url==='/api/tasks')?.body.prompt,job.prompt);
+}
+console.log('PASS: deleted videos hide stale media and save/download actions, synchronize deletion immediately and retain regeneration');
+
+for(const kind of ['image','audio']){
+  const asset={...imageAsset('removed-'+kind),kind};
+  const job={kind,conversationId:'conversation-1',prompt:'保留素材提示词',settings:{},
+    task:{id:'deleted-'+kind,status:'succeeded',asset,...(kind==='image'?{assets:[asset]}:{})}};
+  const env=homeHarness([job],kind);env.render();
+  const save=env.results.querySelector('[data-home-save]');
+  env.assetDelete(asset);
+  const placeholder=env.results.querySelector('.home-deleted-media');
+  assert.equal(placeholder.querySelector('strong').textContent,kind==='image'?'图片已删除':'音频已删除');
+  assert.equal(placeholder.querySelector('p').textContent,'原素材已删除，提示词与生成参数仍保留');
+  assert.equal(env.results.querySelector(kind==='image'?'img':'audio'),null);
+  assert.equal(env.results.querySelector('.home-task-state'),null);
+  assert.equal(env.results.querySelector('[data-home-save]'),null);
+  assert.equal(env.results.querySelector('.home-turn-note'),null);
+  await env.click(save);assert.equal(asset.in_library,undefined);
+  assert.ok(env.results.querySelector('[data-home-edit]'));
+  assert.ok(env.results.querySelector('[data-home-regenerate]'));
+  job.task={id:job.task.id,status:'succeeded',asset};env.render();
+  assert.ok(env.results.querySelector('.home-deleted-media'),'stale snapshots must not restore deleted media');
+  job.task={id:job.task.id,status:'succeeded',asset:null,assets:[],deleted_asset_ids:[asset.id]};
+  const reopened=homeHarness([job],kind);reopened.render();
+  assert.ok(reopened.results.querySelector('.home-deleted-media'),'a fresh page recognizes server deletion metadata');
+}
+{
+  const assets=[imageAsset('deleted-first'),imageAsset('remaining-second')],job=resultJob('partially-deleted',assets);
+  const env=homeHarness([job]);env.render();env.assetDelete(assets[0]);
+  assert.equal(env.results.querySelector('.home-deleted-media'),null);
+  assert.equal(env.results.querySelectorAll('.home-image-preview').length,1);
+  await env.click(env.results.querySelector('.home-image-preview'));
+  assert.equal(env.previews[0],assets[1],'preview indices track remaining images');
+  await env.click(env.results.querySelector('[data-home-save]'));
+  assert.equal(assets[0].in_library,undefined,'saving remaining results must skip deleted images');
+  assert.equal(assets[1].in_library,true);
+  job.task={...job.task,asset:null,assets:[assets[1]],deleted_asset_ids:[assets[0].id]};env.render();
+  assert.equal(env.results.querySelectorAll('.home-image-preview').length,1);
+  job.task.status='running';env.assetDelete(assets[1]);
+  assert.ok(env.results.querySelector('.home-generation-placeholder'),'ongoing generation can still produce new images');
+  job.task.status='failed';env.render();
+  assert.ok(env.results.querySelector('.home-deleted-media'));
+  assert.ok(env.results.querySelector('[data-home-regenerate]'),'deleted partial output retains regeneration after failure');
+}
+console.log('PASS: deleted images/audio share the media placeholder; partial deletion preserves live image previews and save actions');
 
 {
   const job = resultJob('reference-preview', [], 'running');
@@ -252,7 +352,7 @@ function homeHarness(jobs = [], initialKind = 'image') {
   assert.equal(env.send.disabled, false);
   assert.equal(regenerate.disabled, false);
   await env.setServerBusy(true);
-  assert.equal(env.send.disabled, true);
+  assertRunning(env, 'the active request exposes a usable Stop button');
   assert.equal(regenerate.disabled, true, 'an unchanged completed card must reflect a task in the same conversation started in another tab');
   assert.equal(env.form.getAttribute('aria-busy'), 'true');
   await env.submit();
@@ -279,7 +379,7 @@ for (const source of ['submit', 'regenerate']) {
   let resolveTask;
   env.setTaskResponse(new Promise(resolve => { resolveTask = resolve; }));
   const first = source === 'submit' ? env.submit() : env.regenerate(job);
-  assert.equal(env.send.disabled, true);
+  assertRunning(env, 'the active request exposes a usable Stop button');
   assert.equal(env.generation.isSubmitting('conversation-1'), true);
   await env.submit();
   await env.regenerate(job);
@@ -290,7 +390,7 @@ for (const source of ['submit', 'regenerate']) {
   await first;
   assert.equal(env.notifications.length, 0);
   assert.equal(env.generation.isSubmitting('conversation-1'), false);
-  assert.equal(env.send.disabled, true, 'a queued task continues locking generation after the POST completes');
+  assertRunning(env, 'the active request exposes a usable Stop button');
   env.prompt.value = '后续草稿';
   env.d.prompt = env.prompt.value;
   await env.setServerBusy(false);
@@ -317,7 +417,7 @@ for (const event of ['focus', 'online', 'visibilitychange']) {
   assert.equal(env.stateReads.length, before + 1);
   resolveState({ is_busy: true, task: { id: 'other-tab-task', status: 'running' } });
   await env.settlePoll();
-  assert.equal(env.send.disabled, true);
+  assertRunning(env, 'the active request exposes a usable Stop button');
   env.setServerResponse({ is_busy: false });
   await env.runScheduledPoll();
   assert.equal(env.send.disabled, false, 'a fresh server completion response unlocks the original composer');
@@ -341,7 +441,7 @@ for (const event of ['focus', 'online', 'visibilitychange']) {
   resolveNew({ is_busy: true, task: { id: 'newer-task', status: 'running' } });
   await env.settlePoll();
   assert.equal(env.stateReads.length, before);
-  assert.equal(env.send.disabled, true);
+  assertRunning(env, 'the active request exposes a usable Stop button');
   assert.equal(env.generation.snapshot('conversation-1').task.id, 'newer-task');
 }
 
@@ -353,7 +453,7 @@ for (const event of ['focus', 'online', 'visibilitychange']) {
   assert.equal(env.requests.length, 1);
   const requestId = env.requests[0].body.request_id;
   assert.equal(env.d.requestId, requestId, 'an unknown submission outcome preserves its idempotency key');
-  assert.equal(env.send.disabled, true);
+  assertRunning(env, 'the active request exposes a usable Stop button');
   await env.submit();
   assert.equal(env.requests.length, 1, 'the unknown outcome cannot be submitted again before a server check');
   await env.setServerBusy(false);
@@ -361,7 +461,7 @@ for (const event of ['focus', 'online', 'visibilitychange']) {
   await env.submit();
   assert.equal(env.requests.length, 2);
   assert.equal(env.requests[1].body.request_id, requestId, 'an explicit retry uses the same idempotency key');
-  assert.equal(env.send.disabled, true);
+  assertRunning(env, 'the active request exposes a usable Stop button');
 }
 console.log('PASS: focus/online/visibility task-state refresh, stale-response protection, hidden-view behavior and explicit retry idempotency');
 
@@ -374,7 +474,7 @@ for(const destination of ['existing-image','home-image','home-video']) {
   env.setMediaResponse(new Promise(resolve=>{resolveMedia=resolve;}));
   await env.setServerBusy(true);
   env.returnEvent('focus');await env.settlePoll();
-  assert.equal(env.send.disabled,true,'the original video conversation stays locked');
+  assertRunning(env, 'the active request exposes a usable Stop button');
   assert.equal(env.requests[0].url,'/api/tasks/slow-video');
   env.setServerResponse({is_busy:false});
   if(destination==='existing-image')await env.openConversation('conversation-2');
@@ -422,7 +522,7 @@ for (const navigate of ['resetHome', 'newConversation', 'openConversation']) {
   assert.equal(env.d.busy,true);
   resolveOld({id:'old-task',status:'queued'});await first;
   assert.equal(env.d.busy,true,'the old completion cannot clear the new draft busy flag');
-  assert.equal(env.send.disabled,true);
+  assertRunning(env, 'the active request exposes a usable Stop button');
   assert.equal(env.generation.isBlocked('conversation-1'),true);
   resolveNew({id:'new-task',status:'queued'});await second;
   const posts=env.requests.filter(request=>request.url==='/api/images/generations');
@@ -469,7 +569,7 @@ for (const navigate of ['resetHome', 'newConversation', 'openConversation']) {
   assert.equal(env.generation.isBlocked('late-conversation'),true);
   assert.equal(env.requests.filter(r=>r.url==='/api/images/generations').length,1);
   await env.openConversation('late-conversation');
-  assert.equal(env.send.disabled,true,'reopening the in-flight conversation uses its existing gate');
+  assertRunning(env, 'the active request exposes a usable Stop button');
 }
 
 // New conversation creation failure allows an idempotent retry, and a task
@@ -485,7 +585,7 @@ for (const navigate of ['resetHome', 'newConversation', 'openConversation']) {
   env.setTaskResponse(new Error('task response lost'));
   await env.submit();
   assert.equal(env.requests[1].body.request_id,requestId);
-  assert.equal(env.send.disabled,true);
+  assertRunning(env, 'the active request exposes a usable Stop button');
   assert.equal(env.generation.isBlocked('retry-conversation'),true);
   assert.equal(env.generation.isBlocked('draft:independent'),false);
   await env.generation.refresh('retry-conversation');
@@ -493,6 +593,136 @@ for (const navigate of ['resetHome', 'newConversation', 'openConversation']) {
   assert.equal(env.send.disabled,false);
 }
 console.log('PASS: real composer submit/navigation handlers isolate home, new conversations and existing conversations during pending requests.');
+
+// A stop issued before conversation creation has an ID must use the original
+// request identity and prevent the later creation reply from launching media.
+for(const kind of ['image','video','audio']) {
+  const env=homeHarness([],kind);env.resetHome();env.selectMode(kind);
+  env.prompt.value='Keep this draft';env.d.prompt=env.prompt.value;
+  const references=env.d.references=[imageAsset('reference-'+kind)];
+  let resolveConversation;
+  env.setConversationResponse(new Promise(resolve=>{resolveConversation=resolve;}));
+  const first=env.submit();
+  const requestId=env.requests[0].body.request_id;
+  assertRunning(env);
+  await env.stop();
+  const stop=env.requests.find(request=>request.url==='/api/generation/stop');
+  assert.equal(stop.body.kind,kind);
+  assert.equal(stop.body.request_id,requestId);
+  assert.equal(stop.body.conversation_id,undefined);
+  assert.equal(env.d.prompt,'Keep this draft');
+  assert.equal(env.prompt.value,'Keep this draft');
+  assert.equal(env.d.references,references);
+  assert.equal(env.d.requestId,null);
+  assert.equal(env.send.disabled,false);
+  assert.equal(env.send.dataset.requestState,'idle');
+  resolveConversation({id:'stopped-conversation',title:'Late creation'});await first;
+  assert.equal(env.requests.length,2,'late creation cannot launch the stopped media task');
+  assert.equal(env.d.viewConversationId,null);
+  env.setConversationResponse({id:'replacement-conversation',title:'Replacement'});
+  await env.submit();
+  const media=env.requests.at(-1);
+  assert.notEqual(media.body.request_id,requestId,'resubmitting a stopped draft gets a fresh identity');
+  assert.equal(media.body.project_id,'replacement-conversation');
+}
+
+// Late media responses must retain history without clearing the newer draft or
+// unlocking a replacement submission in the same conversation.
+for(const kind of ['image','video','audio']) {
+  const env=homeHarness([],kind);await env.setServerBusy(false);
+  let resolveOld,resolveNew;
+  env.setTaskResponse(new Promise(resolve=>{resolveOld=resolve;}));
+  const first=env.submit(),oldId=env.requests[0].body.request_id;
+  env.prompt.value='Revised while running';env.d.prompt=env.prompt.value;
+  await env.stop();
+  assert.equal(env.requests.at(-1).body.request_id,oldId);
+  assert.equal(env.d.prompt,'Revised while running');
+  assert.equal(env.prompt.value,'Revised while running');
+  env.setTaskResponse(new Promise(resolve=>{resolveNew=resolve;}));
+  const second=env.submit(),newId=env.requests.at(-1).body.request_id;
+  assert.notEqual(newId,oldId);
+  resolveOld({id:'late-'+kind,status:'queued'});await first;
+  assert.equal(env.d.prompt,'Revised while running');
+  assert.equal(env.d.busy,true);
+  assert.equal(env.d.submissionId,newId);
+  assertRunning(env);
+  resolveNew({id:'replacement-'+kind,status:'queued'});await second;
+}
+
+// The current scope controls the button even if a stop response comes back
+// after the user moves to another conversation and submits a fresh request.
+{
+  const env=homeHarness();
+  env.setServerResponse({is_busy:true,task:{id:'old-task',kind:'image',status:'running',request_id:'old-request'}});
+  await env.generation.refresh('conversation-1');
+  let resolveStop,resolveTask;
+  env.setStopResponse(new Promise(resolve=>{resolveStop=resolve;}));
+  const stopping=env.stop();await Promise.resolve();
+  assert.equal(env.send.dataset.requestState,'stopping');
+  env.setServerResponse({is_busy:false});
+  await env.openConversation('conversation-2');await env.generation.refresh('conversation-2');
+  env.prompt.value='Other conversation';env.d.prompt=env.prompt.value;
+  env.setTaskResponse(new Promise(resolve=>{resolveTask=resolve;}));
+  const submitting=env.submit();
+  resolveStop({status:'stopped',tasks:[]});await stopping;
+  assertRunning(env);
+  assert.equal(env.d.busy,true);
+  const stop=env.requests.find(request=>request.url==='/api/generation/stop');
+  assert.equal(stop.body.conversation_id,'conversation-1');
+  assert.equal(stop.body.request_id,'old-request');
+  assert.equal(env.generation.isSubmitting('conversation-2'),true);
+  resolveTask({id:'other-task',status:'queued'});await submitting;
+}
+
+// Ordinary form/Enter actions never stop or queue implicitly. The explicit
+// queue action remains available, and Stop targets only its newest request.
+{
+  const env=homeHarness();
+  env.setServerResponse({is_busy:true,allow_queue:true,task:{id:'first-task',kind:'image',status:'running',request_id:'first-request'}});
+  await env.generation.refresh('conversation-1');
+  assertRunning(env);
+  assert.equal(env.enqueue.hidden,false);
+  assert.equal(env.enqueue.disabled,false);
+  await env.submit();env.enter();
+  assert.equal(env.requests.length,0);
+  env.setTaskResponse({id:'queued-task',status:'queued',queue_state:'queued'});
+  await env.enqueueSubmit();
+  assert.equal(env.requests.length,1);
+  const queuedRequest=env.requests[0].body.request_id;
+  assertRunning(env);
+  await env.stop();
+  assert.equal(env.requests.at(-1).body.request_id,queuedRequest);
+  assert.notEqual(queuedRequest,'first-request');
+}
+
+// Stop clicks are idempotent and a failed stop returns to an operable Stop
+// state. Once stopped, regeneration can be started again before the old POST
+// resolves, without letting that late response clear its new request token.
+{
+  const job=resultJob('original',[imageAsset('original-image')]),env=homeHarness([job]);
+  env.render();await env.setServerBusy(false);
+  let resolveOld,resolveStop,resolveNew;
+  env.setTaskResponse(new Promise(resolve=>{resolveOld=resolve;}));
+  const first=env.regenerate(job),oldId=env.requests[0].body.request_id;
+  env.setStopResponse(new Promise(resolve=>{resolveStop=resolve;}));
+  const click=()=>env.send.events.get('click')({preventDefault(){},stopImmediatePropagation(){}});
+  click();click();await env.settlePoll();
+  assert.equal(env.requests.filter(request=>request.url==='/api/generation/stop').length,1);
+  resolveStop({status:'stopped',tasks:[]});await env.settlePoll();
+  assert.equal(job.regenerating,false);
+  env.setTaskResponse(new Promise(resolve=>{resolveNew=resolve;}));
+  const second=env.regenerate(job),newId=env.requests.at(-1).body.request_id;
+  assert.notEqual(newId,oldId);
+  resolveOld({id:'old-regeneration',status:'queued'});await first;
+  assert.equal(job.regenerating,true);
+  assert.equal(job.regenerationRequestId,newId);
+  assertRunning(env);
+  env.setStopResponse(new Error('stop unavailable'));
+  await assert.rejects(env.stop(),/stop unavailable/);
+  assertRunning(env);
+  resolveNew({id:'new-regeneration',status:'queued'});await second;
+}
+console.log('PASS: image/video/audio Stop, draft preservation, late-response isolation, navigation, restored requests, explicit queue, Enter and idempotent stop clicks.');
 
 function agentHarness() {
   const messages = new Element('section');
@@ -607,7 +837,7 @@ console.log('PASS: generated-image styles preserve intrinsic aspect ratio and tr
 // preview's delete button cannot silently do nothing because byId() misses it.
 {
   const appSource = read('../public/app.js'), librarySource = read('../public/asset-library.js');
-  const modal = new Element('div'), state = { assets: [] }, requests = [], notifications = [];
+  const modal = new Element('div'), state = { assets: [] }, requests = [], notifications = [], deletionEvents = [];
   const fresh = imageAsset('freshly-generated');
   const original = { ...imageAsset('existing'), usage_count: 3, tags: ['已保存'] };
   state.assets.push(original);
@@ -615,6 +845,8 @@ console.log('PASS: generated-image styles preserve intrinsic aspect ratio and tr
   const $ = (selector, root = modal) => root.querySelector(selector);
   context = vm.createContext({
     state, ui: { selected: new Set() }, $, $$: (selector, root = modal) => root.querySelectorAll(selector),
+    document: { dispatchEvent: event => deletionEvents.push(event) },
+    CustomEvent: class { constructor(type, {detail}) { this.type=type; this.detail=detail; } },
     byId: id => state.assets.find(asset => asset.id === id),
     esc: escapeHtml, safeUrl: escapeHtml, icon: () => '', loadingMarkup: label => `<span>${label}</span>`,
     kindOf: asset => asset.kind === 'prop' ? 'image' : asset.kind,
@@ -655,5 +887,8 @@ console.log('PASS: generated-image styles preserve intrinsic aspect ratio and tr
   assert.equal(state.assets[0], original);
   assert.equal(closeCount, 1);
   assert.deepEqual(notifications, ['已删除 1 项素材']);
+  assert.equal(deletionEvents.length,1);
+  assert.equal(deletionEvents[0].type,'asset-deleted');
+  assert.equal(deletionEvents[0].detail.id,fresh.id);
 }
 console.log('PASS: newly generated preview assets populate the cache and reach the existing confirm-before-delete flow');

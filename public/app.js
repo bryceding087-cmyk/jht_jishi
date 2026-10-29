@@ -1,30 +1,37 @@
-import { createProjectLibrary } from './project-library.js?v=viewport-info-4';
-import { createCanvasGroups, normalizeGroups, groupBounds } from './canvas-groups.js?v=unified-history-2';
-import { createCanvasHistory } from './canvas-history.js?v=1';
+import { createProjectLibrary } from './project-library.js?v=project-types-1';
+import { createCanvasGroups, normalizeGroups, groupBounds, compactStudioGroups } from './canvas-groups.js?v=grid-snap-2';
+import { createCanvasHistory } from './canvas-history.js?v=arrange-undo-2';
+import { JHT_LIMITS, inputSpecs, mentionReference, assertReferenceLink, detachReference, isHiddenStudioEdge, groupStudioAudio } from './studio-contract.js?v=direct-reference-3';
 import { beginRequest, withLoading } from './loading-state.js?v=1';
-import { installNodePlayers } from './node-player.js?v=fullscreen-double-click-1';
+import { installNodePlayers } from './node-player.js?v=video-preview-loading-1';
 import { describeTaskError, ARK_MODEL_MANAGEMENT_URL } from './task-errors.js?v=content-rejection-3';
-import { resolveVideoInput, resolveVideoAssets, deriveVideoMode, materializeVideoAssets, referenceAssetId, scriptScenePrompt } from './node-inputs.js?v=node-frame-mode-2';
-import { attachAssetMentions } from './asset-mentions.js?v=reference-sync-2';
-import { createAssetLibrary } from './asset-library.js?v=asset-tab-motion-1';
+import { resolveVideoInput, resolveVideoAssets, deriveVideoMode, materializeVideoAssets, referenceAssetId, scriptScenePrompt } from './node-inputs.js?v=studio-references-2';
+import { attachAssetMentions } from './asset-mentions.js?v=studio-references-2';
+import { createAssetLibrary } from './asset-library.js?v=asset-download-1';
 import { mediaNodeBody, mediaNodeDetail, bindMediaNodeDetail } from './media-nodes.js?v=library-toggle-1';
 import { RESOURCE_TYPES, PREPARATION_TYPES, preparationResources, resourceKind, acceptsResourceAsset } from './script-resources.js?v=icons-font-2';
-import { createModelManager } from './model-manager.js?v=user-isolation-1';
-import { createImageGenerator } from './image-generation.js?v=styles-2.3.0';
-import { createAudioGenerator } from './audio-generation.js?v=library-toggle-1';
+import { createModelManager } from './model-manager.js?v=account-video-1';
+import { createImageGenerator } from './image-generation.js?v=request-stop-1';
+import { createAudioGenerator } from './audio-generation.js?v=request-stop-1';
 import { syncScriptResourceGraph, detachScriptResourceEdges } from './script-resource-graph.js?v=agent-canvas-clean-3';
 import { icon } from './iconography.js?v=regenerate-1';
 import { checkSessionResponse, createSessionControls } from './session.js?v=market-sdk-3';
 import { initializeMarket, isMarketEntry, isMarketSessionRequired, navigateToMarketEntry, withMarketSession, marketResponseData, marketMediaUrl } from './market-session.js?v=market-sdk-3';
-import { createAgentChat } from './agent-chat.js?v=styles-2.3.0';
-import { createCanvasAgent } from './canvas-agent.js?v=canvas-agent-float-2';
-import { createHomeComposer } from './home-composer.js?v=home-default-image-1';
+import { createAgentChat } from './agent-chat.js?v=single-thinking-1';
+import { createCanvasAgent } from './canvas-agent.js?v=shared-studio-2';
+import { createCanvasAgentActions } from './canvas-agent-actions.js?v=2';
+import { createHomeComposer } from './home-composer.js?v=agent-first-1';
 import { createConversationResume } from './conversation-resume.js?v=1';
-import { createHomeHub } from './home-hub.js?v=viewport-7';
-import { createCanvasWorkspace } from './canvas-workspace.js?v=styles-2.3.0';
+import { createHomeHub } from './home-hub.js?v=brand-headings-1';
+import { createCanvasWorkspace } from './canvas-workspace.js?v=video-cover-1';
+import { gridDragDelta, updateCanvasGrid } from './canvas-grid.js?v=1';
 import { setSurfaceVisible, surfaceIsOpen } from './canvas-motion.js?v=liblib-detail-2';
-import { createInlineNodeMedia } from './inline-node-media.js?v=styles-2.3.0';
+import { createInlineNodeMedia } from './inline-node-media.js?v=prop-image-bind-1';
+import { createStudioCanvas, studioNodeBody } from './studio-canvas.js?v=timeline-detail-1';
 import { installCanvasConnections } from './canvas-connections.js?v=1';
+import { createRequestButton } from './request-button.js?v=stop-1';
+import { stoppedTask } from './media-request-stop.js?v=stop-1';
+import { createAdminLogs } from './admin-logs.js?v=1';
 
 // Cancel browser image/link/text drag previews; canvas movement uses pointer events.
 document.addEventListener('dragstart', event => event.preventDefault(), true);
@@ -39,7 +46,7 @@ if (isMarketEntry() && location.pathname !== '/market' && new URLSearchParams(lo
 
 installNodePlayers();
 
-let canvasWorkspace, canvasGroups, canvasAgent, homeComposer, homeHub, canvasConnections;
+let canvasWorkspace, canvasGroups, canvasAgent, homeComposer, homeHub, canvasConnections, adminLogs;
 const conversationResume = createConversationResume();
 
 const $ = (selector) => document.querySelector(selector);
@@ -51,22 +58,67 @@ const canvasHistory = createCanvasHistory({ state, onRestore: () => {
 const emptyScriptData = (sourceNodeId = '') => ({ title: '未命名脚本', genre: '企业宣传片', duration: '60-90秒', style: '写实电影感', aspect_ratio: '16:9', resolution: '768p', source_node_id: sourceNodeId, scenes: [], resources: [], updated_at: Date.now() / 1000 });
 
 const toast = (message) => { const el = $('#toast'); el.textContent = message; el.classList.add('show'); window.setTimeout(() => el.classList.remove('show'), 2600); };
-function statusText(status, task = {}, compact = false) { if (!compact && task.status_message && ['queued','running','done'].includes(status)) return task.status_message; if (status === 'blocked' && describeTaskError(task).quotaLimited) return '模型限额暂停'; return ({ queued: '排队中', running: '生成中', done: '生成完成', failed: '生成失败', blocked: '未配置模型' }[status] || status || '待生成'); }
+function statusText(status, task = {}, compact = false) { if (!compact && task.status_message && ['queued','running','done'].includes(status)) return task.status_message; if (status === 'blocked' && describeTaskError(task).quotaLimited) return '模型限额暂停'; return ({ queued: '排队中', running: '生成中', done: '生成完成', failed: '生成失败', blocked: '未配置模型', cancelled: '已停止' }[status] || status || '待生成'); }
 const videoSubmissions = new Set();
+const videoRequests = new Map();
+const videoPollVersions = new Map();
+let videoRequestButton;
+function cancelVideoPoll(taskId) {
+  if(!taskId)return;
+  videoPollVersions.set(taskId,(videoPollVersions.get(taskId)||0)+1);
+  clearTimeout(state.taskPollers.get(taskId));state.taskPollers.delete(taskId);
+}
 function videoSubmissionKey(nodeId, projectId = state.project?.id) { return `${projectId}:${nodeId}`; }
 function videoGenerationBusy(nodeId, projectId = state.project?.id) {
   return videoSubmissions.has(videoSubmissionKey(nodeId, projectId)) ||
-    state.project?.id === projectId && ['queued', 'running'].includes(state.nodeTasks[nodeId]?.status);
+    videoRequests.get(videoSubmissionKey(nodeId, projectId))?.stopping ||
+    state.project?.id === projectId && !stoppedTask(state.nodeTasks[nodeId]) && ['queued', 'running'].includes(state.nodeTasks[nodeId]?.status);
 }
 function syncVideoGenerateButton() {
   const button = $('#generateBtn'), node = selectedNode();
   if (!button) return;
-  const submitting = videoSubmissions.has(videoSubmissionKey(node?.id));
   const busy = node?.type === 'video' && videoGenerationBusy(node.id);
-  button.disabled = node?.type !== 'video' || state.switchingProject || busy;
-  button.setAttribute('aria-busy', String(Boolean(busy)));
-  const label = button.querySelector('.generate-label');
-  if (label) label.textContent = submitting ? '提交中…' : busy ? statusText(state.nodeTasks[node.id]?.status) : '生成视频';
+  videoRequestButton ||= createRequestButton(button,{showLabel:true,sendLabel:'生成视频',onStop:stopVideoRequest});
+  videoRequestButton.setState(videoRequests.get(videoSubmissionKey(node?.id))?.stopping?'stopping':busy?'running':'idle',
+    {disabled:node?.type!=='video'||state.switchingProject});
+}
+async function stopVideoRequest() {
+  const node=selectedNode(),projectId=state.project?.id;
+  if(node?.type!=='video')return;
+  const key=videoSubmissionKey(node.id,projectId),task=state.nodeTasks[node.id];
+  const stored=videoRequests.get(key);
+  const request=stored&&(videoSubmissions.has(key)||stored.task_id===task?.id)?stored:
+    {kind:'video',project_id:projectId,node_id:node.id,task_id:task?.id};
+  if(request.stopping)return;
+  videoRequests.set(key,request);request.stopping=true;cancelVideoPoll(request.task_id);syncVideoGenerateButton();
+  const current=()=>state.project?.id===projectId&&videoRequests.get(key)===request&&state.nodes.includes(node);
+  let resume=false;
+  try {
+    const result=await api('/api/generation/stop',json({kind:'video',project_id:projectId,node_id:node.id,
+      request_id:request.request_id,task_id:request.task_id}));
+    if(['completed','already_finished'].includes(result.status)){
+      const tid=request.task_id||result.tasks?.[0]?.id;
+      request.finished=true;request.task_id=tid;
+      if(videoRequests.get(key)===request)videoSubmissions.delete(key);
+      if(tid){const task=await api(`/api/tasks/${encodeURIComponent(tid)}`);if(current())updateTaskNode(task,node.id);}
+      toast(result.message||'任务已经完成，已有结果已保留');
+      return;
+    }
+    request.stopped=true;if(videoRequests.get(key)===request)videoSubmissions.delete(key);
+    const tid=request.task_id;
+    cancelVideoPoll(tid);
+    if(current()&&state.nodeTasks[node.id]?.id===tid){
+      updateTaskNode({...state.nodeTasks[node.id],local_stop_requested:true,stop_requested:true,
+        status_message:result.message||'已停止等待'},node.id);
+    }
+    toast(result.message||'已停止当前请求');
+  }catch(error){
+    toast('停止失败：'+error.message);
+    if(request.task_id&&current()){
+      try{const task=await api(`/api/tasks/${encodeURIComponent(request.task_id)}`);if(current()){updateTaskNode(task,node.id);resume=true;}}catch{}
+    }
+  }
+  finally{request.stopping=false;if(resume&&current())pollTask(request.task_id,node.id);syncVideoGenerateButton();}
 }
 function taskErrorHtml(task) {
   if (!task.error) return '';
@@ -84,11 +136,12 @@ function showQuotaHelp(task) {
   $('#quotaRetry').onclick = async () => { const button = $('#quotaRetry'); button.disabled = true; await retryTask(task, true); if (button.isConnected) button.disabled = false; };
 }
 async function api(url, options) {
-  const { background = false, ...requestOptions } = options || {};
+  const { background = false, responseType = 'json', ...requestOptions } = options || {};
   const finish = background ? () => {} : beginRequest(url, requestOptions);
   try {
     const response = await fetch(url, withMarketSession(requestOptions, url));
     checkSessionResponse(response);
+    if (response.ok && responseType === 'blob') return response.blob();
     const raw = await response.text();
     let data;
     try { data = raw ? JSON.parse(raw) : {}; } catch { throw new Error(`服务返回异常（${response.status}）`); }
@@ -167,15 +220,58 @@ function captureSettings() {
   document.querySelector(`.node[data-node="${CSS.escape(node.id)}"] .prompt-text`)?.replaceChildren(document.createTextNode(node.settings.prompt || '点击节点填写提示词'));
   scheduleSave();
 }
-const promptPolishRequests = new Set();
+const promptPolishRequests = new Map(), scriptGenerationRequests = new Map();
 const promptPolishKey = node => `${state.project?.id || ''}:${node.id}`;
+function textRequestEntry(entries,node,kind){
+  const key=promptPolishKey(node);
+  if(!entries.has(key))entries.set(key,{kind,projectId:state.project?.id,nodeId:node.id,buttons:new Map(),request:null});
+  return entries.get(key);
+}
+function textRequestVisible(entry){return state.project?.id===entry.projectId&&state.selectedNodeId===entry.nodeId&&(state.view==='canvas'||entry.kind==='script'&&!$('#modalBackdrop').hidden);}
+function syncTextRequestButtons(entry){
+  for(const [key,owner] of entry.buttons){
+    const active=entry.request?.buttonKey===key;
+    owner.control.setState(active?(entry.request.stopping?'stopping':'running'):'idle',{disabled:!!entry.request&&!active});
+  }
+  if(entry.kind==='script'&&textRequestVisible(entry)&&state.scriptWorkflow?.nodeId===entry.nodeId){
+    state.scriptWorkflow.generating=!!entry.request;
+    const button=$('#scriptExcelImportBtn');
+    if(button)button.disabled=!!entry.request||!!state.scriptWorkflow.excelLoading||!!state.scriptWorkflow.importSaving;
+  }
+}
+function mountTextRequestButton(entry,placeholder,key,onSend,focusedButton){
+  let owner=entry.buttons.get(key);
+  if(owner)placeholder.replaceWith(owner.button);
+  else{
+    placeholder.type='button';placeholder.classList.add('text-request-button');
+    owner={button:placeholder,control:createRequestButton(placeholder,{showLabel:true,onStop:()=>stopTextRequest(entry)})};
+    entry.buttons.set(key,owner);
+  }
+  owner.button.onclick=onSend;
+  syncTextRequestButtons(entry);
+  if(owner.button===focusedButton)owner.button.focus({preventScroll:true});
+  return owner.button;
+}
+async function stopTextRequest(entry){
+  const request=entry.request;
+  if(!request||request.stopping)return syncTextRequestButtons(entry);
+  request.stopping=true;syncTextRequestButtons(entry);
+  request.stopPromise=Promise.resolve().then(async()=>{
+    try{
+      await api('/api/generation/stop',json({kind:'text',request_id:request.id,project_id:entry.projectId,node_id:entry.nodeId}));
+      request.stopped=true;
+      if(entry.request===request)entry.request=null;
+    }catch(error){if(textRequestVisible(entry))toast('停止失败：'+error.message);}
+    finally{request.stopping=false;syncTextRequestButtons(entry);}
+  });
+  return request.stopPromise;
+}
 function nodeDetailHtml(node) {
   if (node && isMediaNode(node)) return mediaNodeDetail(node, nodeAsset(node), escapeHtml);
   if (!node) return '<div class="node-detail-placeholder"><div><b>选择一个节点</b><small>点击画布中的节点，这里会显示对应的设置</small></div></div>';
   if (node.type === 'prompt') {
     const settings = { ...defaultSettings(), ...node.settings };
-    const polishing = promptPolishRequests.has(promptPolishKey(node));
-    return `<div class="node-detail-card"><span class="node-detail-kicker">TEXT NODE · 文本输入</span><h3>${escapeHtml(node.title || '文本提示词')}</h3><div class="prompt-edit-head"><label for="detailPromptInput">文本内容</label><button type="button" class="prompt-polish" id="polishPromptBtn" ${polishing ? 'disabled' : ''}>${polishing ? '润色中…' : `${icon('sparkle','ui-icon-sm')}<span>一键润色</span>`}</button></div><textarea id="detailPromptInput" maxlength="4000">${escapeHtml(settings.prompt || '')}</textarea><div class="counter"><span id="detailPromptCount">${(settings.prompt || '').length}</span>/4000</div><label for="detailNegativeInput">负面提示词</label><textarea id="detailNegativeInput" class="short" maxlength="1000">${escapeHtml(settings.negative_prompt || '')}</textarea></div>`;
+    return `<div class="node-detail-card"><span class="node-detail-kicker">TEXT NODE · 文本输入</span><h3>${escapeHtml(node.title || '文本提示词')}</h3><div class="prompt-edit-head"><label for="detailPromptInput">文本内容</label><button type="button" class="prompt-polish" id="polishPromptBtn">${icon('sparkle','ui-icon-sm')}<span>一键润色</span></button></div><textarea id="detailPromptInput" maxlength="4000">${escapeHtml(settings.prompt || '')}</textarea><div class="counter"><span id="detailPromptCount">${(settings.prompt || '').length}</span>/4000</div><label for="detailNegativeInput">负面提示词</label><textarea id="detailNegativeInput" class="short" maxlength="1000">${escapeHtml(settings.negative_prompt || '')}</textarea></div>`;
   }
   if (node.type === 'script') {
     const data = scriptDataForNode(node);
@@ -195,9 +291,11 @@ function nodeDetailHtml(node) {
 function renderNodeDetail(node) {
   const view = $('#nodeDetailView');
   if (!view) return;
+  const focusedButton=document.activeElement;
   view.classList.remove('inline-composed');
   view.innerHTML = nodeDetailHtml(node);
   if (!node) return;
+  if(node.type==='timeline'){studioCanvas.mount(node,view);studioCanvas.review(node,view);return;}
   if (isMediaNode(node)) {
     bindMediaNodeDetail({ node, asset: nodeAsset(node), api, toast, escapeHtml,
       onSaveAsset:(asset,inLibrary)=>assetLibrary.setLibraryMembership(asset,inLibrary),
@@ -236,49 +334,44 @@ function renderNodeDetail(node) {
     };
     prompt.oninput = sync; negative.oninput = sync;
     prompt.value = settings.prompt; negative.value = settings.negative_prompt;
-    $('#polishPromptBtn').onclick = async () => {
-      const requestKey = promptPolishKey(node);
-      if (promptPolishRequests.has(requestKey)) return;
+    const entry=textRequestEntry(promptPolishRequests,node,'polish');
+    mountTextRequestButton(entry,$('#polishPromptBtn'),'polish',async()=>{
+      if(entry.request)return;
       const original = prompt.value;
       const source = original.trim();
       if (!source) return toast('请先填写文本内容');
       const projectId = state.project?.id;
-      const button = $('#polishPromptBtn');
-      promptPolishRequests.add(requestKey);
-      button.disabled = true;
-      button.textContent = '润色中…';
+      const request={id:crypto.randomUUID(),buttonKey:'polish',view:state.view};
+      entry.request=request;syncTextRequestButtons(entry);
       try {
-        const result = await api('/api/prompts/polish', json({ text: source }));
-        const stillEditing = state.project?.id === projectId && state.nodes.includes(node)
-          && state.selectedNodeId === node.id && prompt.isConnected && $('#detailPromptInput') === prompt;
-        if (!stillEditing) return toast('编辑对象已切换，本次润色结果未应用');
-        if (prompt.value !== original || (node.settings?.prompt || '') !== original) {
+        const result = await api('/api/prompts/polish', json({ text:source,request_id:request.id,project_id:projectId,node_id:node.id }));
+        if(request.stopping)await request.stopPromise;
+        if(request.stopped||entry.request!==request)return;
+        const currentPrompt=$('#detailPromptInput');
+        const stillEditing = state.view===request.view&&state.project?.id === projectId && state.nodes.includes(node)
+          && state.selectedNodeId === node.id && currentPrompt?.isConnected;
+        if (!stillEditing) return;
+        if (currentPrompt.value !== original || (node.settings?.prompt || '') !== original) {
           return toast('文本已更新，本次润色结果未覆盖新内容');
         }
         if (!result.text?.trim()) return toast('大模型未返回润色结果，请重试');
-        prompt.value = result.text;
-        sync();
+        currentPrompt.value = result.text;
+        currentPrompt.dispatchEvent(new Event('input',{bubbles:true}));
         toast('提示词已润色，正在自动保存');
       } catch (error) {
-        toast(error.message);
+        if(request.stopping)await request.stopPromise;
+        if(!request.stopped&&entry.request===request&&textRequestVisible(entry)&&error.detail?.code!=='generation_request_stopped')toast(error.message);
       } finally {
-        promptPolishRequests.delete(requestKey);
-        // A selection change can replace this editor while the request is pending.
-        const currentButton = state.project?.id === projectId && state.selectedNodeId === node.id
-          ? $('#polishPromptBtn') : null;
-        if (currentButton) {
-          currentButton.disabled = false;
-          currentButton.innerHTML = `${icon('sparkle','ui-icon-sm')}<span>一键润色</span>`;
-        }
+        if(entry.request===request){entry.request=null;syncTextRequestButtons(entry);}
       }
-    };
+    },focusedButton);
   }
   if (node.type === 'script') {
     $('#detailOpenScript').onclick = () => openScriptWorkflow(node.id);
     $('#detailScriptSettings').onclick = llmConfigModal;
     if (state.view==='canvas') {
       if(state.scriptWorkflow?.nodeId!==node.id) state.scriptWorkflow={nodeId:node.id,step:1,projectId:state.project?.id};
-      renderScriptWorkflow();
+      renderScriptWorkflow(focusedButton);
     }
   }
   if (node.type === 'character') {
@@ -308,12 +401,15 @@ function loadNodeSettings() {
     editor.hidden = true;
     detail.hidden = false;
     renderNodeDetail(node);
+    if(node?.mujian)studioCanvas.review(node,detail);
     syncVideoGenerateButton();
     state.loadingSettings = false;
     return;
   }
   editor.hidden = false;
   detail.hidden = true;
+  editor.querySelector('.studio-node-review')?.remove();
+  if(node?.mujian){studioCanvas.syncFrames(node);studioCanvas.review(node,editor);}
   let settings = { ...defaultSettings(), ...node?.settings };
   state.selectedModelId = settings.model_config_id;
   renderModelSelect(settings);
@@ -340,6 +436,8 @@ function loadNodeSettings() {
   $('#promptInput').value = input.prompt;
   $('#negativeInput').value = input.negative_prompt;
   $('#promptInput').readOnly = Boolean(input.source);
+  $('#chooseReferenceBtn').disabled = Boolean(input.source);
+  $('#chooseReferenceBtn').title = input.source ? '请在上游提示词中输入 @ 引用素材' : '引用素材（也可在提示词中输入 @）';
   $('#negativeInput').readOnly = input.source?.type === 'prompt';
   $('#promptCount').textContent = input.prompt.length;
   $('#promptSourceNote').textContent = ''; $('#promptSourceNote').hidden = true;
@@ -506,22 +604,22 @@ window.addEventListener('resize', () => closeRecentMenu());
 document.addEventListener('scroll', event => { if (recentMenu && !recentMenu.menu.contains(event.target)) closeRecentMenu(); }, true);
 function renderProjects() {
   closeRecentMenu();
-  $('#projectList').innerHTML = `<div class="recent-section-label">对话创作</div>${recentRows(state.conversations||[],'conversation')||'<p class="recent-empty">暂无对话</p>'}<div class="recent-section-label">画布创作</div>${recentRows(state.projects,'project')||'<p class="recent-empty">暂无画布</p>'}`;
+  $('#projectList').innerHTML = `<div class="recent-section-label">对话</div>${recentRows(state.conversations||[],'conversation')||'<p class="recent-empty">暂无对话</p>'}<div class="recent-section-label">画布</div>${recentRows(state.projects,'project')||'<p class="recent-empty">暂无画布</p>'}`;
   $('#projectList').querySelectorAll('[data-project]').forEach(el => el.onclick = () => selectProject(el.dataset.project).catch(error => toast(error.message)));
   $('#projectList').querySelectorAll('[data-conversation]').forEach(el => el.onclick = () => openConversation(el.dataset.conversation).catch(error => toast(error.message)));
   $('#projectList').querySelectorAll('.recent-more').forEach(el => el.onclick = () => openRecentMenu(el));
 }
 async function refreshConversations(){state.conversations=await api('/api/conversations');renderProjects();}
 let conversationOpenRevision=0;
-async function openConversation(id){ return withLoading(() => loadConversation(id), '正在打开对话…'); }
-async function loadConversation(id){
+async function openConversation(id,options={}){ return withLoading(() => loadConversation(id,options), '正在打开对话…'); }
+async function loadConversation(id,options={}){
   const revision=++conversationOpenRevision,current=()=>revision===conversationOpenRevision;
   await flushSave();if(!current())return;
   const item=(state.conversations||[]).find(item=>item.id===id)||await api(`/api/conversations/${encodeURIComponent(id)}`);
   if(!current())return;
   if(item.kind==='agent'&&item.run_id){
     const snapshot=await api(`/api/agent/runs/${encodeURIComponent(item.run_id)}`);if(!current())return;
-    homeComposer.select('agent');await agentChat.openRun(item.run_id,snapshot);
+    homeComposer.select('agent');await agentChat.openRun(item.run_id,snapshot,current,options.preserveDraft===true);
   }else await homeComposer.openConversation(id,current);
   if(!current())return;
   state.activeConversationId=id;conversationResume.remember(state.user,id);homeHub?.showConversation();showView('agent',true);history.replaceState(null,'',`?conversation=${encodeURIComponent(id)}`);
@@ -622,8 +720,10 @@ async function loadProject(id) {
     state.nodes = normaliseNodes(project.nodes);
     const starterPromptsCleared = state.nodes.some((node,index) => node.type === 'video' && removedStarterPrompts.has(project.nodes[index]?.settings?.prompt));
     state.groups = normalizeGroups(project.groups || [], state.nodes);
+    const studioGroupsCompacted = compactStudioGroups(state.groups,state.nodes,nodeFootprint);
     canvasGroups?.reset();
     state.edges = (project.edges || []).filter(edge => state.nodes.some(n => n.id === edge.from) && state.nodes.some(n => n.id === edge.to));
+    const audioGrouped = groupStudioAudio(state);
     state.pendingPort = null; state.selectedEdgeIndex = null;
     state.nodeTasks = {};
     state.lastCompletedTask = null;
@@ -639,7 +739,7 @@ async function loadProject(id) {
     renderProject(); renderProjects(); loadNodeSettings(); showView('canvas');
     if (!Number.isFinite(project.viewport?.zoom) && state.nodes.some(n => n.agent_run_id)) fitCanvas();
     $('#saveState').textContent = '已保存'; $('#saveState').className = 'save-state';
-    if (referencesMigrated || scriptResourcesMigrated || starterPromptsCleared) scheduleSave();
+    if (referencesMigrated || scriptResourcesMigrated || starterPromptsCleared || audioGrouped || studioGroupsCompacted) scheduleSave();
     await loadHistory();
     Object.entries(state.nodeTasks).forEach(([nodeId, task]) => updateTaskNode(task, nodeId));
   } finally { state.switchingProject = false; syncVideoGenerateButton(); canvasHistory.reset(); }
@@ -803,7 +903,7 @@ function beginNodeTitleEdit(node, event) {
 }
 
 function isVisualFrame(node) {
-  return ['asset', 'prop', 'video-asset', 'video', 'prompt', 'script', 'audio'].includes(node?.type);
+  return ['asset', 'prop', 'video-asset', 'video', 'prompt', 'script', 'audio', 'timeline'].includes(node?.type);
 }
 function frameNaturalSize(node) {
   const width = Number(node?.mediaWidth), height = Number(node?.mediaHeight);
@@ -860,7 +960,11 @@ function watchFrameMedia(node, element, media) {
     surface.setAttribute('aria-hidden', 'true');
     media.after(surface);
   }
-  const apply = () => rememberFrameSize(node, element, media.naturalWidth || media.videoWidth, media.naturalHeight || media.videoHeight);
+  const apply = () => {
+    if (!element.isConnected) return;
+    const current = state.nodes.find(item => item.id === element.dataset.node);
+    rememberFrameSize(current, element, media.naturalWidth || media.videoWidth, media.naturalHeight || media.videoHeight);
+  };
   if ((media.tagName === 'IMG' && media.complete && media.naturalWidth) || media.videoWidth) apply();
   media.addEventListener(media.tagName === 'IMG' ? 'load' : 'loadedmetadata', apply);
 }
@@ -908,7 +1012,8 @@ function nodeTemplate(node) {
   const task = state.nodeTasks[node.id];
   const data = { ...emptyScriptData(), ...node.script_data };
   let body;
-  if (media) body = mediaNodeBody(node, nodeAsset(node), escapeHtml);
+  if(node.type==='timeline')body=studioNodeBody(node,escapeHtml,icon);
+  else if (media) body = mediaNodeBody(node, nodeAsset(node), escapeHtml);
   else if (prompt || script) body = documentFrameBody(node, data);
   else if (character) { const asset = nodeAsset(node); body = `<div class="character-preview ${escapeHtml(node.tone || 'blue')}">${asset?.url ? `<img class="character-photo" src="${escapeHtml(asset.url)}" alt="角色参考图">` : `<span class="character-avatar">${icon('character')}</span>`}<div><b>${escapeHtml(node.characterName || title)}</b><small>${asset?.url ? '角色形象已绑定' : '尚未绑定角色形象'}</small></div></div><div class="node-meta"><span>角色参考</span><span>跨画布复用</span></div>`; }
   else body = `<div class="video-preview">${videoPreviewBody(node, task)}</div>`;
@@ -920,7 +1025,27 @@ function nodeTemplate(node) {
   if (isVisualFrame(node)) return visualFrameTemplate(node, { body, title, nodeIcon, input, task, classes, selected });
   return `<article class="node ${classes} ${selected ? 'selected' : ''} ${state.pendingPort === node.id ? 'edge-source' : ''}" data-node="${escapeHtml(node.id)}" data-node-type="${escapeHtml(node.type)}" style="left:${node.x}px;top:${node.y}px" tabindex="0"><div class="node-title drag-handle"><span class="node-icon ${prompt || script ? 'purple' : character ? 'gold' : media ? 'pink' : 'cyan'}">${icon(nodeIcon)}</span><b>${escapeHtml(title)}</b><span class="status-dot ${videoStatusClass(task)}"></span><button class="node-menu" aria-label="删除节点" data-delete-node="${escapeHtml(node.id)}" title="删除节点">${icon('close','ui-icon-sm')}</button></div>${body}${input ? portHtml('in') : ''}${portHtml('out')}</article>`;
 }
-let edgeResizeFrame;
+let edgeResizeFrame,studioViewportFrame,renderedViewportKey='',renderedProjectId=null;
+function nodeRenderKey(node){
+  // Position, measured dimensions and selection are painted independently.
+  // Comparing templates rather than live DOM also ignores player controls.
+  return nodeTemplate(node)
+    .replace(/^<article[^>]*>/, tag => tag.replace(/ style="[^"]*"/,'').replace(/class="([^"]*)"/, (_, classes) => `class="${classes.split(/\s+/).filter(value => value && value !== 'selected').join(' ')}"`))
+    .replace(/(<span class="frame-dims">)[^<]*(<\/span>)/, '$1$2');
+}
+function canvasVisibleNodes(){
+  if(state.nodes.length<=250)return state.nodes;
+  const canvas=$('#canvas'),z=state.zoom||1,margin=450;
+  const left=(-state.panX-margin)/z,top=(-state.panY-margin)/z,right=(-state.panX+canvas.clientWidth+margin)/z,bottom=(-state.panY+canvas.clientHeight+margin)/z;
+  return state.nodes.filter(n=>state.selectedNodeIds?.has(n.id)||n.id===state.selectedNodeId||(()=>{const box=nodeFootprint(n);return n.x+box.width>=left&&n.x<=right&&n.y+box.height>=top&&n.y<=bottom;})());
+}
+function scheduleViewportNodes(){
+  if(state.nodes.length<=250)return;
+  cancelAnimationFrame(studioViewportFrame);studioViewportFrame=requestAnimationFrame(()=>{
+    if(state.drag?.kind==='node')return;
+    const key=canvasVisibleNodes().map(n=>n.id).join('|');if(key!==renderedViewportKey)renderNodes();
+  });
+}
 const nodeSizeObserver = new ResizeObserver(() => {
   cancelAnimationFrame(edgeResizeFrame);
   edgeResizeFrame = requestAnimationFrame(renderEdges);
@@ -930,9 +1055,28 @@ function renderNodes() {
   finishNodeTitleEdit(true);
   nodeSizeObserver.disconnect();
   const stage = $('#canvasStage');
-  const previousIds = new Set([...stage.querySelectorAll('.node')].map(node => node.dataset.node));
-  stage.innerHTML = `<svg class="links" aria-label="节点连线"></svg>${state.nodes.map(nodeTemplate).join('')}`;
-  stage.querySelectorAll('.node').forEach(node => { if (!previousIds.has(node.dataset.node)) node.classList.add('node-entering'); });
+  const existing = new Map([...stage.querySelectorAll(':scope > .node')].map(node => [node.dataset.node,node]));
+  if(renderedProjectId!==state.project?.id){stage.replaceChildren();existing.clear();renderedProjectId=state.project?.id;}
+  const visibleNodes=canvasVisibleNodes();renderedViewportKey=visibleNodes.map(n=>n.id).join('|');
+  if(!stage.querySelector(':scope > .links'))stage.insertAdjacentHTML('afterbegin','<svg class="links" aria-label="节点连线"></svg>');
+  let previous=stage.querySelector(':scope > .links');
+  for(const model of visibleNodes){
+    const key=nodeRenderKey(model),old=existing.get(model.id);
+    let element=old;
+    if(!element||element.renderKey!==key){
+      const template=document.createElement('template');template.innerHTML=nodeTemplate(model);
+      element=template.content.firstElementChild;element.renderKey=key;
+      if(old)old.replaceWith(element);else element.classList.add('node-entering');
+    }
+    element.style.left=model.x+'px';element.style.top=model.y+'px';
+    element.classList.toggle('selected',!state.selectedGroupId&&(state.selectedNodeIds?.has(model.id)||model.id===state.selectedNodeId));
+    if(element.classList.contains('visual-frame'))paintFrame(element,model);
+    // Moving an already-connected video can reset its decoder. Leave nodes in
+    // place when their order is unchanged, including all routine snapshots.
+    if(previous.nextElementSibling!==element)previous.after(element);
+    previous=element;existing.delete(model.id);
+  }
+  for(const element of existing.values())element.remove();
   setZoom(state.zoom); renderEdges(); bindNodeEvents();
   stage.querySelectorAll('.video-preview video').forEach(video => bindVideoPlayback(video, state.nodeTasks[video.closest('.node')?.dataset.node]));
   stage.querySelectorAll('.node.visual-frame').forEach(element => bindFrameMedia(state.nodes.find(item => item.id === element.dataset.node), element));
@@ -941,7 +1085,8 @@ function renderNodes() {
 }
 function portPosition(nodeId, direction) {
   const node = document.querySelector(`.node[data-node="${CSS.escape(nodeId)}"]`);
-  if (!node || !node.querySelector(`[data-port="${direction}"]`)) return null;
+  if (!node){const value=state.nodes.find(n=>n.id===nodeId);if(!value)return null;const box=nodeFootprint(value);return {x:value.x+(direction==='out'?box.width:0),y:value.y+box.height/2};}
+  if (!node.querySelector(`[data-port="${direction}"]`)) return null;
   // The add/connect buttons sit outside the card. Wires attach to the media
   // frame itself so hover hit areas never move the wire or leave a gap.
   const body = node.querySelector('.frame-stage,.character-preview,.asset-preview') || node;
@@ -958,9 +1103,13 @@ function renderEdges() {
   const svg = $('#canvasStage .links');
   if (!svg) return;
   const focusedEdge = svg.contains(document.activeElement) ? document.activeElement.closest('[data-edge]')?.dataset.edge : null;
+  const mounted=new Set([...$('#canvasStage').querySelectorAll('.node')].map(n=>n.dataset.node)),positions=new Map();
+  const position=(id,direction)=>{const key=id+direction;if(!positions.has(key))positions.set(key,portPosition(id,direction));return positions.get(key);};
   const paths = state.edges.map((edge, index) => {
     if (!edge?.from || !edge?.to) return '';
-    const from = portPosition(edge.from, 'out'), to = portPosition(edge.to, 'in');
+    if (isHiddenStudioEdge(edge,state.nodes)) return '';
+    if(state.nodes.length>250&&!mounted.has(edge.from)&&!mounted.has(edge.to))return '';
+    const from = position(edge.from, 'out'), to = position(edge.to, 'in');
     if (!from || !to) return '';
     const selected = state.selectedEdgeIndex === index ? ' edge-selected' : '';
     const related = [edge.from,edge.to].some(id=>state.selectedNodeIds?.has(id)||state.selectedNodeId===id) ? ' edge-related' : '';
@@ -969,7 +1118,7 @@ function renderEdges() {
     const label = flow ? `${edge.label || '流程关联'}：${state.nodes.find(n=>n.id===edge.from)?.title || ''} → ${state.nodes.find(n=>n.id===edge.to)?.title || ''}` : `生成输入 ${index + 1}`;
     // One long, progressively brighter trail travels on the exact wire stroke.
     // All layers share its width; no wide glow or blur spills beyond the line.
-    const segments=Array.from({length:10},(_,i)=>{
+    const segments=Array.from({length:state.edges.length>400?0:10},(_,i)=>{
       const offset=i*13.5, length=135-offset;
       return `<path d="${d}" pathLength="300" stroke-dasharray="0 ${offset} ${length} 165" style="stroke-opacity:${.08+i*.018}"/>`;
     }).join('');
@@ -1007,11 +1156,11 @@ function syncNodeSelectionVisuals() {
 }
 function appendNode(type, extra = {}) {
   if (!state.project) { toast('请先创建或打开一个项目'); return null; }
-  if (state.nodes.length >= 200) { toast('画布最多 200 个节点，请先整理画布'); return null; }
+  if (state.nodes.length >= JHT_LIMITS.nodes) { toast(`画布最多 ${JHT_LIMITS.nodes} 个节点，请先整理画布`); return null; }
   const canvas = $('#canvas');
   const node = { id: crypto.randomUUID(), type, title: {video:'视频生成',prompt:'文本提示词',asset:'图片素材',prop:'道具素材',character:'角色参考'}[type], x: (canvas.clientWidth / 2 - state.panX) / state.zoom - 140 + state.nodes.length % 4 * 24, y: (canvas.clientHeight / 2 - state.panY) / state.zoom - 90 + state.nodes.length % 4 * 24, settings: defaultSettings(), ...extra, ...(state.pendingNodePosition || {}) };
   state.pendingNodePosition = null;
-  state.nodes.push(node); updateSelection(node.id); renderNodes(); scheduleSave(); closeCanvasPanel();
+  state.nodes.push(node); if(type==='audio')groupStudioAudio(state); updateSelection(node.id); renderNodes(); scheduleSave(); closeCanvasPanel();
   return node;
 }
 function addVideoNode() { appendNode('video', { title: `视频生成 ${state.nodes.filter(n => n.type === 'video').length + 1}` }); toast('已添加独立视频节点'); }
@@ -1058,9 +1207,10 @@ function addLibraryAsset(asset, options = {}) {
   return node;
 }
 function bindNodeAsset(node, asset) {
-  if (!state.nodes.includes(node)) return toast('原素材节点已移除，上传内容已保留在生成历史');
-  const sameKind = nodeMediaKind(node) === (asset.kind || 'image') || (nodeMediaKind(node) === 'image' && (asset.kind || 'image') === 'prop');
-  if (!sameKind) return toast('素材类型与节点不匹配，请选择同类文件');
+  if (!state.nodes.includes(node)) {toast('原素材节点已移除，上传内容已保留在生成历史');return false;}
+  const expected=nodeMediaKind(node),actual=asset.kind||'image';
+  const sameKind = expected===actual || (['image','prop'].includes(expected)&&['image','prop'].includes(actual));
+  if (!sameKind) {toast('素材类型与节点不匹配，请选择同类文件');return false;}
   upsertAsset(asset);
   // Replacing a connected media node also replaces its bound script resources.
   for (const edge of state.edges.filter(item => item.from === node.id && item.relation !== 'agent-flow')) {
@@ -1072,6 +1222,7 @@ function bindNodeAsset(node, asset) {
       }
     }
   }
+  if(node.mujian)studioCanvas.bind(node,asset);
   delete node.mediaWidth; delete node.mediaHeight;
   node.assetId = asset.id; node.assetUrl = asset.url; node.assetName = asset.name; node.title = node.type==='character'?`${node.characterName||'角色'}参考`:asset.name;
   if(node.scriptResourceTarget) {
@@ -1081,10 +1232,12 @@ function bindNodeAsset(node, asset) {
   }
   syncScriptResourcesToCanvas();
   renderNodes();
+  canvasMentions?.refresh();
   const current=selectedNode();
-  if(current?.id===node.id || (['video','script'].includes(current?.type)&&state.edges.some(edge=>edge.from===node.id&&edge.to===current.id))) loadNodeSettings();
+  if(current?.id===node.id || (['video','script','asset','prop','character'].includes(current?.type)&&state.edges.some(edge=>edge.from===node.id&&edge.to===current.id))) loadNodeSettings();
   scheduleSave();
   closeCanvasPanel();
+  return true;
 }
 function chooseNodeMedia(node) {
   inlineNodeMedia.pick(node);
@@ -1144,7 +1297,7 @@ function referenceVideoPosition(reference) {
 function generateFromImage(asset, source) {
   if (!asset || !['image', 'prop', 'video'].includes(asset.kind || 'image')) return;
   const reference = source && state.nodes.includes(source) ? source : addLibraryAsset(asset);
-  if (!reference || state.edges.length >= 400) return;
+  if (!reference || state.edges.length >= JHT_LIMITS.edges) return;
   const position = referenceVideoPosition(reference);
   state.pendingNodePosition = null;
   const video = appendNode('video', { title: asset.kind==='video'?'参考视频生成':'参考图视频生成', ...position, settings: { ...defaultSettings(), prompt: '', asset_ids: [] } });
@@ -1160,7 +1313,7 @@ function expandScriptShots(node) {
   if (!scenes.length) return toast('请先生成或导入分镜内容');
   const pending = scenes.filter(scene => !state.nodes.some(item => item.type === 'video' && item.scriptSourceId === node.id && Number(item.settings?.script_scene_index) === Number(scene.index)));
   if (!pending.length) return toast('这些分镜已有视频节点，可直接在画布编辑');
-  if (state.nodes.length + pending.length > 200 || state.edges.length + pending.length > 400) return toast('展开后将超过画布容量，请减少镜头或新建画布');
+  if (state.nodes.length + pending.length > JHT_LIMITS.nodes || state.edges.length + pending.length > JHT_LIMITS.edges) return toast('展开后将超过画布容量，请减少镜头或新建画布');
   state.pendingNodePosition = null;
   for (const scene of pending) {
     const index = scenes.indexOf(scene);
@@ -1225,7 +1378,7 @@ function connectionProblem(source, target) {
   }
   if (target.type === 'script' && source.type !== 'prompt' && !isMediaNode(source)) return '脚本节点支持连接文本、图片、视频和音频素材';
   if (target.type === 'script' && isMediaNode(source) && !nodeAsset(source)) return '请先为素材节点上传或选择文件，再连接脚本';
-  if (state.edges.length >= 400 && !state.edges.some(edge => edge.from === source.id && edge.to === target.id && edge.relation === 'agent-flow')) return '画布连线已达上限';
+  if (state.edges.length >= JHT_LIMITS.edges && !state.edges.some(edge => edge.from === source.id && edge.to === target.id && edge.relation === 'agent-flow')) return '画布连线已达上限';
   return '';
 }
 async function connectPort(nodeId, port) {
@@ -1279,7 +1432,8 @@ function startNodeDrag(event, node) {
     const element = document.querySelector(`.node[data-node="${CSS.escape(id)}"]`);
     return item && element ? { item, element, x: parseFloat(element.style.left), y: parseFloat(element.style.top) } : null;
   }).filter(Boolean);
-  state.drag = { kind: 'node', node, items, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, moved: false };
+  const anchor = items.find(({item}) => item.id === nodeId) || items[0];
+  state.drag = { kind: 'node', node, items, anchor, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, moved: false };
   // Capture only after actual movement; capturing here redirects title
   // clicks/double-clicks to the canvas and incorrectly opens the node palette.
 }
@@ -1315,9 +1469,9 @@ function bindNodeEvents() {
     openTextNode(button.dataset.editText);
   });
   document.querySelectorAll('.node').forEach(node => {
-    node.addEventListener('keydown', event => {
+    node.onkeydown = event => {
       if (event.target === node && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); updateSelection(node.dataset.node); }
-    });
+    };
   });
   document.querySelectorAll('[data-node-port]').forEach(port => {
     port.setAttribute('role', 'button'); port.tabIndex = 0;
@@ -1358,14 +1512,6 @@ function finishCanvasDrag(event) {
   const drag = state.drag;
   if (!drag || (event?.pointerId != null && event.pointerId !== drag.pointerId)) return;
   state.drag = null;
-  if (drag.kind === 'node' && drag.moved && state.snapToGrid) {
-    for (const { item, element } of drag.items || []) {
-      item.x = Math.round(item.x / 24) * 24;
-      item.y = Math.round(item.y / 24) * 24;
-      element.style.left = item.x + 'px'; element.style.top = item.y + 'px';
-    }
-    renderEdges();
-  }
   canvasWorkspace?.refresh();
   canvas.classList.remove('is-moving', 'is-panning');
   if (canvas.hasPointerCapture(drag.pointerId)) canvas.releasePointerCapture(drag.pointerId);
@@ -1489,9 +1635,10 @@ function bindCanvas() {
     } else if (drag.kind === 'node') {
       const items = drag.items || [];
       if (!items.length) return finishCanvasDrag(event);
+      const delta = gridDragDelta(drag.anchor, dx / state.zoom, dy / state.zoom, state.snapToGrid);
       items.forEach(({ item, element, x, y }) => {
-        item.x = x + dx / state.zoom;
-        item.y = y + dy / state.zoom;
+        item.x = x + delta.dx;
+        item.y = y + delta.dy;
         element.style.left = item.x + 'px';
         element.style.top = item.y + 'px';
       });
@@ -1546,11 +1693,27 @@ function bindCanvas() {
   $('#fitBtn').onclick = () => { fitCanvas(); scheduleSave(); };
   $('#resetCanvas').onclick = () => { state.panX = 0; state.panY = 0; setZoom(1); scheduleSave(); };
 }
-function setZoom(value) { canvasGroups?.refresh(); state.zoom = Math.max(canvasMinZoom(), Math.min(8, value)); $('#canvasStage').style.transform = `translate(${state.panX}px,${state.panY}px) scale(${state.zoom})`; $('#zoomText').textContent = `${Math.round(state.zoom * 100)}%`; canvasWorkspace?.refresh(); }
+function setZoom(value) { canvasGroups?.refresh(); state.zoom = Math.max(canvasMinZoom(), Math.min(8, value)); $('#canvasStage').style.transform = `translate(${state.panX}px,${state.panY}px) scale(${state.zoom})`; updateCanvasGrid($('#canvas .grid'), state); $('#zoomText').textContent = `${Math.round(state.zoom * 100)}%`; canvasWorkspace?.refresh();scheduleViewportNodes(); }
 
 function updateTaskNode(task, nodeId = state.selectedNodeId) {
   const targetId = nodeId || state.nodes.find(node => node.type === 'video')?.id;
   if (!targetId) return;
+  const previous=state.nodeTasks[targetId];
+  if(previous?.id===task?.id&&['done','cancelled'].includes(previous.status)&&['queued','running'].includes(task?.status))task=previous;
+  const request=videoRequests.get(videoSubmissionKey(targetId));
+  if(request?.stopped&&(task?.id===request.task_id||request.request_id&&task?.params?.request_id===request.request_id)){
+    task={...task,stop_requested:true,local_stop_requested:true,status_message:'已停止等待'};
+  }
+  if(stoppedTask(task))task={...task,provider_status:task.status,status:'cancelled'};
+  const plannedNode=state.nodes.find(n=>n.id===targetId);
+  if(plannedNode?.studioOutputAfter&&(task?.created_at||0)<plannedNode.studioOutputAfter)return;
+  if(plannedNode?.mujian&&!plannedNode.mujian.needsReview&&task?.status==='done'&&task.video_url&&plannedNode.referenceTaskId!==task.id){
+    const pid=state.project?.id;
+    api(`/api/tasks/${encodeURIComponent(task.id)}/history-asset`,json({})).then(asset=>{
+      if(state.project?.id!==pid||!state.nodes.includes(plannedNode)||state.nodeTasks[targetId]?.id!==task.id||stoppedTask(state.nodeTasks[targetId])||videoRequests.get(videoSubmissionKey(targetId,pid))?.stopping)return;
+      upsertAsset(asset);studioCanvas.bind(plannedNode,asset);plannedNode.referenceTaskId=task.id;scheduleSave();
+    }).catch(error=>toast(error.message));
+  }
   if (task) state.nodeTasks[targetId] = task;
   task = state.nodeTasks[targetId];
   syncVideoGenerateButton();
@@ -1563,13 +1726,20 @@ function updateTaskNode(task, nodeId = state.selectedNodeId) {
   if (dot) dot.className = `status-dot ${videoStatusClass(task, modelNode)}`;
   if (meta && modelNode) meta.outerHTML = videoMetaHtml(modelNode, task);
   if (preview) {
-    preview.dataset.playbackFailed = 'false';
-    preview.innerHTML = videoPreviewBody(modelNode, task);
+    const video=preview.querySelector('video'),url=videoPreviewUrl(modelNode,task);
+    const sameVideo=video&&url&&(video.getAttribute('src')===url||task?.id&&video.dataset.videoTask===task.id);
+    // A task can switch from its provider URL to a local cached URL while
+    // playing. Keep that task's current decoder; the next mount uses the cache.
+    if(!sameVideo){
+      const body=videoPreviewBody(modelNode,task);
+      if(preview.innerHTML!==body){preview.dataset.playbackFailed='false';preview.innerHTML=body;}
+    }
     const frameMedia = preview.querySelector('.frame-media');
     if (frameMedia) watchFrameMedia(modelNode, node, frameMedia);
     else clearFrameSize(modelNode, node);
     bindVideoPlayback(preview.querySelector('video'), task);
   }
+  if(modelNode)node.renderKey=nodeRenderKey(modelNode);
   if(task?.status==='done'&&modelNode?.referenceTaskId&&modelNode.referenceTaskId!==task.id) {
     prepareVideoReference(modelNode).then(()=>{renderAssets();scheduleSave();}).catch(error=>toast(error.message));
   }
@@ -1578,21 +1748,29 @@ function updateTaskNode(task, nodeId = state.selectedNodeId) {
 async function pollTask(taskId, nodeId) {
   if (state.taskPollers.has(taskId)) return;
   const projectId = state.project?.id;
+  const version=(videoPollVersions.get(taskId)||0)+1;
+  videoPollVersions.set(taskId,version);
+  const current=()=>state.project?.id===projectId&&videoPollVersions.get(taskId)===version;
   const poll = async () => {
-    if (state.project?.id !== projectId) { state.taskPollers.delete(taskId); return; }
+    if (!current()) return;
     try {
       const task = await api(`/api/tasks/${taskId}`);
-      if (state.project?.id !== projectId) { state.taskPollers.delete(taskId); return; }
+      if (!current()) return;
+      const request=videoRequests.get(videoSubmissionKey(nodeId,projectId));
+      if(request?.task_id===taskId&&(request.stopping||request.stopped)){state.taskPollers.delete(taskId);return;}
       if (state.nodeTasks[nodeId]?.id === taskId) updateTaskNode(task, nodeId);
-      if (task.status === 'done' && !(task.video_cache_status === 'pending') || task.status === 'failed' || task.status === 'blocked') {
+      if(stoppedTask(task)){state.taskPollers.delete(taskId);return;}
+      if (task.status === 'done' && !(task.video_cache_status === 'pending') || ['failed','blocked','cancelled'].includes(task.status)) {
         state.taskPollers.delete(taskId);
         if (task.status === 'done') state.lastCompletedTask = task;
         await loadHistory();
+        if(!current())return;
         toast(task.status === 'done' ? '视频生成完成' : describeTaskError(task).quotaLimited ? '模型用量达到上限，请在任务记录中查看处理方法' : describeTaskError(task).message);
         return;
       }
       state.taskPollers.set(taskId, window.setTimeout(poll, 2200));
     } catch (error) {
+      if(!current())return;
       if ([401,403,404,428].includes(error.status)) { state.taskPollers.delete(taskId); return; }
       state.taskPollers.set(taskId, window.setTimeout(poll, 5000));
     }
@@ -1605,8 +1783,10 @@ async function submitTask() {
   if (state.switchingProject || videoGenerationBusy(videoNode.id, projectId)) return;
   const submissionKey = videoSubmissionKey(videoNode.id, projectId);
   let submitting = false;
+  let request;
   try {
     captureSettings();
+    studioCanvas.validate(videoNode);
     const mode = deriveVideoMode(videoNode, state.nodes, state.edges, state.assets, state.characters);
     state.mode = mode;
     const input = resolveVideoInput(videoNode, state.nodes, state.edges);
@@ -1632,20 +1812,24 @@ async function submitTask() {
       if (unsupported.length) return toast(`当前模型不支持${unsupported.join('、')}，请在视频节点调整画幅或分辨率，或在脚本中调整镜头时长`);
     }
     const payload = { project_id: state.project.id, node_id: videoNode.id, prompt, negative_prompt: input.negative_prompt.trim(), mode: state.mode, model: model.model_id, model_config_id: model.id, aspect_ratio: params.aspect_ratio, duration: Number(params.duration), resolution: params.resolution, visual_style: params.visual_style||null, asset_ids: selectedAssets.map(asset => asset.id) };
+    request={kind:'video',project_id:projectId,node_id:videoNode.id,request_id:crypto.randomUUID()};
+    payload.request_id=request.request_id;videoRequests.set(submissionKey,request);
     videoSubmissions.add(submissionKey); submitting = true;
     syncVideoGenerateButton();
     await flushSave();
+    if(request.stopped||request.stopping)return;
     const task = await api('/api/tasks', json(payload));
-    if (state.project?.id !== projectId) return;
+    request.task_id=task.id;
+    if (state.project?.id !== projectId||request.stopped||request.stopping||request.finished||videoRequests.get(submissionKey)!==request) return;
     updateTaskNode(task, videoNode.id);
     await loadHistory();
-    if (state.project?.id !== projectId) return;
+    if (state.project?.id !== projectId||request.stopped||request.stopping||request.finished||videoRequests.get(submissionKey)!==request) return;
     if (task.status === 'queued' || task.status === 'running') pollTask(task.id, videoNode.id);
     else toast(task.error || (task.status === 'blocked' ? '请先配置模型 API Key' : '任务已提交'));
     if (task.status === 'queued' || task.status === 'running') toast('任务已提交，正在排队或生成');
-  } catch (error) { toast(error.message); }
+  } catch (error) { if(!request?.stopped&&!request?.stopping)toast(error.message); }
   finally {
-    if (submitting) videoSubmissions.delete(submissionKey);
+    if (submitting&&videoRequests.get(submissionKey)===request) videoSubmissions.delete(submissionKey);
     syncVideoGenerateButton();
   }
 }
@@ -1658,13 +1842,22 @@ async function loadHistory() {
   const latestByNode = {};
   sortedTasks.forEach(task => {
     const nodeId = task.params?.node_id, current = latestByNode[nodeId];
-    if (nodeId && (!current || ['queued','running'].includes(task.status) && !['queued','running'].includes(current.status))) latestByNode[nodeId] = task;
+    if (nodeId && (!current || !stoppedTask(task)&&['queued','running'].includes(task.status) && (stoppedTask(current)||!['queued','running'].includes(current.status)))) latestByNode[nodeId] = task;
   });
+  for(const [nodeId,task] of Object.entries(latestByNode)){
+    const current=state.nodeTasks[nodeId];
+    if(current&&current.id!==task.id&&(current.created_at||0)>(task.created_at||0))latestByNode[nodeId]=current;
+    if(current?.id===task.id&&['done','cancelled'].includes(current.status)&&['queued','running'].includes(task.status))latestByNode[nodeId]=current;
+    const request=videoRequests.get(videoSubmissionKey(nodeId,projectId));
+    if(request?.stopped&&(latestByNode[nodeId].id===request.task_id||request.request_id&&latestByNode[nodeId].params?.request_id===request.request_id)){
+      latestByNode[nodeId]={...latestByNode[nodeId],stop_requested:true,local_stop_requested:true,status_message:'已停止等待'};
+    }
+  }
   state.nodeTasks = { ...state.nodeTasks, ...latestByNode };
   syncVideoGenerateButton();
   Object.entries(latestByNode).forEach(([nodeId, task]) => {
     updateTaskNode(task, nodeId);
-    if (['queued','running'].includes(task.status) || task.video_cache_status === 'pending') pollTask(task.id, nodeId);
+    if (!stoppedTask(task)&&(['queued','running'].includes(task.status) || task.video_cache_status === 'pending')) pollTask(task.id, nodeId);
   });
   const latestDone = sortedTasks.find(task => task.status === 'done' && task.video_url);
   if (latestDone) state.lastCompletedTask = latestDone;
@@ -1679,21 +1872,26 @@ async function retryTask(task, accountReviewed = false) {
   if (state.project?.id !== projectId || state.switchingProject || videoGenerationBusy(nodeId, projectId)) return;
   if (describeTaskError(task).quotaLimited && !accountReviewed) return showQuotaHelp(task);
   const submissionKey = videoSubmissionKey(nodeId, projectId);
+  const request={kind:'video',project_id:projectId,node_id:nodeId,request_id:crypto.randomUUID()};
+  videoRequests.set(submissionKey,request);
   videoSubmissions.add(submissionKey);
   syncVideoGenerateButton();
   try {
-    const payload = { ...task.params }; delete payload.model_name;
+    const payload = { ...task.params,request_id:request.request_id }; delete payload.model_name;
     const next = await api('/api/tasks', json(payload));
-    if (state.project?.id !== projectId) return;
+    request.task_id=next.id;
+    if (state.project?.id !== projectId||request.stopped||request.stopping||request.finished||videoRequests.get(submissionKey)!==request) return;
     if (accountReviewed) closeModal();
     updateTaskNode(next, task.params.node_id); await loadHistory();
-    if (state.project?.id !== projectId) return;
+    if (state.project?.id !== projectId||request.stopped||request.stopping||request.finished||videoRequests.get(submissionKey)!==request) return;
     if (['queued','running'].includes(next.status)) pollTask(next.id, task.params.node_id); else toast(next.error || '任务未执行');
-  } catch (error) { toast(error.message); }
-  finally { videoSubmissions.delete(submissionKey); syncVideoGenerateButton(); }
+  } catch (error) { if(!request.stopped&&!request.stopping)toast(error.message); }
+  finally { if(videoRequests.get(submissionKey)===request)videoSubmissions.delete(submissionKey); syncVideoGenerateButton(); }
 }
 function renderAssetLibrary() { assetLibrary.refresh(); }
 function showView(view, conversationCommit=false) {
+  if(view==='logs'&&state.user?.role!=='admin'){toast('仅管理员可以查看系统日志');return;}
+  if(view!=='logs')adminLogs?.hide();
   if(!conversationCommit)conversationOpenRevision++;
   const homeRequested=view==='home';if(homeRequested)view='agent';
   if (view === 'works') view = 'projects';
@@ -1724,9 +1922,16 @@ function showView(view, conversationCommit=false) {
   const canvasView = view === 'canvas';
   $('#inspector').hidden = !canvasView;
   $('#renameProject').hidden = !canvasView;
-  $('#projectBreadcrumb').hidden = ['models', 'agent'].includes(view);
+  $('#projectBreadcrumb').hidden = ['models', 'agent', 'logs'].includes(view);
+  $('#adminLogBreadcrumb').hidden = view !== 'logs';
   $('#modelPageBreadcrumb').hidden = view !== 'models';
   $('#agentBreadcrumb').hidden = view !== 'agent';
+  if(view==='logs'){
+    $('#adminLogsView').classList.add('active-view');
+    adminLogs ||= createAdminLogs({container:$('#adminLogsView'),api,escapeHtml,onBack:()=>showView('home')});
+    void adminLogs.show();
+    return;
+  }
   if (view === 'agent') { $('#agentView').classList.add('active-view');if(homeRequested)homeHub?.goHome(new URLSearchParams(location.search).get('mode')==='canvas'?'canvas':undefined).catch(error=>toast(error.message));agentChat.show(); homeComposer?.show(); return; }
   if (view === 'models') {
     $('#modelsView').classList.add('active-view');
@@ -1853,7 +2058,7 @@ function selectAsset(id, video = selectedNode()) {
     if(index>=0&&!video.settings.frame_asset_ids.includes(id)){video.settings.frame_asset_ids[index]=id;scheduleSave();canvasWorkspace?.refresh();}
   }
   if(state.edges.some(edge=>edge.to===video.id&&edge.relation!=='agent-flow'&&state.nodes.some(node=>node.id===edge.from&&referenceAssetId(node,state.characters)===id))) {renderAssets();return;}
-  if (state.nodes.length >= 200 || state.edges.length >= 400) return toast('画布节点或连线已达上限，请先整理画布');
+  if (state.nodes.length >= JHT_LIMITS.nodes || state.edges.length >= JHT_LIMITS.edges) return toast('画布节点或连线已达上限，请先整理画布');
   video.settings = { ...video.settings, asset_ids: [...(video.settings?.asset_ids || []), id] };
   ensureAssetNodesForVideo(video);
   video.settings.mode = deriveVideoMode(video, state.nodes, state.edges, state.assets, state.characters);
@@ -1866,7 +2071,8 @@ function unselectAsset(id) {
   if(resolveVideoAssets(video,state.nodes,state.edges,state.assets,state.characters).entries.some(entry=>entry.asset.id===id&&entry.sources.some(source=>source.type==='prompt')))return toast('该素材由上游文本通过 @ 引用，请在上游文本中移除引用');
   if (resolveVideoAssets(video, state.nodes, state.edges, state.assets, state.characters).entries.some(entry => entry.asset.id === id && entry.sources.some(source => source.type === 'script'))) return toast('这张图片来自脚本资源，请在脚本的准备资源中移除关联');
   const sources = new Set(state.nodes.filter(node => ['asset', 'prop', 'character','audio','video-asset','video'].includes(node.type) && referenceAssetId(node, state.characters) === id).map(node => node.id));
-  state.edges = state.edges.filter(edge => edge.to !== video.id || !sources.has(edge.from));
+  for(const sourceId of sources)detachReference(state,video,sourceId,id);
+  detachReference(state,video,'',id);
   video.settings.asset_ids = (video.settings.asset_ids || []).filter(assetId => assetId !== id);
   for(const mention of video.settings.mentions||[])if(mention.asset_id===id)video.settings.prompt=String(video.settings.prompt||'').split(mention.token).join('');
   video.settings.mentions=(video.settings.mentions||[]).filter(mention=>mention.asset_id!==id);
@@ -1875,7 +2081,7 @@ function unselectAsset(id) {
   state.selectedEdgeIndex = null;
   renderEdges(); updatePortHighlights(); loadNodeSettings(); scheduleSave();
   if (!$('#canvasPanel').hidden && $('#canvasPanelTitle').textContent === '资产库') showAssetPanel();
-  toast('已断开该素材与当前视频的连接，素材节点仍可复用');
+  toast('已移除当前视频的素材引用');
 }
 function renderAssets() {
   const node = selectedNode();
@@ -1883,11 +2089,12 @@ function renderAssets() {
   if (node?.type === 'video') state.mode = deriveVideoMode(video, state.nodes, state.edges, state.assets, state.characters);
   const references = resolveVideoAssets(video, state.nodes, state.edges, state.assets, state.characters);
   state.selectedAssetIds = references.assetIds;
-  $('#assetRequirement').textContent = references.entries.length ? `${references.entries.length} 项参考素材 · 与画布连线同步` : '连接图片、视频或音频素材节点，将用于本镜头';
+  $('#assetRequirement').textContent = references.entries.length ? `${references.entries.length} 项参考素材` : '点击或输入 @ 引用素材';
   $('#selectedAssets').innerHTML = references.entries.map((entry, index) => {
     const { asset, sources } = entry;
     return `<div class="reference-asset" data-reference-asset="${escapeHtml(asset.id)}" ${asset.kind==='audio'?`data-audio-preview="${escapeHtml(asset.url)}"`:''} title="${escapeHtml(asset.name)}"><span class="reference-number">${index+1}</span>${asset.kind==='audio'&&asset.duration?`<span class="reference-duration">${Number(asset.duration).toFixed(1)}s</span>`:''}${asset.kind==='audio'?`<span class="reference-audio-icon">♪</span>`:asset.kind==='video'?`<span class="reference-audio-icon">${icon('play')}</span>`:asset.url ? `<img src="${escapeHtml(asset.url)}" alt="">` : `<span>${icon('image','ui-icon-sm')}</span>`}<div><strong>参考 ${index + 1} · ${escapeHtml(asset.name || '素材')}</strong><small>${sources.length ? `来自：${sources.map(source => escapeHtml(source.title || source.characterName || '参考节点')).join('、')}` : '待同步到画布'}</small>${sources.map(source => `<button data-reference-source="${escapeHtml(source.id)}">查看来源 ${icon('arrowUpRight','ui-icon-sm')}</button>`).join('')}</div><div class="reference-actions">${index > 0 ? `<button data-reference-up="${escapeHtml(asset.id)}" title="向前移动参考素材" aria-label="向前移动参考图">${icon('arrowUp','ui-icon-sm')}</button>` : ''}<button data-remove-asset="${escapeHtml(asset.id)}" title="断开与当前视频的连接" aria-label="移除参考素材">${icon('close','ui-icon-sm')}</button></div></div>`;
-  }).join('') + references.missing.map(item => `<div class="reference-missing">${escapeHtml(item.source?.title || '参考素材')}：${item.assetId ? '图片已失效' : '尚未绑定参考图'}${item.source ? `<button data-reference-source="${escapeHtml(item.source.id)}">查看来源 ↗</button>` : ''}</div>`).join('') || '<span class="asset-empty-hint">连接素材/角色节点，或上传图片作为参考</span>';
+  }).join('') + [...new Map(references.missing.filter(ref=>ref.source).map(ref=>[ref.source.id,ref.source])).values()].map(source=>`<div class="reference-asset" data-pending-reference="${escapeHtml(source.id)}" title="${escapeHtml(source.title)} · 待生成"><span class="reference-pending-cover">${icon('imageNode')}<small>待生成</small></span><div class="reference-actions"><button data-remove-reference-node="${escapeHtml(source.id)}" aria-label="移除参考 ${escapeHtml(source.title)}">${icon('close','ui-icon-sm')}</button></div></div>`).join('') || '<span class="asset-empty-hint">点击或输入 @，引用已上传的素材、画布图片或角色 / 场景素材</span>';
+  $('#selectedAssets').querySelectorAll('[data-remove-reference-node]').forEach(button=>button.onclick=()=>{detachReference(state,video,button.dataset.removeReferenceNode);renderEdges();loadNodeSettings();scheduleSave();});
   $('#selectedAssets').querySelectorAll('[data-remove-asset]').forEach(button => button.onclick = () => unselectAsset(button.dataset.removeAsset));
   $('#selectedAssets').querySelectorAll('[data-reference-source]').forEach(button => button.onclick = () => updateSelection(button.dataset.referenceSource));
   $('#selectedAssets').querySelectorAll('[data-reference-up]').forEach(button => button.onclick = () => {
@@ -1948,14 +2155,22 @@ const audioGenerator = createAudioGenerator({ api, json, escapeHtml, toast,
   onManageModels: options => openModelManagement('audio', options),
   onAssetCreated: asset => { upsertAsset(asset); if (state.view === 'assets') assetLibrary.render(); },
 });
+let canvasMentions;
 const inlineNodeMedia = createInlineNodeMedia({ state, api, json, escapeHtml, icon, toast,
   nodeAsset, upsertAsset, bindAsset: bindNodeAsset, selectedNode, select: updateSelection,
   save: scheduleSave, flushSave, manageModels: openModelManagement, selectVideoAsset: selectAsset,
   refresh: () => canvasWorkspace?.refresh(), showEditor: () => canvasWorkspace?.onSelect(),
-  removeReferenceEdge: (from,to) => { state.edges=state.edges.filter(edge=>!(edge.from===from&&edge.to===to&&edge.relation!=='agent-flow'));renderEdges();scheduleSave(); }
+  openMentions: input => canvasMentions?.open(input),
+  removeReferenceEdge: (from,to,assetId='') => { const node=state.nodes.find(n=>n.id===to);if(node)detachReference(state,node,from,assetId);renderEdges();scheduleSave(); }
+});
+const studioCanvas=createStudioCanvas({state,api,json,escapeHtml,icon,toast,upsertAsset,
+  select:updateSelection,renderNodes,loadNodeSettings,save:scheduleSave,flushSave,
+  showEditor:()=>canvasWorkspace?.onSelect(),
+  download:async asset=>{const blob=await api(`/api/assets/${encodeURIComponent(asset.id)}/download`,{responseType:'blob'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=asset.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},
+  refreshProject:async pid=>{const id=state.selectedNodeId;const assets=await api('/api/assets');if(state.project?.id!==pid||state.dirty)return;state.assets=assets;await loadProject(pid);if(state.nodes.some(n=>n.id===id))updateSelection(id);},
 });
 function installCanvasMentions() {
-  attachAssetMentions({root:document,selector:'#promptInput,#detailPromptInput,.inline-generation-prompt,[data-script-storyboard],[data-script-motion]',icon,escapeHtml,onError:toast,
+  canvasMentions=attachAssetMentions({root:document,selector:'#promptInput,#detailPromptInput,.inline-generation-prompt,[data-script-storyboard],[data-script-motion]',icon,escapeHtml,onError:toast,showNames:true,
     getLinkedReferences:input=>{
       const node=selectedNode();if(!node)return [];
       const inline=input.matches('.inline-generation-prompt');
@@ -1963,16 +2178,17 @@ function installCanvasMentions() {
       const settings=inline?node[node.type==='audio'?'audio_settings':'image_settings']:owner.settings;
       const media=node.type==='video'?resolveVideoAssets(node,state.nodes,state.edges,state.assets,state.characters).entries.map(entry=>({assetId:entry.asset.id,nodeId:entry.sources[0]?.id})):[...(settings?.reference_asset_ids||[]).map(assetId=>({assetId})),...state.edges.filter(edge=>edge.to===node.id&&edge.relation!=='agent-flow').map(edge=>state.nodes.find(item=>item.id===edge.from)).filter(Boolean).map(source=>({nodeId:source.id,assetId:nodeAsset(source)?.id}))];
       const texts=state.edges.filter(edge=>edge.to===node.id&&edge.relation!=='agent-flow').map(edge=>state.nodes.find(item=>item.id===edge.from)).filter(item=>item?.type==='prompt').map(item=>({nodeId:item.id}));
-      return [...media,...texts,...(settings?.mentions||[]).map(item=>({assetId:item.asset_id,nodeId:item.node_id}))];
+      return [...media,...texts,...inputSpecs(node,state).map(ref=>({nodeId:ref.nodeId})),...(settings?.mentions||[]).map(item=>({assetId:item.asset_id,nodeId:item.node_id}))];
     },
     getReferences:input=>{
       const node=selectedNode();if(!node)return [];
       const owner=input.id==='promptInput'?resolveVideoInput(node,state.nodes,state.edges).source||node:node;
       const settings=input.matches('.inline-generation-prompt')?node[node.type==='audio'?'audio_settings':'image_settings']:owner.settings;
       const ordered=node.type==='video'?resolveVideoAssets(node,state.nodes,state.edges,state.assets,state.characters).entries.map(entry=>entry.asset.id):settings?.reference_asset_ids||[];
-      return (settings?.mentions||[]).map((mention,index)=>{
-        const asset=state.assets.find(item=>item.id===mention.asset_id);
-        return {token:mention.token,nodeId:mention.node_id,assetId:mention.asset_id,name:mention.name,kind:mention.kind,url:asset?.url,duration:asset?.duration,number:ordered.includes(mention.asset_id)?ordered.indexOf(mention.asset_id)+1:index+1};
+      const mentions=settings?.mentions?.length?settings.mentions:(node.mujian?.inputs||[]).map((ref,i)=>({token:'图片'+(i+1),node_id:ref.nodeId,name:state.nodes.find(n=>n.id===ref.nodeId)?.title,kind:ref.kind}));
+      return mentions.map((mention,index)=>{
+        const ref=mentionReference(mention,state.nodes,state.assets,state.characters);
+        return {...ref,number:ordered.includes(ref.assetId)?ordered.indexOf(ref.assetId)+1:index+1};
       });
     },
     getItems:async()=>{
@@ -1981,11 +2197,12 @@ function installCanvasMentions() {
       for(const node of state.nodes) {
         if(node.id===current?.id)continue;
         const task=node.type==='video'?state.nodeTasks[node.id]:null;
-        const asset=node.type==='video'?state.assets.find(item=>item.task_id===task?.id):nodeAsset(node);
-        const kind=node.type==='character'?'character':node.type==='prompt'?'text':task?.status==='done'?'video':asset?.kind==='prop'?'image':asset?.kind;
-        if(!kind||(!asset&&node.type!=='prompt'&&task?.status!=='done'))continue;
+        if(node.mujian?.archived)continue;
+        const asset=node.type==='video'?state.assets.find(item=>item.id===node.referenceAssetId||task&&item.task_id===task.id):nodeAsset(node);
+        const kind=node.type==='character'?'character':node.type==='prompt'?'text':['asset','prop'].includes(node.type)?'image':task?.status==='done'?'video':asset?.kind==='prop'?'image':asset?.kind;
+        if(!kind||(!asset&&!['prompt','asset','prop','character'].includes(node.type)&&task?.status!=='done'))continue;
         if(asset)seen.add(asset.id);
-        items.push({nodeId:node.id,assetId:asset?.id,name:node.characterName||node.title||asset?.name,kind,url:asset?.url||task?.video_url,asset});
+        items.push({nodeId:node.id,assetId:asset?.id,name:node.characterName||node.title||asset?.name,kind,url:asset?.url||task?.video_url,asset,pending:!asset&&kind!=='text'});
       }
       for(const asset of state.assets)if(!seen.has(asset.id))items.push({assetId:asset.id,name:asset.name,kind:asset.kind==='prop'?'image':asset.kind||'image',url:asset.url,asset});
       for(const character of state.characters) {
@@ -1998,22 +2215,28 @@ function installCanvasMentions() {
       const node=selectedNode();if(!node)throw new Error('请先选择节点');
 
       const source=state.nodes.find(candidate=>candidate.id===item.nodeId);
+      const canvasMedia=source&&(['video','asset','prop','character'].includes(node.type))&&['asset','prop','character','audio','video-asset','video'].includes(source.type);
+      if(canvasMedia)assertReferenceLink(state,source.id,node.id);
+      if(canvasMedia&&state.edges.length>=JHT_LIMITS.edges&&!state.edges.some(edge=>edge.from===source.id&&edge.to===node.id&&edge.relation!=='agent-flow'))throw new Error('画布连线已达上限');
+      if(node.type==='video'&&node.settings?.video_mode==='first-last'&&['audio','video'].includes(item.kind))throw new Error('首尾帧仅支持图片');
       if(node.type==='video'&&item.kind==='video'&&source?.type==='video') {
-        if(state.edges.length>=400&&!state.edges.some(edge=>edge.from===source.id&&edge.to===node.id))throw new Error('画布连线已达上限');
         item.asset=await prepareVideoReference(source);item.assetId=item.asset.id;
       }
-      if(input.matches('.inline-generation-prompt')&&item.asset) {
-        const allowed=node.type==='audio'?['image','prop','audio','text','script']:['image','prop','text','script'];
-        if(!allowed.includes(item.asset.kind||'image'))throw new Error('该素材类型不适用于当前生成节点');
+      if(input.matches('.inline-generation-prompt')) {
+        const allowed=node.type==='audio'?['image','character','prop','audio','text','script']:['image','character','prop','text','script'];
+        if(!allowed.includes(item.kind||'image'))throw new Error('该素材类型不适用于当前生成节点');
+        if(node.type==='audio'&&!item.asset&&item.kind!=='text')throw new Error('音频生成请引用已完成的素材');
       }
       return ()=>{
         if(!state.nodes.includes(node))return;
         const key=input.matches('.inline-generation-prompt')?(node.type==='audio'?'audio_settings':'image_settings'):'settings';
         const settings=node[key]||{};
         node[key]={...settings,mentions:[...(settings.mentions||[]).filter(m=>m.token!==token),{token,asset_id:item.assetId||'',node_id:item.nodeId||'',name:item.name,kind:item.kind,content:['text','script'].includes(item.asset?.kind)?String(item.asset.content||item.asset.description||'').slice(0,4000):''}]};
-        if(node.type==='video'&&item.kind==='video'&&source?.type==='video'&&!state.edges.some(edge=>edge.from===source.id&&edge.to===node.id)) {state.edges.push({from:source.id,to:node.id});renderEdges();}
+        if(canvasMedia&&!state.edges.some(edge=>edge.from===source.id&&edge.to===node.id&&edge.relation!=='agent-flow')) {state.edges.push({from:source.id,to:node.id,relation:'reference',hidden:!!node.mujian&&node.type==='video'});renderEdges();}
         if(node.type==='video'&&item.asset&&['image','prop','audio','video'].includes(item.asset.kind||'image'))selectAsset(item.asset.id,node);
-        else if(input.matches('.inline-generation-prompt'))inlineNodeMedia.mention(node,['image','prop','audio'].includes(item.asset?.kind)?item.asset:null);
+        else if(input.matches('.inline-generation-prompt'))inlineNodeMedia.mention(node,!canvasMedia&&['image','prop','audio'].includes(item.asset?.kind)?item.asset:null);
+        if(node.type==='video')renderAssets();
+        canvasMentions.refresh();
         scheduleSave();
       };
     }
@@ -2042,6 +2265,7 @@ const assetLibrary = createAssetLibrary({ state, api, json, escapeHtml, toast, s
 });
 const projectLibrary = createProjectLibrary({ state, api, json, icon, escapeHtml, toast, showModal, closeModal, flushSave,
   renderRecent: renderProjects, onOpen: selectProject, onCreate: newProjectModal,
+  onOpenConversation: openConversation, onCreateConversation:()=>{showView('home');homeComposer.select('image',true);},
   onDuplicate: duplicateProject, onDelete: confirmDeleteProject, onRestore: restoreProject, onPurge: confirmPurgeProject
 });
 function openCanvasPanel(title, subtitle, body) {
@@ -2273,12 +2497,14 @@ function saveScriptLocal(node, data) {
   if (syncScriptResourcesToCanvas()) { renderNodes(); loadNodeSettings(); }
   scheduleSave();
 }
-function bindScriptWorkflow() {
+function bindScriptWorkflow(focusedButton=document.activeElement) {
   const workflow = state.scriptWorkflow;
   if (!workflow) return;
   const node = scriptNodeById(workflow.nodeId);
   if (!node) return closeModal();
   const data = scriptDataForNode(node);
+  const entry=textRequestEntry(scriptGenerationRequests,node,'script');
+  workflow.generating=!!entry.request;
   $('#scriptExcelImportBtn')?.addEventListener('click', () => $('#scriptExcelFile').click());
   $('#scriptExcelFile')?.addEventListener('change', event => previewScriptExcel(event.target.files[0]));
   $('#scriptImportCancel')?.addEventListener('click', () => { workflow.excelPreview = null; workflow.excelError = ''; renderScriptWorkflow(); });
@@ -2293,11 +2519,8 @@ function bindScriptWorkflow() {
     expandScriptShots(node);
   });
   $('#scriptLlmSettings').onclick = llmConfigModal;
-  $('#scriptRetryAction')?.addEventListener('click', () => {
-    const failed = workflow.error;
-    workflow.error = null;
-    if (failed) generateScriptAction(failed.action, failed.sceneIndex);
-  });
+  const retry=$('#scriptRetryAction'),failed=workflow.error;
+  if(retry&&failed)mountTextRequestButton(entry,retry,'retry',()=>generateScriptAction(failed.action,failed.sceneIndex,'retry'),focusedButton);
   $('#scriptPrev').onclick = () => { if (workflow.step > 1) { workflow.step -= 1; renderScriptWorkflow(); } };
   $('#scriptNext').onclick = () => { if (workflow.step < 3) { workflow.step += 1; renderScriptWorkflow(); } };
   document.querySelectorAll('[data-script-meta]').forEach(input => input.oninput = () => { data[input.dataset.scriptMeta] = input.value; saveScriptLocal(node, data); });
@@ -2317,17 +2540,29 @@ function bindScriptWorkflow() {
   document.querySelectorAll('[data-script-delete-scene]').forEach(button => button.onclick = () => { data.scenes.splice(Number(button.dataset.scriptDeleteScene), 1); data.scenes.forEach((scene, index) => { scene.index = index + 1; }); saveScriptLocal(node, data); renderScriptWorkflow(); });
   if ($('#scriptAddScene')) $('#scriptAddScene').disabled = data.scenes.length >= 80;
   $('#scriptAddScene')?.addEventListener('click', () => { if (data.scenes.length >= 80) return toast('一个脚本最多 80 个镜头'); data.scenes.push({ index: data.scenes.length + 1, duration: '6s', description: '', shot_size: '中景', lighting: '', dialogue: '+', sound: '', camera: '', final_prompt: '' }); saveScriptLocal(node, data); renderScriptWorkflow(); });
-  $('#scriptGenerateScenes')?.addEventListener('click', () => generateScriptAction('script'));
-  $('#scriptGenerateResources')?.addEventListener('click', () => generateScriptAction('resources'));
-  $('#scriptGeneratePrompts')?.addEventListener('click', () => generateScriptAction('prompts'));
-  document.querySelectorAll('[data-script-generate-prompt]').forEach(button => button.onclick = () => generateScriptAction('prompts', Number(button.dataset.scriptGeneratePrompt) + 1));
+  for(const [selector,action] of [['#scriptGenerateScenes','script'],['#scriptGenerateResources','resources'],['#scriptGeneratePrompts','prompts']]){
+    const button=$(selector);
+    if(button)mountTextRequestButton(entry,button,action,()=>generateScriptAction(action,null,action),focusedButton);
+  }
+  document.querySelectorAll('[data-script-generate-prompt]').forEach(button=>{
+    const scene=Number(button.dataset.scriptGeneratePrompt)+1,key='prompts:'+scene;
+    mountTextRequestButton(entry,button,key,()=>generateScriptAction('prompts',scene,key),focusedButton);
+  });
+  // Moving between workflow steps keeps the actual active button available.
+  // Reuse its DOM so stopping and focus do not reset during a redraw.
+  const active=entry.buttons.get(entry.request?.buttonKey||entry.lastButtonKey);
+  if(active&&!active.button.isConnected&&(entry.request||active.button===focusedButton)){
+    $('.script-workflow-actions').prepend(active.button);
+    if(active.button===focusedButton)active.button.focus({preventScroll:true});
+  }
+  syncTextRequestButtons(entry);
   document.querySelectorAll('[data-script-unbind]').forEach(button => button.onclick = () => { const resource = scriptDataForNode(node).resources.find(item => item.id === button.dataset.scriptUnbind); if (!resource) return; Object.assign(resource, { asset_id: '', file_name: '', status: 'pending' }); saveScriptLocal(node, scriptDataForNode(node)); renderScriptWorkflow(); });
   document.querySelectorAll('[data-resource-filter]').forEach(button => button.onclick = () => { workflow.resourceFilter = button.dataset.resourceFilter; renderScriptWorkflow(); });
   document.querySelectorAll('[data-script-upload-resource]').forEach(button => button.onclick = () => pickScriptResourceFile(button.dataset.scriptUploadResource));
   document.querySelectorAll('[data-script-pick-resource]').forEach(button => button.onclick = () => chooseScriptResourceFromLibrary(button.dataset.scriptPickResource));
   document.querySelectorAll('[data-script-generate-image]').forEach(button => button.onclick = () => generateScriptResourceImage(button.dataset.scriptGenerateImage));
 }
-function renderScriptWorkflow() {
+function renderScriptWorkflow(focusedButton=document.activeElement) {
   const workflow = state.scriptWorkflow;
   const node = workflow && scriptNodeById(workflow.nodeId);
   if (!workflow || !node) return closeModal();
@@ -2337,23 +2572,33 @@ function renderScriptWorkflow() {
     view.innerHTML=`<div class="inline-script-workflow">${scriptWorkflowHtml(node,scriptDataForNode(node),workflow.step)}</div>`;
     canvasWorkspace?.refresh();
   } else showModal(scriptWorkflowHtml(node, scriptDataForNode(node), workflow.step), 'script-modal');
-  bindScriptWorkflow();
+  bindScriptWorkflow(focusedButton);
 }
-async function generateScriptAction(action, sceneIndex = null) {
+async function generateScriptAction(action, sceneIndex = null, buttonKey = sceneIndex?'prompts:'+sceneIndex:action) {
   const workflow = state.scriptWorkflow;
   const node = workflow && scriptNodeById(workflow.nodeId);
   if (!workflow || !node) return;
-  if (workflow.excelLoading || workflow.importSaving || workflow.generating) return toast('请等待当前操作完成');
+  const entry=textRequestEntry(scriptGenerationRequests,node,'script');
+  if(entry.request)return;
+  if (workflow.excelLoading || workflow.importSaving) return toast('请等待当前操作完成');
   if (workflow.excelPreview) return toast('请先确认或取消 Excel 导入预览');
   workflow.error = null;
-  workflow.generating = true;
-  const importButton = $('#scriptExcelImportBtn');
-  if (importButton) importButton.disabled = true;
-  const button = document.querySelector(action === 'script' ? '#scriptGenerateScenes' : action === 'resources' ? '#scriptGenerateResources' : '#scriptGeneratePrompts');
-  if (button) { button.disabled = true; button.textContent = '大模型处理中…'; }
+  const request={id:crypto.randomUUID(),buttonKey,action,sceneIndex,view:state.view};
+  entry.request=request;entry.lastButtonKey=buttonKey;syncTextRequestButtons(entry);
+  const projectId=state.project.id,scriptData=structuredClone(scriptDataForNode(node)),sourceText=scriptSourceText(node);
+  const current=()=>state.view===request.view&&textRequestVisible(entry)&&state.project?.id===projectId&&state.nodes.includes(node)&&state.scriptWorkflow===workflow;
   try {
     await flushSave();
-    const result = await api('/api/scripts/generate', json({ project_id: state.project.id, node_id: node.id, action, source_text: scriptSourceText(node), script_data: scriptDataForNode(node), revision: state.project.revision, scene_index: sceneIndex }));
+    if(request.stopping)await request.stopPromise;
+    if(request.stopped||entry.request!==request||!current())return;
+    const result = await api('/api/scripts/generate', json({ project_id:projectId,node_id:node.id,action,source_text:sourceText,script_data:scriptData,revision:state.project.revision,scene_index:sceneIndex,request_id:request.id }));
+    if(request.stopping)await request.stopPromise;
+    if(request.stopped||entry.request!==request||!current())return;
+    if(JSON.stringify(scriptDataForNode(node))!==JSON.stringify(scriptData)){
+      state.project.revision=result.project_revision;
+      scheduleSave();
+      return toast('脚本已编辑，本次生成结果未覆盖新内容');
+    }
     node.script_data = result.script_data;
     state.project.revision = result.project_revision;
     state.project.updated_at = result.updated_at;
@@ -2364,16 +2609,16 @@ async function generateScriptAction(action, sceneIndex = null) {
     renderScriptWorkflow();
     toast(action === 'script' ? '分镜脚本已生成' : action === 'resources' ? '资源清单已更新' : '镜头提示词已合成');
   } catch (error) {
+    if(request.stopping)await request.stopPromise;
+    if(request.stopped||entry.request!==request||!current()||error.detail?.code==='generation_request_stopped')return;
     const message = scriptGenerationErrorMessage(error);
     workflow.error = { message, action, sceneIndex };
     toast(message);
     if (!state.llm?.api_key_set && /api.?key|大模型/i.test(String(error?.message || ''))) llmConfigModal();
-    if (button) { button.disabled = false; button.innerHTML = action === 'script' ? `${icon('wand','ui-icon-sm')} 根据文本生成分镜` : action === 'resources' ? '重新分析资源' : `${icon('wand','ui-icon-sm')} 合成全部提示词`; }
   } finally {
-    workflow.generating = false;
-    if (state.scriptWorkflow === workflow) {
-      if (workflow.error) renderScriptWorkflow();
-      if ($('#scriptExcelImportBtn')) $('#scriptExcelImportBtn').disabled = false;
+    if(entry.request===request){
+      entry.request=null;workflow.generating=false;syncTextRequestButtons(entry);
+      if(current()&&workflow.error)renderScriptWorkflow();
     }
   }
 }
@@ -2635,13 +2880,25 @@ async function boot() {
     }
     waitingForMarket = false;
     state.user = await session.load();
+    $('#adminLogsNav').hidden = state.user.role !== 'admin';
     document.documentElement.dataset.appBoot = 'loading';
     $('#appBootMessage').textContent = '正在加载…';
     $('#appBootRetry').hidden = true;
     [state.options, state.characters, state.models, state.projects, state.assets, state.llm, state.conversations] = await Promise.all(['/api/options','/api/characters','/api/models','/api/projects','/api/assets','/api/llm','/api/conversations'].map(url => api(url)));
     $('#modelsBack').onclick = returnFromModelManagement;
     renderOptions(); bindModelControls(); bindNavigation(); bindRailToggles(); bindCanvas(); bindCanvasDock();
-    canvasWorkspace = createCanvasWorkspace({ state, icon, escapeHtml, selectedNode, nodeFootprint, updateSelection,
+    canvasWorkspace = createCanvasWorkspace({ state, icon, escapeHtml, selectedNode, nodeFootprint, updateSelection, history: canvasHistory,
+      openStudioStoryboard:async()=>{
+        const rid=state.project?.studio_run_id||state.nodes.find(n=>n.mujian?.runId)?.mujian.runId;
+        if(!rid)return false;
+        const projectId=state.project.id,revision=conversationOpenRevision;
+        const current=()=>state.view==='canvas'&&state.project?.id===projectId&&conversationOpenRevision===revision;
+        await flushSave();if(!current())return true;
+        const snapshot=await api(`/api/agent/runs/${encodeURIComponent(rid)}`);if(!current())return true;
+        await openConversation(snapshot.run.project_id,{preserveDraft:true});
+        if(state.view==='agent'&&state.activeConversationId===snapshot.run.project_id)agentChat.showProduction();
+        return true;
+      },
       toggleCanvasAgent: () => canvasAgent.toggle(),
       renderNodes, fitCanvas, setZoom, scheduleSave, showView, showNodePalette, closeCanvasPanel,
       showCanvasHistoryPanel, newProjectModal, openModelManagement, setRailState, toast, addLibraryAsset,
@@ -2663,7 +2920,7 @@ async function boot() {
     $('#duplicateProjectBtn').onclick = () => state.project && duplicateProject(state.project.id);
     $('#deleteProjectBtn').onclick = () => state.project && confirmDeleteProject(state.project.id);
     $('#uploadBox').onclick = () => $('#fileInput').click();
-    $('#chooseReferenceBtn').onclick = showAssetPanel;
+    $('#chooseReferenceBtn').onclick = () => canvasMentions.open($('#promptInput'));
     $('#fileInput').onchange = async event => { const files = [...event.target.files]; const resourceId = state.pendingScriptResourceId; state.pendingScriptResourceId = ''; if (resourceId) await uploadScriptResource(resourceId, files); else await uploadFiles(files); event.target.value = ''; };
     window.addEventListener('beforeunload', event => { if (state.dirty) { event.preventDefault(); event.returnValue = ''; } });
     window.addEventListener('keydown', event => {
@@ -2689,7 +2946,8 @@ async function boot() {
     const entry = new URLSearchParams(location.search);
     const resumeId = conversationResume.target(state.user, state.conversations, entry);
     if (entry.get('embedded') === '1') document.body.classList.add('agent-embedded');
-    if(entry.get('conversation'))await openConversation(entry.get('conversation'));
+    if(entry.get('view')==='logs'&&state.user.role==='admin')showView('logs');
+    else if(entry.get('conversation'))await openConversation(entry.get('conversation'));
     else if (entry.get('project')) await selectProject(entry.get('project'));
     else if (['projects','works'].includes(entry.get('view'))) showView('projects');
     else if (entry.get('view') === 'canvas' && state.projects.length) await selectProject(state.projects[0].id);
@@ -2716,7 +2974,21 @@ async function boot() {
 }
 
 $('#renameProject').onclick = editProjectNameInline; $('#modalClose').onclick = closeModal; $('#modalBackdrop').onclick = event => { if (event.target === $('#modalBackdrop')) closeModal(); }; $('#saveProjectBtn').onclick = () => saveProject(false).catch(() => {}); $('#generateBtn').onclick = submitTask;
+const canvasAgentActions=createCanvasAgentActions({state,escapeHtml,request:api,updateSelection,
+  refreshTasks:loadHistory,
+  syncSelection:syncNodeSelectionVisuals,refresh:()=>canvasWorkspace?.refresh(),fitCanvas,setZoom,save:scheduleSave,
+  openDetails:()=>canvasWorkspace?.onSelect(),showNodePalette,showHelp:showCanvasHelp});
 const agentChat = createAgentChat({ api, json, escapeHtml, toast,
+  onCanvasActions:canvasAgentActions,
+  getCanvasSelection:()=>({selected_node_ids:[...state.selectedNodeIds].slice(0,100),selected_group_id:state.selectedGroupId||null,
+    snap_to_grid:!!state.snapToGrid,show_edges:!$('#canvas').classList.contains('edges-hidden'),
+    minimap_visible:$('#toggleMinimap')?.getAttribute('aria-pressed')==='true',view_mode:$('#storyboardMode')?.getAttribute('aria-selected')==='true'?'storyboard':'workflow'}),
+  onOpenCanvas:async (projectId,episode,runId,nodeId)=>{
+    await flushSave();state.projects=await api('/api/projects');await selectProject(projectId);
+    canvasWorkspace?.setMode('workflow');
+    const target=nodeId?state.nodes.find(n=>n.id===nodeId):episode?state.nodes.find(n=>n.mujian?.episode===episode):state.nodes.find(n=>n.mujian?.role==='reference');
+    if(target){state.panX=80-target.x*.7;state.panY=100-target.y*.7;setZoom(.7);updateSelection(target.id);}
+  },
   onPreviewAsset:previewGeneratedAsset,
   onSaveAsset:(asset,inLibrary)=>assetLibrary.setLibraryMembership(asset,inLibrary),
   onConversationSnapshot:run=>{if(state.view==='agent'&&$('#agentView').dataset.homeMode==='agent'){homeHub?.showConversation();state.activeConversationId=run.project_id;conversationResume.remember(state.user,run.project_id);history.replaceState(null,'',`?conversation=${encodeURIComponent(run.project_id)}`);}const stamp=`${run.id}:${run.updated_at}`;if(state.conversationStamp!==stamp){state.conversationStamp=stamp;refreshConversations().catch(error=>toast(error.message));}},
@@ -2737,11 +3009,11 @@ const agentChat = createAgentChat({ api, json, escapeHtml, toast,
 });
 canvasAgent=createCanvasAgent({chat:agentChat,state,icon,toast,beforeOpen:flushSave,
   refreshCanvas:()=>canvasWorkspace?.refresh(),
-  contextText:()=>[`项目：${state.project?.name||'未命名'}`,...state.nodes.map(node=>`${node.title||node.type}：${node.settings?.prompt||node.text||node.script_data?.title||''}`)].join('\n').slice(0,6000)
 });
 homeComposer=createHomeComposer({api,json,escapeHtml,icon,toast,state,
   onSaveTask:(task,inLibrary)=>assetLibrary.saveTask(task,inLibrary),onRetryFile:asset=>assetLibrary.retryFile(asset),
   onModeChange:()=>{conversationResume.remember(state.user,state.activeConversationId);renderProjects();},
+  onConversationReady:()=>homeHub?.showConversation(),
   onPreviewAsset:previewGeneratedAsset,
   onSaveAsset:(asset,inLibrary)=>assetLibrary.setLibraryMembership(asset,inLibrary),
   onModels:kind=>openModelManagement(kind),onAssets:()=>showView('assets'),

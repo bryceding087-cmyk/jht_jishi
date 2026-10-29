@@ -157,6 +157,24 @@ class VideoReliabilityTests(unittest.TestCase):
         self.h.save_asset_to_library(asset['id'])
         self.assertEqual(len(self.h.listing('asset')), 1)
 
+    def test_file_errors_describe_download_stage_without_exposing_signed_urls(self):
+        import socket
+        import ssl
+        from urllib.error import HTTPError, URLError
+        cases = [
+            (URLError(socket.timeout('timed out')), '下载视频超时'),
+            (URLError(socket.gaierror('dns failure')), 'DNS'),
+            (URLError(ssl.SSLError('certificate failure')), '证书'),
+            (URLError(ConnectionRefusedError('refused')), '出口网络'),
+            (PermissionError('denied'), '写入权限'),
+            (HTTPError('https://cdn.test/video?secret=private', 403, 'forbidden', {}, None), 'HTTP 403'),
+        ]
+        for error, expected in cases:
+            message = self.h.video_file_error_message(error)
+            self.assertIn(expected, message)
+            self.assertNotIn('secret=private', message)
+            self.assertNotIn('模型可能仍在处理', message)
+
     def test_legacy_pending_failure_stops_retrying_even_if_history_is_opened_first(self):
         self.seed(status='done', video_url='https://cdn.test/video.mp4', auto_save_video=True,
             asset_save_status='pending', asset_save_error='old failed download', video_cache_status='pending')

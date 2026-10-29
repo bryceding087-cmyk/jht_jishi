@@ -46,6 +46,43 @@ const { fixture } = require('./browser_fixture.cjs');
     const initial = await snapshot();
     assert.deepEqual({ x: initial.x, y: initial.y, zoom: initial.zoom }, viewport);
 
+    if (process.argv.includes('--arrange')) {
+      const settle = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const layout = () => page.evaluate(() => ({
+        nodes: viewportTest.state.nodes.map(n => ({id:n.id,x:n.x,y:n.y})),
+        edges: structuredClone(viewportTest.state.edges), groups: structuredClone(viewportTest.state.groups),
+        viewport: {x:viewportTest.state.panX,y:viewportTest.state.panY,zoom:viewportTest.state.zoom}
+      }));
+      async function checkArrange() {
+        await settle();const before = await layout();
+        await page.locator('#arrangeCanvas').click();await settle();const after = await layout();
+        assert.notDeepEqual(after,before,'arrange changes layout or fits the viewport');
+        await page.keyboard.press('Control+z');await settle();
+        assert.deepEqual(await layout(),before,'Ctrl+Z restores nodes, group bounds, and the original camera');
+        await page.keyboard.press('Control+Shift+z');await settle();
+        assert.deepEqual(await layout(),after,'Ctrl+Shift+Z reapplies the full arrangement');
+        await page.keyboard.press('Control+z');await settle();
+        assert.deepEqual(await layout(),before,'repeated undo remains a single complete operation');
+        await page.evaluate(() => viewportTest.flushSave());
+        const saved = await (await context.request.get(origin+'/api/projects/'+project.id)).json();
+        assert.deepEqual(saved.nodes.map(n=>({id:n.id,x:n.x,y:n.y})),before.nodes);
+        assert.deepEqual(saved.groups,before.groups);
+        assert.deepEqual(saved.viewport,before.viewport,'restored camera is persisted');
+      }
+      await checkArrange();
+      await page.evaluate(() => { const t=viewportTest;t.state.selectedNodeIds=new Set(['picture','far-0']);t.state.selectedGroupId=null; });
+      await page.keyboard.press('Control+g');await settle();
+      assert.equal((await layout()).groups.length,1);
+      await checkArrange();
+      // Only the camera changes when the same graph is already arranged.
+      await page.locator('#arrangeCanvas').click();await settle();
+      await page.evaluate(() => { const t=viewportTest;t.state.panX+=120;t.state.panY-=80;t.setZoom(.7); });
+      await checkArrange();
+      assert.deepEqual(errors,[]);
+      console.log('PASS: arrange undo/redo for ungrouped/grouped canvases and camera-only fits; exact layout/camera persistence; no browser errors.');
+      return;
+    }
+
     if (process.argv.includes('--undo')) {
       const settle = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       const graph = () => page.evaluate(() => ({

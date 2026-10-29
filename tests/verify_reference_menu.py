@@ -26,6 +26,7 @@ def main():
     with wave.open(buffer,'wb') as stream:
         stream.setnchannels(1);stream.setsampwidth(2);stream.setframerate(16000);stream.writeframes(bytes(96000))
     audio=host.store_uploaded_asset(buffer.getvalue(),'刘三.wav','')
+    for asset in [*images[:3],audio]:host.save_asset_to_library(asset['id'])
     listener=socket.socket();listener.bind(('127.0.0.1',0));listener.listen(128)
     origin=f'http://127.0.0.1:{listener.getsockname()[1]}'
     server=uvicorn.Server(uvicorn.Config(host.app,log_level='error'))
@@ -45,8 +46,31 @@ def main():
             project_id=response.json()['id'];page=context.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
             page.goto(origin+'/?project='+project_id)
             page.locator('[data-node="target"] .frame-name').click()
-            editor=page.locator('#promptInput + .mention-editor');editor.fill('盛唐，长安平康坊，夜。 @')
-            menu=page.locator('.asset-mention-menu:not([hidden])');expect(menu).to_be_visible()
+            editor=page.locator('#promptInput + .mention-editor')
+            menu=page.locator('.asset-mention-menu:not([hidden])')
+            # The @ button inserts at the caret and reuses an unfinished mention.
+            editor.fill('晨雾中，走向镜头。');editor.press('Home')
+            for _ in range(4):editor.press('ArrowRight')
+            page.locator('#chooseReferenceBtn').click();expect(menu).to_be_visible()
+            expect(page.locator('#promptInput')).to_have_value('晨雾中，@走向镜头。')
+            page.locator('#chooseReferenceBtn').click();expect(menu).to_be_visible()
+            expect(page.locator('#promptInput')).to_have_value('晨雾中，@走向镜头。')
+            editor.press('Escape');expect(menu).to_have_count(0)
+            # All video parameters remain beside the generate button on desktop.
+            for width in [1440,1024]:
+                page.set_viewport_size({'width':width,'height':1000})
+                page.wait_for_timeout(200)
+                row=page.locator('.composer-parameters').evaluate('''el=>{
+                    const boxes=[...el.querySelectorAll(':scope > button')].map(b=>b.getBoundingClientRect());
+                    const generate=document.querySelector('#generateBtn').getBoundingClientRect();
+                    return {tops:boxes.map(r=>r.top),lastRight:boxes.at(-1).right,generateLeft:generate.left,
+                        overflow:el.scrollWidth-el.clientWidth};
+                }''')
+                assert max(row['tops'])-min(row['tops'])<1,row
+                assert row['lastRight']<row['generateLeft'] and row['overflow']<=1,row
+            page.screenshot(path=str(output/'00-video-parameters-one-row.png'))
+            page.set_viewport_size({'width':1440,'height':1000})
+            editor.fill('盛唐，长安平康坊，夜。 @');expect(menu).to_be_visible()
             expect(menu.locator('.mention-linked button')).to_have_count(9)
             expect(menu.locator('[data-mention-kind]')).to_have_count(5)
             assert menu.bounding_box()['width']<260
@@ -90,9 +114,59 @@ def main():
             editor.press('End');editor.press_sequentially(' @');expect(menu).to_be_visible()
             editor.press('ArrowUp');editor.press('Enter')
             expect(menu.locator('[data-mention-kind="asset"]')).to_have_attribute('aria-expanded','true')
-            expect(menu.locator('[data-mention-index]')).to_have_count(9)
+            expect(menu.locator('[data-mention-index]')).to_have_count(4)
+            assert set(menu.locator('[data-mention-index]').all_text_contents())=={'平康坊外','平康坊内','伴舞团','刘三'}
             editor.press('ArrowLeft');expect(menu.locator('.mention-flyout')).to_have_count(0)
             editor.press('Escape');expect(menu).to_have_count(0)
+            # Uploaded-only files and canvas character/scene nodes are all usable.
+            character=host.store_uploaded_asset(drawing(),'角色小雨.png','')
+            uploaded=host.store_uploaded_asset(drawing(),'新上传的山林.png','')
+            response=context.request.post(origin+'/api/projects',headers={'Origin':origin},data={
+                'name':'点击 @ 复用画布素材','nodes':[
+                    {'id':'scene','type':'asset','title':'雨中街道','assetId':images[0]['id'],'x':80,'y':60},
+                    {'id':'character','type':'character','characterName':'小雨','title':'小雨角色','assetId':character['id'],'x':80,'y':420},
+                    {'id':'video','type':'video','title':'视频引用目标','x':640,'y':60,'settings':{'prompt':''}},
+                    {'id':'picture','type':'asset','title':'图片引用目标','x':640,'y':420},
+                ],'edges':[],'viewport':{'x':0,'y':0,'zoom':1}})
+            assert response.ok,response.text()
+            reference_project=response.json()['id']
+            page.goto(origin+'/?project='+reference_project)
+            page.locator('[data-node="video"] .frame-name').click()
+            for name in ['雨中街道','小雨',uploaded['name']]:
+                page.locator('#chooseReferenceBtn').click();expect(menu).to_be_visible()
+                menu.locator('input').fill(name)
+                expect(menu.locator('[data-mention-index]')).to_have_count(1)
+                menu.locator('[data-mention-index]').click();expect(menu).to_have_count(0)
+            expect(editor.locator('.mention-token')).to_have_count(3)
+            expect(page.locator('#selectedAssets .reference-asset')).to_have_count(3)
+            expect(page.locator('#saveState')).to_have_text('已保存')
+            graph=context.request.get(origin+'/api/projects/'+reference_project).json()
+            target=next(n for n in graph['nodes'] if n['id']=='video')
+            assert {m['asset_id'] for m in target['settings']['mentions']}=={images[0]['id'],character['id'],uploaded['id']}
+            assert {e['from'] for e in graph['edges'] if e['to']=='video'}>={'scene','character'}
+            assert len([n for n in graph['nodes'] if n.get('assetId')==character['id']])==1
+            page.reload();page.locator('[data-node="video"] .frame-name').click()
+            expect(editor.locator('.mention-token')).to_have_count(3)
+            expect(page.locator('#selectedAssets .reference-asset')).to_have_count(3)
+            # Image generation uses the same picker and binds its reference IDs.
+            page.locator('#editorClose').click()
+            page.locator('[data-node="picture"] .frame-name').click()
+            composer=page.locator('[data-node-composer="picture"]')
+            composer.locator('[data-inline-action="reference"]').click();expect(menu).to_be_visible()
+            menu.locator('input').fill('小雨')
+            menu.locator('[data-mention-index]').click()
+            expect(composer.locator('.mention-token')).to_have_count(1)
+            expect(composer.locator('.inline-reference-list > div')).to_have_count(1)
+            expect(page.locator('#saveState')).to_have_text('已保存')
+            graph=context.request.get(origin+'/api/projects/'+reference_project).json()
+            target=next(n for n in graph['nodes'] if n['id']=='picture')
+            assert target['image_settings'].get('reference_asset_ids',[])==[]
+            assert any(e['from']=='character' and e['to']=='picture' for e in graph['edges'])
+            assert target['image_settings']['mentions'][0]['asset_id']==character['id']
+            page.reload();page.locator('#editorClose').click();page.locator('[data-node="picture"] .frame-name').click()
+            expect(composer.locator('.mention-token')).to_have_count(1)
+            expect(composer.locator('.inline-reference-list > div')).to_have_count(1)
+            page.screenshot(path=str(output/'04-image-mention-reference.png'))
             # Portrait images must fit the reference tile rather than growing a grid
             # track to their intrinsic height and painting over the prompt below.
             portrait_data=io.BytesIO();Image.new('RGB',(180,420),'#9eafb9').save(portrait_data,format='PNG')
@@ -121,7 +195,7 @@ def main():
                 assert metrics['note']['y']>=metrics['list']['bottom']-1,metrics
                 if width==1440:page.screenshot(path=str(output/'03-image-reference-tiles.png'))
             assert not errors,errors
-            print('PASS: linked references, scrolling, five categories, audio/text selection, search, empty state, no duplicate edges/cards, persistence; no browser errors')
+            print('PASS: click/type @, caret insertion, uploaded/canvas/character references, real bindings and persistence, one-row video controls, library filtering, audio/text selection; no browser errors')
             browser.close()
     finally:
         server.should_exit=True;thread.join(timeout=10);listener.close();CanvasGroupsTests.tearDownClass()

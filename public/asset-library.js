@@ -230,7 +230,7 @@ export function createAssetLibrary(ctx) {
     $$('[data-al-add]', root).forEach(button => button.onclick = event => { event.stopPropagation(); closeAssetMenus(); const asset = byId(button.dataset.alAdd); if (!asset) return; if (onPick) onPick(asset); else if (!state.project) toast('请先创建或打开一个项目'); else ctx.onAddAsset(asset); });
     $$('[data-al-menu]', root).forEach(button => button.onclick = event => { event.stopPropagation(); toggleAssetMenu(button); });
     $$('[data-al-delete]', root).forEach(button => button.onclick = event => { event.stopPropagation(); closeAssetMenus(); deleteAssets([button.dataset.alDelete]); });
-    $$('[data-al-download]', root).forEach(button => button.onclick = event => { event.stopPropagation(); closeAssetMenus(); downloadAsset(byId(button.dataset.alDownload)); });
+    $$('[data-al-download]', root).forEach(button => button.onclick = event => { event.stopPropagation(); closeAssetMenus(); downloadAsset(byId(button.dataset.alDownload), button); });
     $$('[data-al-move]', root).forEach(button => button.onclick = event => { event.stopPropagation(); closeAssetMenus(); moveAsset(byId(button.dataset.alMove)); });
     $$('[data-al-rename]', root).forEach(button => button.onclick = event => { event.stopPropagation(); closeAssetMenus(); renameAsset(byId(button.dataset.alRename)); });
   }
@@ -253,7 +253,8 @@ export function createAssetLibrary(ctx) {
     return `<label>素材名称<input id="alName" required maxlength="160" value="${esc(asset.name || '')}" placeholder="为素材起一个容易查找的名字"></label><div class="al-form-pair"><label>文件夹<select id="alFolder">${folderOptions(asset.folder_id || (ui.folder === '*' ? '' : ui.folder))}</select></label><label>标签<input id="alTags" maxlength="300" value="${esc(tagsOf(asset).join('，'))}" placeholder="用逗号分隔，如：工地，航拍"></label></div><label>素材说明<textarea id="alDescription" rows="3" maxlength="2000" placeholder="记录用途、场景或拍摄信息">${esc(asset.description || '')}</textarea></label>`;
   }
   function metadataValues() { return { name: $('#alName').value.trim(), folder_id: $('#alFolder').value, tags: [...new Set($('#alTags').value.split(/[,，、;；\n]/).map(value => value.trim()).filter(Boolean))], description: $('#alDescription').value.trim() }; }
-  function downloadAsset(asset) {
+  const downloading = new Set();
+  async function downloadAsset(asset, button) {
     if (!asset) return;
     const url = String(asset.url || '');
     const saveBlob = (blob, filename) => {
@@ -261,15 +262,28 @@ export function createAssetLibrary(ctx) {
       const link = document.createElement('a');
       link.href = objectUrl; link.download = filename;
       document.body.append(link); link.click(); link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
     };
     if (/^(?:https?:\/\/|\/)/.test(url)) {
-      const suffix = (url.split('?')[0].match(/\.[a-z0-9]{1,8}$/i) || [''])[0];
-      const name = asset.name || '素材';
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = suffix && !name.toLowerCase().endsWith(suffix.toLowerCase()) ? `${name}${suffix}` : name;
-      document.body.append(link); link.click(); link.remove();
+      if (!asset.id || downloading.has(asset.id)) return;
+      const id = asset.id;
+      downloading.add(id);
+      if (button) button.disabled = true;
+      toast('正在准备下载…');
+      try {
+        asset = await api(`/api/assets/${encodeURIComponent(id)}`, {background:true});
+        if (kindOf(asset)==='video' && asset.task_id && (asset.file_status!=='cached' || !asset.url?.startsWith('/uploads/'))) {
+          asset = rememberAsset(await api(`/api/assets/${encodeURIComponent(id)}/retry-file`, {...json({}),background:true}));
+          if (asset.file_status!=='cached') throw new Error('服务器未能保存视频文件。'+(asset.file_error||'请稍后重试。'));
+        }
+        const blob = await api(`/api/assets/${encodeURIComponent(id)}/download`, {responseType:'blob',background:true,redirect:'error'});
+        if (!blob.size) throw new Error('服务器返回了空文件，请重试。');
+        const suffix = (String(asset.url||'').split('?')[0].match(/\.[a-z0-9]{1,8}$/i) || [''])[0];
+        const name = asset.name || '素材';
+        saveBlob(blob, suffix && !name.toLowerCase().endsWith(suffix.toLowerCase()) ? `${name}${suffix}` : name);
+        toast('已开始下载');
+      } catch (error) { toast(error.message || '文件下载失败，请重试'); }
+      finally { downloading.delete(id); if (button?.isConnected) button.disabled = false; }
       return;
     }
     const kind = kindOf(asset);
@@ -335,7 +349,7 @@ export function createAssetLibrary(ctx) {
     $('#alPreviewSave',root).onclick=async event=>{const button=event.currentTarget;button.disabled=true;button.textContent=(byId(asset.id)||asset).in_library?'正在移出…':'正在保存…';await setLibraryMembership(asset);if(root.isConnected)updateSaveButton(asset);};
     $('#alPreviewAdd',root).onclick=()=>{if(!onPick&&!state.project)return toast('请先创建或打开一个项目');closeModal();if(onPick)onPick(byId(asset.id)||asset);else ctx.onAddAsset(byId(asset.id)||asset);};
     $('#alPreviewDelete').onclick = () => deleteAssets([asset.id]);
-    $('#alPreviewDownload').onclick = () => downloadAsset(asset);
+    $('#alPreviewDownload').onclick = event => downloadAsset(asset, event.currentTarget);
     let dimensions = '', duration = Number(asset.duration) || 0;
     const updateMedia = () => {
       wait.hidden = true;
@@ -367,7 +381,7 @@ export function createAssetLibrary(ctx) {
       $('.al-preview-info',root).innerHTML = `<dl class="al-preview-properties"><div><dt>名称</dt><dd>${esc(details.name)}</dd></div><div><dt>创作者</dt><dd>${esc(details.creator_name||'未记录')}</dd></div><div><dt>创建于</dt><dd>${esc(created)}</dd></div><div><dt>来源</dt><dd>${sourceOf(details)==='generated'?'AI 生成':'上传素材'}</dd></div><div><dt>尺寸</dt><dd id="alPreviewDimensions">${esc(dimensions||'—')}</dd></div>${kind==='video'||kind==='audio'?`<div><dt>时长</dt><dd id="alPreviewDuration">${duration?`${duration.toFixed(1)} 秒`:'—'}</dd></div>`:''}<div><dt>文件大小</dt><dd>${esc(bytes(details.size_bytes)||'—')}</dd></div></dl><div class="al-preview-section-heading"><span>生成信息</span>${prompt?`<button type="button" id="alPreviewCopy" aria-label="复制生成提示词" title="复制提示词">${icon('copy')}</button>`:''}</div><p class="al-preview-prompt ${prompt?'':'is-empty'}">${esc(prompt||'暂无生成信息')}</p>${badges.length?`<div class="al-preview-badges">${badges.map(text=>`<span title="${esc(text)}">${esc(text)}</span>`).join('')}</div>`:''}${refs.length?`<div class="al-preview-section-heading">参考素材</div><div class="al-preview-references">${refs.map(ref=>`<button type="button" data-preview-reference="${esc(ref.id)}" title="${esc(ref.name)}">${['image','prop'].includes(ref.kind)?`<img src="${safeUrl(ref.url)}" alt="${esc(ref.name)}">`:icon(ref.kind==='video'?'video':'audio')}</button>`).join('')}</div>`:''}${details.description?`<div class="al-preview-section-heading">素材说明</div><p class="al-preview-prompt">${esc(details.description)}</p>`:''}`;
       $('#alPreviewCopy',root)?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(prompt);toast('提示词已复制');}catch{toast('复制失败，请选择提示词手动复制');}});
       if(details.file_status==='failed'){
-        $('.al-preview-info',root).insertAdjacentHTML('afterbegin','<div class="al-error" role="alert">视频已生成，文件下载失败。<button type="button" id="alRetryFile">重试下载</button></div>');
+        $('.al-preview-info',root).insertAdjacentHTML('afterbegin',`<div class="al-error" role="alert">视频已生成，服务器保存文件失败。${details.file_error?`<p>${esc(details.file_error)}</p>`:''}<button type="button" id="alRetryFile">重试下载</button></div>`);
         $('#alRetryFile',root).onclick=async event=>{const button=event.currentTarget;button.disabled=true;const result=await retryFile(details);if(result&&root.isConnected)preview(result,onPick);else button.disabled=false;};
       }
       $$('[data-preview-reference]',root).forEach(button=>button.onclick=()=>preview(byId(button.dataset.previewReference)||refs.find(ref=>ref.id===button.dataset.previewReference)));
@@ -403,7 +417,7 @@ export function createAssetLibrary(ctx) {
     saving.set(id,promise);try{return await promise;}finally{saving.delete(id);redraw();}
   }
   async function retryFile(asset) {
-    try {const result=rememberAsset(await api(`/api/assets/${encodeURIComponent(asset.id)}/retry-file`,json({})));toast(result.file_status==='cached'?'视频文件已下载，已保留在生成历史':'文件下载失败，请稍后重试');return result;}
+    try {const result=rememberAsset(await api(`/api/assets/${encodeURIComponent(asset.id)}/retry-file`,json({})));toast(result.file_status==='cached'?'视频文件已下载，已保留在生成历史':result.file_error||'文件下载失败，请稍后重试');return result;}
     catch(error){toast(error.message);return null;}
   }
   function saveNode(node) { return setLibraryMembership(node?.assetId || node?.asset_id); }
@@ -441,6 +455,7 @@ export function createAssetLibrary(ctx) {
       const button = event.currentTarget; button.disabled = true; button.textContent = '正在删除…';
       const results = await Promise.allSettled(assets.map(asset => api(`/api/assets/${encodeURIComponent(asset.id)}`, { method: 'DELETE' })));
       const failed = results.flatMap((result, index) => result.status === 'rejected' ? [{ asset: assets[index], message: result.reason.message }] : []);
+      results.forEach((result,index)=>{if(result.status==='fulfilled')document.dispatchEvent(new CustomEvent('asset-deleted',{detail:assets[index]}));});
       ui.selected = new Set(failed.map(item => item.asset.id));
       await refresh();
       if (failed.length) { formError(`已删除 ${assets.length - failed.length} 项，以下 ${failed.length} 项未删除：\n${failed.map(item => `${item.asset.name}：${item.message}`).join('\n')}`); button.hidden = true; $('#alDeleteCancel').textContent = '关闭'; }

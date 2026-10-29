@@ -1,5 +1,5 @@
 import { videoReferenceCover } from './reference-video.js?v=1';
-import { createMentionEditor } from './mention-editor.js?v=conversation-separation-1';
+import { createMentionEditor } from './mention-editor.js?v=studio-references-2';
 // A shared, non-modal @ picker for Agent messages and canvas prompt editors.
 export function expandAssetMentions(text,mentions=[],nodes=[],assets=[]) {
   let result=String(text||'');
@@ -11,7 +11,7 @@ export function expandAssetMentions(text,mentions=[],nodes=[],assets=[]) {
   }
   return result;
 }
-export function attachAssetMentions({root=document,selector,getItems,getReferences=()=>[],getLinkedReferences=getReferences,onSelect,icon,escapeHtml:esc,onError=()=>{}}) {
+export function attachAssetMentions({root=document,selector,getItems,getReferences=()=>[],getLinkedReferences=getReferences,onSelect,onPreviewImage,icon,escapeHtml:esc,onError=()=>{},showNames=false}) {
   const menu=document.createElement('section');menu.className='asset-mention-menu';menu.hidden=true;
   menu.setAttribute('aria-label','引用素材');document.body.append(menu);
   const categories=[['image','图片','imageNode'],['video','视频','play'],['audio','音频','audio'],['text','文本','text'],['asset','资产','folder']];
@@ -35,11 +35,11 @@ export function attachAssetMentions({root=document,selector,getItems,getReferenc
     const refs=getReferences(input)||[],local=chosen.get(input)||[];
     return [...refs,...local.filter(item=>!refs.some(ref=>ref.token===item.token))].map((item,index)=>({...item,number:item.number||refs.find(ref=>item.assetId&&ref.assetId===item.assetId)?.number||index+1}));
   }
-  const thumbnail=item=>item.kind==='video'&&item.url?videoReferenceCover(item,esc):['image','character','prop'].includes(item.kind)&&item.url?`<img src="${esc(item.url)}" alt="">`:`<span class="mention-type-icon">${item.kind==='audio'?'♪':icon(item.kind==='video'?'play':'text')}</span>`;
+  const thumbnail=item=>item.kind==='video'&&item.url?videoReferenceCover(item,esc):['image','character','prop'].includes(item.kind)&&item.url?`<img src="${esc(item.url)}" alt="">`:`<span class="mention-type-icon">${item.kind==='audio'?'♪':icon(item.kind==='video'?'play':['image','character','prop'].includes(item.kind)?'imageNode':'text')}</span>`;
   const menuThumbnail=item=>item.kind==='audio'?`<span class="mention-type-icon">${icon('audio')}</span>`:thumbnail(item);
   function decorate(input){
     if(editors.has(input))return;
-    const adapter=createMentionEditor(input,{references:()=>references(input),visual:item=>`${thumbnail(item)}<span>${kindLabel(item.kind)} ${item.number}</span>`,thumbnail:item=>`${thumbnail(item)}<span class="reference-number">${item.number}</span>${item.kind==='audio'&&item.duration?`<span class="reference-duration">${Number(item.duration).toFixed(1)}s</span>`:''}`,onHover:openHover,onLeave:()=>{clearTimeout(hoverTimer);if(session?.hover)hoverTimer=setTimeout(close,300);},onChange:update,onKey:event=>{if(!event.defaultPrevented)input.onkeydown?.(event);}});
+    const adapter=createMentionEditor(input,{references:()=>references(input),visual:item=>`${thumbnail(item)}<span class="mention-name">${showNames?esc(item.name||kindLabel(item.kind)):kindLabel(item.kind)+' '+item.number}</span>${showNames&&item.pending?'<small class="mention-pending-label">待生成</small>':''}`,thumbnail:item=>`${thumbnail(item)}<span class="reference-number">${item.number}</span>${item.kind==='audio'&&item.duration?`<span class="reference-duration">${Number(item.duration).toFixed(1)}s</span>`:''}`,onPreview:onPreviewImage?item=>{clearTimeout(hoverTimer);close();onPreviewImage({...item,kind:item.kind==='character'?'image':item.kind});}:undefined,onHover:openHover,onLeave:()=>{clearTimeout(hoverTimer);if(session?.hover)hoverTimer=setTimeout(close,300);},onChange:update,onKey:event=>{if(!event.defaultPrevented)input.onkeydown?.(event);}});
     editors.set(input,adapter);
   }
   function scan(){root.querySelectorAll(selector).forEach(decorate);root.querySelectorAll('[data-audio-preview]').forEach(previewDuration);}
@@ -90,11 +90,11 @@ export function attachAssetMentions({root=document,selector,getItems,getReferenc
       return item?[item.assetId||key(item),item]:null;
     }).filter(Boolean)).values()];
     const kind=item=>({character:'image',prop:'image',script:'text'})[item.kind]||item.kind;
-    shown=term?items.filter(item=>(item.name||'').toLocaleLowerCase().includes(term)):category==='all'?linked:items.filter(item=>category==='asset'?!!item.assetId:kind(item)===category);
+    shown=term?items.filter(item=>(item.name||'').toLocaleLowerCase().includes(term)):category==='all'?linked:items.filter(item=>category==='asset'?!!item.assetId&&item.asset?.in_library===true:kind(item)===category);
     rootLinkedCount=linked.length;
     const rootView=!term&&category==='all';
     active=Math.min(active,Math.max(0,(rootView?linked.length+categories.length:shown.length)-1));
-    const row=(item,index)=>`<button type="button" role="option" id="mention-option-${version}-${index}" aria-selected="${index===active}" data-mention-index="${index}">${menuThumbnail(item)}<span>${esc(item.name)}</span></button>`;
+    const row=(item,index)=>`<button type="button" role="option" id="mention-option-${version}-${index}" aria-selected="${index===active}" data-mention-index="${index}">${menuThumbnail(item)}<span>${esc(item.name)}</span>${item.pending?'<small>待生成</small>':''}</button>`;
     const results=()=>`<div class="mention-results" role="listbox" aria-label="素材引用候选">${shown.map(row).join('')||'<p class="mention-empty">没有匹配素材</p>'}</div>`;
     menu.innerHTML=`<div class="mention-categories"><label>${icon('search')}<input type="text" aria-label="搜索引用素材" placeholder="搜索" value="${esc(session.term)}"></label><div class="mention-menu-scroll">${term?results():`${linked.length?`<small>已引用</small><div class="mention-linked" role="listbox" aria-label="已引用素材">${linked.map((item,index)=>`<button type="button" role="option" aria-selected="${category==='all'&&index===active}" data-linked-index="${index}">${menuThumbnail(item)}<span>${esc(item.name)}</span></button>`).join('')}</div>`:''}<small>素材引用</small>${categories.map(([id,label,glyph])=>`<button type="button" data-mention-kind="${id}" aria-pressed="${category===id}" aria-expanded="${category===id}" aria-haspopup="listbox">${icon(glyph)}<span>${label}</span>${icon('chevronRight')}</button>`).join('')}`}</div></div>${!term&&category!=='all'?`<div class="mention-flyout"><small>${categories.find(item=>item[0]===category)[1]}</small>${results()}</div>`:''}`;
     menu.querySelectorAll('[data-linked-index]').forEach((button,index)=>{button.id=`mention-linked-${version}-${index}`;});
@@ -128,7 +128,10 @@ export function attachAssetMentions({root=document,selector,getItems,getReferenc
     if(input.readOnly||input.disabled){close();return;}
     try {
       // Validate/bind first. A failed reference must not leave a fake @ token.
-      const token='@'+String(item.name||'素材').replace(/[\r\n]/g,' ');
+      const existing=references(input),base='@'+String(item.name||'素材').replace(/[@\r\n]/g,' ');
+      let token=existing.find(ref=>item.nodeId?ref.nodeId===item.nodeId:!ref.nodeId&&ref.assetId===item.assetId)?.token||base;
+      let suffixNumber=2;
+      while(existing.some(ref=>ref.token===token&&(item.nodeId?ref.nodeId!==item.nodeId:ref.assetId!==item.assetId)))token=base+'（'+suffixNumber+++'）';
       const apply=await onSelect(item,input,token);
       if(session!==current)return;
       if(!input.isConnected){close();return;}
@@ -204,5 +207,19 @@ export function attachAssetMentions({root=document,selector,getItems,getReferenc
     }
     close();
   }
-  return {close,removeReference,refresh(){scan();root.querySelectorAll(selector).forEach(input=>editors.get(input)?.render());},open(input){input.focus({preventScroll:true});const p=input.selectionStart??input.value.length;input.setRangeText('@',p,input.selectionEnd??p,'end');editors.get(input)?.render();input.dispatchEvent(new Event('input',{bubbles:true}));}};
+  function open(input) {
+    if(!input?.isConnected||input.readOnly||input.disabled)return;
+    decorate(input);
+    input.focus({preventScroll:true});
+    // Reopen an unfinished mention without adding another @. Otherwise insert
+    // at the saved selection and keep the visible editor's caret in sync.
+    if(query(input)){update(input);return;}
+    const start=input.selectionStart??input.value.length,end=input.selectionEnd??start;
+    if(input.maxLength>0&&input.value.length-(end-start)+1>input.maxLength){onError('提示词已达到长度上限');return;}
+    input.setRangeText('@',start,end,'end');
+    editors.get(input)?.render();
+    input.setSelectionRange(start+1,start+1);
+    input.dispatchEvent(new Event('input',{bubbles:true}));
+  }
+  return {close,removeReference,refresh(){scan();root.querySelectorAll(selector).forEach(input=>editors.get(input)?.render());},open};
 }

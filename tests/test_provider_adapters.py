@@ -147,7 +147,7 @@ class ModelRegistryIntegrationTests(unittest.TestCase):
         self.assertEqual(saved['query_path'], '/custom/{task_id}')
         self.assertEqual(saved['api_key'], 'test-api-key')
         registry = self.module.model_registry()
-        self.assertEqual(len(registry['providers']['video']), 2)
+        self.assertEqual({p['id'] for p in registry['providers']['video']}, {'ark', 'aimarket', 'minimax'})
         self.assertNotIn('test-api-key', json.dumps(registry))
 
     def test_query_default_and_768p_are_available(self):
@@ -215,6 +215,8 @@ class ModelRegistryIntegrationTests(unittest.TestCase):
                         project_id=project['id'], node_id='video-node', model_config_id=model['id'],
                         model='previous-ark-model',
                         **params(resolution=resolution, duration=duration, negative_prompt='模糊')))
+                    worker.assert_not_called()
+                    self.module.generation_queue.tick()
                     worker.return_value.start.assert_called_once_with()
                     job = worker.call_args.kwargs
                     job['target'](*job['args'])

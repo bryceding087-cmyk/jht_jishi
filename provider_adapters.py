@@ -15,7 +15,7 @@ PROVIDERS = {
     }, {
         'id': 'aimarket', 'name': 'AI Market',
         'description': '使用 AI 集市的 Chat Completions 接口，集市入口使用当前会话凭据。',
-        'defaults': {'model_id': 'deepseek-v4-flash-vision-exp-0817',
+        'defaults': {'model_id': 'deepseek-v4.1-flash',
                      'base_url': DOCKER_MODEL_ORIGIN, 'api_path': '/v1/chat/completions'},
     }],
     'image': [{
@@ -48,6 +48,12 @@ PROVIDERS = {
         'defaults': {'model_id': 'minimax-h3', 'base_url': DOCKER_MODEL_ORIGIN,
                      'api_path': '/v1/video_generation',
                      'query_path': '/v1/query/video_generation/{task_id}'},
+    }, {
+        'id': 'minimax', 'name': 'MiniMax 官网',
+        'description': 'MiniMax H3 官网 V2 视频接口，支持首尾帧和多模态参考，使用官网 API Key。',
+        'defaults': {'model_id': 'MiniMax-H3', 'base_url': 'https://api.minimax.cn',
+                     'api_path': '/v2/video_generation',
+                     'query_path': '/v2/query/video_generation/{task_id}'},
     }],
 }
 
@@ -82,14 +88,19 @@ def provider_preset(kind, config):
 
 def video_capabilities(config):
     capabilities = deepcopy(config.get('capabilities') or {})
+    if provider_id('video', config) == 'ark' and 'seedance-2-5' in config.get('model_id', ''):
+        capabilities.update({'durations': list(range(4, 31)), 'resolutions': ['480p', '720p', '1080p'],
+                             'aspect_ratios': ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9'],
+                             'first_last_ratio': 'adaptive'})
     if provider_id('video', config) == 'ark' and any(name in config.get('model_id', '') for name in ('seedance-2-0', 'seedance-2.0')):
         capabilities.update({'durations': list(range(4, 16)), 'aspect_ratios': ['16:9', '9:16', '1:1', '4:3', '3:4', '21:9']})
-    if provider_id('video', config) == 'aimarket' and config.get('model_id') == 'minimax-h3':
+    if (provider_id('video', config) in ('aimarket', 'minimax')
+            and str(config.get('model_id', '')).lower() == 'minimax-h3'):
         # AI Market's published H3 profile lists 768P and 2K; its API validates
         # a 4–15 second duration. Apply this on read so saved configurations
         # also stop inheriting Seedance's 720p option. Other model IDs have
         # their own contracts and must not inherit the H3 limits.
-        capabilities.update({'resolutions': ['768p', '2k'], 'durations': list(range(4, 16))})
+        capabilities.update({'resolutions': ['768p', '2k'], 'durations': list(range(4, 16)), 'multi_shot': True})
     return capabilities
 
 
@@ -103,7 +114,7 @@ def video_reference_transport(config):
 def video_query_path(config):
     if config.get('query_path'):
         return config['query_path']
-    if provider_id('video', config) == 'aimarket':
+    if provider_id('video', config) in ('aimarket', 'minimax'):
         return provider_preset('video', config)['defaults']['query_path']
     return config.get('api_path', PROVIDERS['video'][0]['defaults']['api_path']).rstrip('/') + '/{task_id}'
 
@@ -133,13 +144,17 @@ def video_payload(params, config, reference_url, reference_kind=lambda _: 'image
         content.append(item)
     payload = {'model': config['model_id'], 'content': content,
                'resolution': params['resolution'], 'duration': params['duration'], 'ratio': params['aspect_ratio']}
-    if provider_id('video', config) == 'aimarket':
+    if provider_id('video', config) in ('aimarket', 'minimax'):
         payload['resolution'] = payload['resolution'].upper()
         # The documented AI Market request omits watermark. Both false and
         # "false" are rejected by H3; do not forward Ark-only flags here.
     else:
         payload['watermark'] = False
         payload['generate_audio'] = True
+    if params.get('mode') == 'first-last' and (provider_id('video', config) == 'minimax'
+            or provider_id('video', config) == 'ark' and 'seedance-2-5' in config['model_id']):
+        # Official H3 follows the input frame; Seedance 2.5 requires adaptive.
+        payload['ratio'] = 'adaptive'
     return payload
 
 

@@ -15,7 +15,8 @@ import uuid
 import yaml
 
 from fastapi import APIRouter, HTTPException, Request
-from conversation_service import create_context
+from conversation_service import create_context, refine_initial_title
+from canvas_context import CanvasSelection, STUDIO_SKILLS
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from typing import Literal
 
@@ -25,6 +26,7 @@ from agent_planning import normalize_storyboard
 from agent_dialogue import dialogue, DIALOGUE_PROMPT
 from creator_metadata import creator_scope
 from visual_styles import VisualStyleSelection, resolve_style, adapt_style_text
+from agent_studio import StudioAgentMixin, DocumentEdit
 
 
 PHASES = {'story_review': '导演检查', 'analysis': '内容与时长分析', 'creative': '创意设计',
@@ -49,6 +51,7 @@ class Preferences(BaseModel):
     subtitles: bool = True
     canvas: bool = False
     models: dict[str, str] = Field(default_factory=dict)
+    studio_video_mode: Literal['first', 'first-last', 'reference', 'text'] = 'reference'
 
 
 class CreateRun(BaseModel):
@@ -58,6 +61,9 @@ class CreateRun(BaseModel):
     project_id: str | None = None
     asset_ids: list[str] = Field(default_factory=list, max_length=20)
     preferences: Preferences = Field(default_factory=Preferences)
+    workflow: Literal['studio', 'video'] = 'studio'
+    intent_hint: Literal['auto', 'image', 'video', 'script', 'produce'] = 'auto'
+    canvas_selection: CanvasSelection = Field(default_factory=CanvasSelection)
 
 
 class Message(BaseModel):
@@ -82,7 +88,7 @@ def fingerprint(value):
     return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
 
 
-class AgentService:
+class AgentService(StudioAgentMixin):
     def __init__(self, host):
         self.h = host
         self.lock = threading.RLock()
@@ -113,7 +119,7 @@ class AgentService:
     def patch(self, rid, **fields):
         with self.lock:
             run = self.get(rid)
-            if fields.get('status') in ('running','waiting_tool') and run.get('stop_requested') and fields.get('stop_requested') is not False:
+            if fields.get('status') not in (None, 'paused', 'cancelled') and run.get('stop_requested') and fields.get('stop_requested') is not False:
                 raise StopWork()
             run.update(fields)
             run['revision'] += 1
@@ -151,7 +157,19 @@ class AgentService:
         events = [self.h.hydrate_task_assets(dict(event)) if event.get('asset') else event for event in events]
         events = [event for event in events if event.get('kind') not in ('media', 'delivery') or event.get('asset')]
         project = self.h.raw_record('conversation', run['project_id']) or self.h.raw_record('project', run['project_id']) or {}
-        return {'run': run, 'events': events, 'project_revision': project.get('revision', 0)}
+        if run.get('engine') == 'studio-v1':
+            from agent_studio import public_studio_message
+            # Sanitize historical errors on read without rewriting saved dialogue.
+            if run.get('error'):
+                run = {**run, 'error': public_studio_message(run['error'])}
+            events = [{**event, 'text': public_studio_message(event.get('text', ''), progress=event['kind'] == 'progress')}
+                      if event.get('kind') in ('progress', 'issue', 'step') else event for event in events]
+        run = {**run, 'stopping': bool(run.get('stop_requested') and rid in self.active)}
+        result = {'run': run, 'events': events, 'project_revision': project.get('revision', 0)}
+        if run.get('engine') == 'studio-v1' and run.get('studio', {}).get('canvas_project_id'):
+            canvas = self.h.raw_record('project', run['studio']['canvas_project_id']) or {}
+            result['canvas_project_revision'] = canvas.get('revision', 0)
+        return result
 
     def capabilities(self):
         registry = self.h.model_registry()
@@ -160,11 +178,16 @@ class AgentService:
             render = True
         except HTTPException:
             render = False
-        return {'models': registry, 'skills': [{'id': s, 'description': self.skill_description(s)} for s in self.skill_paths if s != 'canvas-management'],
+        return {'models': registry, 'skills': [{'id': s, 'description': self.skill_description(s)} for s in self.skill_paths if s != 'canvas-management'] + [
+                    {'id':'studio-writing','description':'幕间分阶段写作：故事设定、分集大纲、正文与版本修订'},
+                    {'id':'studio-assets','description':'依据完整剧本拆出角色、场景、道具与逐镜提示词，保留原文出处'},
+                    {'id':'studio-production','description':'真实前置引用、分集画布、模型生成与整剧视频合成'}],
                 'definition_version':self.manifest['version'],'execution_enabled':self.manifest.get('execution_enabled',False),
                 'tools':[{'name':t['name'],'status':t['binding']['status'],'note':t['binding']['note']} for t in self.tool_catalog],
                 'render_available': render, 'aspect_ratios': ['16:9', '9:16', '1:1'],
-                'speech_sync': False, 'max_story_length': 24000, 'cost_available': False}
+                'speech_sync': False, 'max_story_length': 24000, 'cost_available': False,
+                'studio': {'version': 1, 'skills': STUDIO_SKILLS, 'intents': ['chat','image','video','script','produce','canvas'], 'max_episodes': 60,
+                           'canvas_limits': {'nodes': 1600, 'edges': 10000, 'group_members': 400}}}
 
     def skill_description(self, name):
         text = self.skill_paths[name].read_text(encoding='utf-8-sig')
@@ -172,6 +195,12 @@ class AgentService:
         return match[1] if match else name
 
     def create(self, body, owner):
+        with self.h.generation_stop.submission('agent', body.request_id, owner):
+            return self._create(body, owner)
+
+    def _create(self, body, owner):
+        if body.workflow == 'studio':
+            return self.studio_create(body, owner)
         if not self.manifest.get('execution_enabled'):
             raise HTTPException(503,'当前部署已关闭 Agent 制作')
         rid = 'agent-' + str(uuid.uuid5(uuid.NAMESPACE_URL, f'{owner}:{body.request_id}'))
@@ -191,12 +220,12 @@ class AgentService:
             for aid in body.asset_ids:
                 self.h.require_live_asset(aid)
             project = self.h.active_project(body.project_id) if body.project_id else create_context(
-                self.h,body.text.strip().split('\n')[0][:32] or 'Agent 创作','agent',owner,prompt=body.text.strip())
+                self.h,None,'agent',owner,prompt=body.text.strip())
             creation_type='canvas' if body.project_id else 'conversation'
             if creation_type=='conversation':preferences['canvas']=False
             run = {'id': rid, 'owner_id': str(owner), 'project_id': project['id'], 'title': project['name'],
                    'creation_type':creation_type,
-                   'definition_version': str(self.manifest['version']), 'created_project': not bool(body.project_id), 'revision': 1, 'event_seq': 0, 'status': 'running',
+                   'definition_version': str(self.manifest['version']), 'active_request_id': body.request_id, 'created_project': not bool(body.project_id), 'revision': 1, 'event_seq': 0, 'status': 'running',
                    'phase': 'story_review', 'source': body.text.strip(), 'working_story': body.text.strip(),
                    'preferences': preferences, 'asset_ids': body.asset_ids,
                    'artifacts': {}, 'operations': {}, 'approvals': [], 'processed_messages': [],
@@ -215,7 +244,7 @@ class AgentService:
         if run.get('stop_requested') or run['status'] in ('paused', 'cancelled'):
             raise StopWork()
 
-    def operation(self, rid, key, label, fn, *, replay_safe=False):
+    def operation(self, rid, key, label, fn, *, replay_safe=False, defer_completion=False):
         self.checkpoint(rid)
         run = self.get(rid)
         epoch = run.get('epochs', {}).get(key.split(':')[0], 0)
@@ -241,7 +270,8 @@ class AgentService:
         try:
             result = fn(f'{oid}:{attempt}')
             self.h.save('agent_operation', {**record, 'status': 'succeeded', 'result': result})
-            self.event(rid, 'step', label, step_id=oid, status='done')
+            if not defer_completion:
+                self.event(rid, 'step', label, step_id=oid, status='done')
             self.checkpoint(rid)
             return result
         except StopWork:
@@ -402,6 +432,9 @@ class AgentService:
         raise HTTPException(409, '画布正被修改，请保存画布后继续')
 
     def repair_canvas(self, rid, *, force=False):
+        if self.get(rid).get('engine') == 'studio-v1':
+            run = self.get(rid)
+            return self.h.creation_context(run['project_id'])
         """Migrate old layouts (also for paused/completed runs), without production."""
         run = self.get(rid)
         if run.get('creation_type')=='conversation':return self.h.raw_record('conversation',run['project_id'])
@@ -495,6 +528,8 @@ class AgentService:
             self._work(rid)
 
     def _work(self, rid):
+        if self.get(rid).get('engine') == 'studio-v1':
+            return self.studio_work(rid)
         try:
             for _ in range(48):
                 run = self.get(rid)
@@ -589,9 +624,13 @@ class AgentService:
             raise HTTPException(422, '品牌文字必须来自用户采用的故事')
         self.document(rid, 'director', '故事完整性检查', result, result.get('summary', '')+'\n\n'+json.dumps(result, ensure_ascii=False, indent=2))
         if run.get('created_project') and result.get('title'):
-            title = str(result['title']).strip()[:80]
-            self.patch(rid,title=title)
-            self.graph(rid, lambda graph: graph.update(name=title) if graph['name']==run['title'] else None)
+            if run.get('creation_type') == 'conversation':
+                title = refine_initial_title(self.h, run['project_id'], result['title'])
+                if title: self.patch(rid, title=title)
+            else:
+                title = str(result['title']).strip()[:80]
+                self.patch(rid,title=title)
+                self.graph(rid, lambda graph: graph.update(name=title) if graph['name']==run['title'] else None)
         self.say(rid, 'story_review', result)
         if result.get('complete') is True or run['accepted_gaps']:
             self.advance(rid, 'analysis')
@@ -703,9 +742,8 @@ class AgentService:
     def wait_media(self, rid, key, kind, submit):
         def produce(request_id):
             receipt = submit(request_id)
-            tid = receipt['id']
             # Receipt survives pause, restart and timeout independently of operation completion.
-            self.patch(rid, media_tasks={**self.get(rid).get('media_tasks', {}), key: {'id': tid, 'kind': kind}})
+            self.record_media_receipt(rid, key, kind, receipt)
             return receipt
         receipt = self.operation(rid, key+':submit', '提交'+{'image':'图片','audio':'音频','video':'视频'}[kind]+'生成', produce, replay_safe=True)
         if kind=='video':
@@ -717,6 +755,10 @@ class AgentService:
             self.checkpoint(rid)
             query = {'image': self.h.image_generation_status, 'audio': self.h.audio_generation_status, 'video': self.h.task}[kind]
             task = query(receipt['id'])
+            self.checkpoint(rid)
+            if task.get('local_stop_requested'):
+                self.patch(rid, status='cancelled', stop_requested=True, user_paused=True, studio_queue=[], queued_text=None)
+                raise StopWork()
             if kind=='video' and task.get('polling_interrupted'):
                 raise HTTPException(408, '供应商查询中断，任务编号已保留。点击继续查询可恢复，不会重新生成。')
             if task['status'] in ('done', 'succeeded'):
@@ -1141,9 +1183,36 @@ class AgentService:
         self.say(rid, 'review', duration=meta['duration'])
         self.question(rid,'G4','检查成片',choices=[{'id':'confirm','label':'已检查，完成交付'}],summary='文件与时长检查已通过。画面内容、音色和口型需要通过实际观看确认。')
 
+    def record_media_receipt(self, rid, key, kind, receipt):
+        with self.lock:
+            run = self.get(rid)
+            self.patch(rid, media_tasks={**run.get('media_tasks', {}), key: {
+                'id': receipt['id'], 'kind': kind, 'message_request_id': run.get('active_request_id')}})
+            if run.get('status') == 'cancelled':
+                self.h.generation_stop.stop_task({'image': 'image_task', 'video': 'task', 'audio': 'audio_task'}[kind], receipt['id'])
+
+    def stop_media(self, rid):
+        run = self.get(rid)
+        for receipt in run.get('media_tasks', {}).values():
+            if receipt.get('message_request_id') and receipt['message_request_id'] != run.get('active_request_id'):
+                continue
+            kind = {'image': 'image_task', 'video': 'task', 'audio': 'audio_task'}.get(receipt.get('kind'))
+            if kind and self.h.raw_record(kind, receipt.get('id')):
+                self.h.generation_stop.stop_task(kind, receipt['id'])
+
     def message(self,rid,body,owner):
+        if body.action in ('pause', 'cancel'):
+            return self._message(rid, body, owner)
+        with self.h.generation_stop.submission('agent', body.request_id, owner):
+            return self._message(rid, body, owner)
+
+    def _message(self,rid,body,owner):
+        if self.get(rid, owner).get('engine') == 'studio-v1':
+            return self.studio_message(rid, body, owner)
         with self.lock:
             run = self.get(rid,owner)
+            if run.get('stop_requested') and rid in self.active and run.get('user_paused') and body.action not in ('pause', 'cancel'):
+                raise HTTPException(409, {'code': 'agent_stopping', 'message': '上一项调用正在停止，请稍候再发送'})
             message_digest = fingerprint(body.model_dump())
             if body.request_id in run['processed_messages']:
                 if run.get('message_digests', {}).get(body.request_id, message_digest) != message_digest:
@@ -1194,7 +1263,9 @@ class AgentService:
                        asset_ids=list(dict.fromkeys(run['asset_ids']+body.asset_ids))[-40:])
             self.event(rid,'user',body.text or {'confirm':'我已确认以上信息','pause':'暂停制作','resume':'继续制作','retry':'重试失败步骤','cancel':'取消制作','preferences':'更新创作偏好'}.get(body.action,body.action or ''),asset_ids=body.asset_ids)
             if body.action in ('pause','cancel'):
-                self.patch(rid,status='paused' if body.action == 'pause' else 'cancelled',stop_requested=True,user_paused=True)
+                self.patch(rid,status='paused' if body.action == 'pause' else 'cancelled',stop_requested=True,user_paused=True,queued_text=None)
+                if body.action == 'cancel':
+                    self.stop_media(rid)
                 self.event(rid,'assistant','已停止提交新任务。已在供应商处理的任务可能继续，结果与费用会保留。')
             elif body.action in ('resume','retry'):
                 if body.action == 'retry':
@@ -1218,7 +1289,7 @@ class AgentService:
                     self.event(rid,'assistant','修改要求已记录，当前调用结束后将按影响范围更新。')
                 else:
                     self.patch(rid,status='running',stop_requested=False,user_paused=False,
-                               pending_job='revision',revision_text=body.text,revision_request=body.request_id,revision_return_status=run['status'])
+                               pending_job='revision',revision_text=body.text,revision_request=body.request_id,active_request_id=body.request_id,revision_return_status=run['status'])
         self.kick(rid)
         return self.snapshot(rid,owner)
 
@@ -1472,6 +1543,11 @@ def install_agent(app, host):
     def snapshot(rid:str,request:Request,after:int=0):
         return service.snapshot(rid,request.state.user['id'],after)
 
+    @router.get('/runs/{rid}/canvas-context')
+    def scoped_canvas_context(rid:str,request:Request):
+        from canvas_context import canvas_context
+        return canvas_context(host, service.get(rid, request.state.user['id']))
+
     @router.post('/runs/{rid}/messages',status_code=202)
     def message(rid:str,body:Message,request:Request):
         return service.message(rid,body,request.state.user['id'])
@@ -1480,6 +1556,19 @@ def install_agent(app, host):
     def arrange_canvas(rid:str,request:Request):
         service.get(rid,request.state.user['id'])
         return service.repair_canvas(rid,force=True)
+
+    @router.put('/runs/{rid}/documents/{key}')
+    def edit_document(rid: str, key: str, body: DocumentEdit, request: Request):
+        return service.studio_edit(rid, key, body, request.state.user['id'])
+
+    @router.get('/runs/{rid}/documents/{key}/versions')
+    def document_versions(rid: str, key: str, request: Request):
+        run = service.get(rid, request.state.user['id'])
+        if key not in run.get('studio', {}).get('documents', {}):
+            raise HTTPException(404, '稿件不存在')
+        return sorted([a for a in host.listing('agent_artifact')
+                       if a['id'].startswith(rid + ':') and a['name'] == 'studio:' + key],
+                      key=lambda a: a['revision'], reverse=True)
 
     @router.get('/runs/{rid}/artifacts/{asset_id}')
     def artifact(rid:str,asset_id:str,request:Request):

@@ -1,14 +1,24 @@
 # 建绘通 · AI 视频创作平台
 
-此目录为 AI 集市接入版本。默认文本模型为 `deepseek-v4-flash-vision-exp-0817`，图片模型为 `doubao-seedream-5.0-pro`，视频模型为 `minimax-h3`；三者使用 AI 集市网关及 SDK 下发的当前会话 Key。音频使用火山引擎 `seed-audio-1.0` 和独立服务端 Key。部署入口、环境变量、接口映射及验证边界见 [AI 集市版本部署说明](docs/aimarket-jishi-deployment.md)。
+此目录为 AI 集市接入版本。默认文本模型为 `deepseek-v4.1-flash`，图片模型为 `doubao-seedream-5.0-pro`，视频模型为 `minimax-h3`；三者使用 AI 集市网关及 SDK 下发的当前会话 Key。音频使用火山引擎 `seed-audio-1.0` 和独立服务端 Key。部署入口、环境变量、接口映射及验证边界见 [AI 集市版本部署说明](docs/aimarket-jishi-deployment.md)。
 
 通过 `npm start` / `server.py` 本地启动时，文本、图片和视频模型默认使用 `https://aimarket.hncig.cn:4090`；Docker 镜像和容器入口默认使用服务器内网网关 `http://192.168.241.202:4091`。配置项为 `JIANHUITONG_MARKET_MODEL_ORIGIN`，显式进程环境变量优先于 `.env`。默认模型、AI Market 服务商预设及保存过的这两个网关地址会在读取时统一到当前环境；其他自定义地址和音频接口保持各自配置。
 
 建绘通是湖南建投内部使用的 AI 视频创作平台，使用 Python / FastAPI 提供后端服务，正式运行使用 PostgreSQL 和 SQLAlchemy 保存账号、会话、项目、任务及素材元数据。媒体文件保存在 `data/uploads/`；SQLite 仅保留为旧数据迁移来源和隔离测试数据库。正式启动缺少 PostgreSQL 配置时会明确报错，不会自动回退到 SQLite。
 
-## 对话式视频创作 Agent
+## Agent 与剧本工作台
 
-[视频创作 Agent](agents/video-creation/README.md)已接入建绘通。登录后的首页为「Agent 创作」：输入故事后，依次完成导演检查、时长分析、创意与素材、音色参考、分镜、正式配音与整片 BGM、分镜视频及最终合成。界面支持分页确认卡、工具进度、文档和媒体预览、创作记录、引用素材及项目画布联动。
+创作请求支持[停止生成](docs/generation-stop.md)：发送按钮在请求期间切换为停止按钮，并带轻微图标动效。停止保留草稿和已完成结果，阻止迟到提交、后续步骤及自动回填；已经提交给模型供应商的请求可能继续处理。
+
+图片与视频生成已接入[按用户隔离的持久任务队列](docs/generation-queue.md)：图片不限制应用层并发，视频每个账号最多并发 10 个、全系统最多并发 100 个，超出的任务排队等待。首页、画布和 Agent 共用队列；后台持续调度，可通过队列接口查询和取消未提交的任务。图片／视频对话允许连续提交，重启恢复不会自动重复请求结果未知的任务。
+
+管理员可在左侧「系统日志」查看[用户操作、生成请求与任务队列](docs/admin-logs.md)，按账号、时间和状态筛选，并追踪请求编号、供应商任务 ID 及状态变化。操作与变化日志从功能启用后开始记录，已有生成任务可直接查询。
+
+首页 Agent 已接入普通问答、生图、生视频、剧本创作和一句话短剧分流。新剧本工作台按「故事设定 → 分集大纲 → 正文 → 资产与镜头 → 制作画布」推进，支持稿件编辑与版本历史。画布使用真实素材引用，按集分组；可以逐节点生成，也可以点击「制作成片」连续生成缺少的素材、镜头及分集／整剧视频。界面沿用建绘通风格，详见[Agent 与幕间剧本工作台](docs/agent-studio.md)。
+
+## 原有对话式视频创作 Agent
+
+[视频创作 Agent](agents/video-creation/README.md)保留用于已有任务与 `workflow: "video"` 流程：输入故事后，依次完成导演检查、时长分析、创意与素材、音色参考、分镜、正式配音与整片 BGM、分镜视频及最终合成。界面支持分页确认卡、工具进度、文档和媒体预览、创作记录、引用素材及项目画布联动。
 
 主控在 [agent_runtime.py](agent_runtime.py)，合成器在 [agent_media.py](agent_media.py)，UI 在 [public/agent-chat.js](public/agent-chat.js)。[主控定义](agents/video-creation/AGENT.md)及 16 个子 Skill 通过 [agent.yaml](agents/video-creation/agent.yaml)加载，实际业务调用全部在建绘通服务内完成。支持仅做分镜、主动润色、暂停恢复、修改具体镜头和仅改片尾；保留原稿、文档版本、任务回执及有效媒体。
 

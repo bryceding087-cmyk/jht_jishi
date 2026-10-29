@@ -1,7 +1,8 @@
-"""Serialize manual generation within each conversation across media types.
+"""Serialize receipt transactions; allow queued image/video turns per conversation.
 
 Conversation locks cover validation, the queued record and worker registration only.
-Provider calls run after commit. The application deliberately runs one worker,
+Image/video requests enter the durable queue after commit; audio retains its
+same-conversation execution gate. The application deliberately runs one worker,
 as required by its existing credential bindings and active-task registries.
 """
 from contextlib import ExitStack, contextmanager
@@ -14,6 +15,7 @@ from fastapi import HTTPException
 from sqlalchemy import and_, or_, select, text
 
 from data_access import current_principal
+from generation_stop import task_request_id
 from storage.schema import records
 
 _submission = ContextVar('manual_conversation_submission', default=None)
@@ -69,35 +71,42 @@ class ConversationGeneration:
         return task['id'] in getattr(self.h, ACTIVE[kind])
 
     def effective_busy(self, kind, task):
+        if task.get('local_stop_requested'):
+            return False
         fallback = getattr(self.h, 'IMAGE_TASK_FALLBACKS' if kind == 'image_task' else 'AUDIO_TASK_FALLBACKS', {}).get(task['id']) if kind != 'task' else None
         if fallback and fallback.get('status') not in ('queued', 'running'):
             return False
+        if kind in ('image_task', 'task'):
+            queued = self.h.generation_queue.job(kind, task['id'])
+            if queued and queued['state'] in ('waiting', 'credentials', 'executing', 'provider', 'unknown'):
+                return True
         return self.live(kind, task) or kind == 'task' and bool(task.get('provider_task_id'))
 
     @staticmethod
     def public(kind=None, task=None):
         return {'is_busy': task is not None, 'conversation_id': task.get('project_id') if task else None,
-                'task': {'id': task['id'], 'kind': TASK_KINDS[kind], 'status': task['status']} if task else None}
+                'task': {'id': task['id'], 'kind': TASK_KINDS[kind], 'status': task['status'],
+                         'request_id': task_request_id(task) or None} if task else None}
 
     def state(self, conversation_id=None):
         user = current_principal()
         if not user:
             raise HTTPException(401, '请先登录后再操作')
         if not conversation_id:
-            return self.public()
+            return {**self.public(), 'allow_queue': True}
         context = self.h.get('conversation', conversation_id)
         if context.get('deleted_at'):
             raise HTTPException(404, '对话不存在')
         with self.conversation_lock(conversation_id):
             for kind, task in self.candidates(conversation_id):
                 if self.effective_busy(kind, task):
-                    return self.public(kind, task)
-        return self.public()
+                    return {**self.public(kind, task), 'allow_queue': context.get('kind') in ('image', 'video')}
+        return {**self.public(), 'allow_queue': context.get('kind') in ('image', 'video')}
 
     def recover(self, conversation_id=None):
         """Only resume existing video GET polling; never resubmit paid work."""
         for kind, task in self.candidates(conversation_id):
-            if self.live(kind, task):
+            if task.get('local_stop_requested') or self.live(kind, task):
                 continue
             if kind == 'task':
                 # Keep the returning page's credential scope until reconciliation
@@ -135,6 +144,13 @@ class ConversationGeneration:
 
     @contextmanager
     def submission(self, request, kind):
+        effective_kind = request.kind if kind == 'new' else kind
+        with self.h.generation_stop.submission(effective_kind, getattr(request, 'request_id', '')):
+            with self._submission(request, kind):
+                yield
+
+    @contextmanager
+    def _submission(self, request, kind):
         if not self.is_manual(request, kind):
             yield
             return
@@ -160,7 +176,7 @@ class ConversationGeneration:
                     token = _submission.set({'service': self, 'connection': db, 'user_id': uid,
                                              'callbacks': callbacks, 'rollbacks': rollbacks})
                     try:
-                        if kind != 'new' and not self.repeated(request, kind, uid):
+                        if kind not in ('new', 'image', 'video') and not self.repeated(request, kind, uid):
                             for task_kind, task in self.candidates(cid, db.sa):
                                 if self.effective_busy(task_kind, task):
                                     raise HTTPException(409, {'code': 'conversation_generation_busy',

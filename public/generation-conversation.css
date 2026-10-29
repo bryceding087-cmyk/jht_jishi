@@ -86,6 +86,13 @@ body:has(.creation-home.has-media-conversation.active-view:not(.agent-docked))>m
 .creation-home .home-results .home-turn-actions .home-turn-delete { width: 38px; padding: 0; }
 .home-turn-actions svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
+.creation-home .home-results .home-deleted-media { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; width: min(420px,100%); min-height: 178px; padding: 24px 20px; margin-bottom: 14px; border: 1px dashed #ffffff20; border-radius: 12px; background: #191b1c; text-align: center; }
+.home-deleted-media-icon { position: relative; display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 3px; border: 1px solid #ffffff0b; border-radius: 14px; background: #242729; color: #8d9497; }
+.home-deleted-media-icon>.ui-icon { width: 24px; height: 24px; }
+.home-deleted-media-icon::after { content: ""; position: absolute; width: 32px; height: 2px; border-radius: 2px; background: #8d9497; box-shadow: 0 0 0 2px #242729; transform: rotate(-45deg); }
+.home-deleted-media strong { color: #c3c8ca; font-size: 14px; font-weight: 500; }
+.creation-home .home-results .home-deleted-media p { margin: 0; max-height: none; color: #818a8f; font-size: 12px; line-height: 1.7; }
+
 .creation-home:not(.agent-docked) .home-media-composer.is-first-last {
   display: grid;
   grid-template-columns: 170px minmax(0,1fr);

@@ -4,8 +4,10 @@ import base64, errno, hashlib, io, json, logging, os, re, shutil, sqlite3, threa
 from typing import Literal
 from urllib.error import HTTPError, URLError
 import socket
+import ssl
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import Request
+from model_transport import model_urlopen as urlopen
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
@@ -24,7 +26,8 @@ from provider_adapters import (provider_catalog, provider_id, provider_preset, v
 from auth_service import install_auth
 from market_service import (stamp_market_credentials, refresh_market_credentials, model_for_generation,
                             model_api_key, model_session_state, open_model_request,
-                            safe_model_error, redact_market_result, video_query_credentials)
+                            safe_model_error, redact_market_result, video_query_credentials, account_video_credentials)
+from account_video_models import AccountVideoModels, ID_PREFIX as ACCOUNT_MODEL_PREFIX, is_account_video
 from group_service import normalize_groups
 from content_errors import normalize_content_error
 from creator_metadata import CREATOR_FIELDS, current_creator, user_creator
@@ -46,9 +49,14 @@ UPLOADS = DATA / 'uploads'
 UPLOADS.mkdir(exist_ok=True)
 @asynccontextmanager
 async def application_lifespan(application):
+    generation_queue.recover()
+    generation_queue.start()
     await run_in_threadpool(manual_generation.recover)
     await run_in_threadpool(recover_video_tasks)
-    yield
+    try:
+        yield
+    finally:
+        generation_queue.stop()
 
 
 app = FastAPI(title='建绘通', version='0.4.0', lifespan=application_lifespan)
@@ -93,9 +101,9 @@ DEFAULT_MODEL = {
 DEFAULT_LLM_ID = 'default-llm'
 DEFAULT_LLM = {
     'id': DEFAULT_LLM_ID,
-    'name': 'DeepSeek V4 Flash Vision（默认）',
+    'name': 'DeepSeek V4.1 Flash（默认）',
     'provider': 'AI Market', 'provider_id': 'aimarket',
-    'model_id': 'deepseek-v4-flash-vision-exp-0817',
+    'model_id': 'deepseek-v4.1-flash',
     'base_url': DOCKER_MODEL_ORIGIN,
     'api_path': '/v1/chat/completions',
     # Text generation is a long-running operation for script synthesis.  The
@@ -117,7 +125,6 @@ DEFAULT_IMAGE_MODEL = {
     'watermark': False,
 }
 IMAGE_TASK_LOCK = threading.RLock()
-IMAGE_WORKER_SLOTS = threading.Semaphore(2)
 ACTIVE_IMAGE_TASKS = set()
 IMAGE_TASK_FALLBACKS = {}
 
@@ -148,6 +155,7 @@ class ImageGenerationRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=4000)
     name: str = Field(default='AI 生成图片', min_length=1, max_length=160)
     project_id: str = Field(default='', max_length=160)
+    node_id: str = Field(default='', max_length=160)
     folder_id: str = Field(default='', max_length=160)
     size: Literal['1K', '1.5K', '2K', '3K', '4K'] = '2K'
     aspect_ratio: Literal['adaptive', '1:1', '3:4', '16:9', '4:3', '9:16', '2:3', '3:2', '21:9'] = 'adaptive'
@@ -238,6 +246,23 @@ def save(kind, obj):
                 # Editing, retrying or saving someone else's work never changes its author.
                 previous = require_access(kind, previous_body)
                 obj['owner_id'] = record_owner(previous)
+                if kind in ('task', 'image_task') and obj.get('queue_timed_out_at') and previous.get('status') in ('done', 'succeeded', 'cancelled'):
+                    return previous
+                if kind in ('task', 'image_task') and previous.get('queue_timed_out_at'):
+                    # Late worker snapshots cannot resurrect a timed-out task.
+                    # Deleting its history remains allowed.
+                    obj = {**previous, **{k: obj[k] for k in ('deleted_at',) if k in obj}}
+                if kind in ('task', 'image_task', 'audio_task') and previous.get('local_stop_requested'):
+                    # Provider workers may finish with a snapshot taken before
+                    # Stop. Keep the receipt, but never erase the user's stop.
+                    for key in ('stop_requested', 'local_stop_requested', 'stopped_at'):
+                        if key in previous:
+                            obj[key] = previous[key]
+                    confirmed_before_submit = (obj.get('status') == 'cancelled' and obj.get('provider_may_continue') is False
+                        and not previous.get('provider_task_id') and not obj.get('provider_task_id')
+                        and not previous.get('submit_unknown') and not obj.get('submit_unknown'))
+                    if 'provider_may_continue' in previous and not confirmed_before_submit:
+                        obj['provider_may_continue'] = previous['provider_may_continue']
                 for key in CREATOR_FIELDS:
                     obj.pop(key, None)
                     if key in previous:
@@ -254,6 +279,9 @@ def save(kind, obj):
                 obj['owner_id'] = owner if owner is not None else str(user['id']) if user else record_owner(obj)
                 obj = stamp_market_credentials(kind, obj)
         record_store.upsert(db.sa, kind, obj, enforce_owner=current_principal() is not None)
+        logs = getattr(app.state, 'admin_logs', None)
+        if logs and kind not in SHARED_KINDS:
+            logs.record_transition(db.sa, kind, previous_body, obj)
     return obj
 
 
@@ -279,8 +307,8 @@ def get(kind, rid):
 
 class Project(BaseModel):
     name: str = Field(min_length=1, max_length=80)
-    nodes: list[dict] = Field(default_factory=list, max_length=200)
-    edges: list[dict] = Field(default_factory=list, max_length=400)
+    nodes: list[dict] = Field(default_factory=list, max_length=1600)
+    edges: list[dict] = Field(default_factory=list, max_length=10000)
     groups: list[dict] = Field(default_factory=list, max_length=100)
     selected_asset_ids: list[str] = Field(default_factory=list, max_length=100)
     viewport: dict = Field(default_factory=dict)
@@ -347,6 +375,7 @@ class LLMConfigUpdate(BaseModel):
     api_path: str | None = Field(default=None, max_length=300)
     api_key: str | None = Field(default=None, max_length=500)
     timeout_seconds: int | None = Field(default=None, ge=5, le=900)
+    enable_thinking: bool | None = None
 
 class RegistryModelCreate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -360,6 +389,7 @@ class RegistryModelCreate(BaseModel):
     query_path: str = Field(default='', max_length=300)
     api_key: str = Field(default='', max_length=500)
     timeout_seconds: int = Field(default=300, ge=5, le=900)
+    enable_thinking: bool | None = None
 
 class RegistryModelUpdate(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -372,13 +402,16 @@ class RegistryModelUpdate(BaseModel):
     query_path: str | None = Field(default=None, max_length=300)
     api_key: str | None = Field(default=None, max_length=500)
     timeout_seconds: int | None = Field(default=None, ge=5, le=900)
+    enable_thinking: bool | None = None
 
 class PromptPolishRequest(BaseModel):
     text: str = Field(min_length=1, max_length=4000)
+    request_id: str = Field(default_factory=lambda: str(uuid.uuid4()), min_length=1, max_length=240)
 
 class ScriptGenerateRequest(BaseModel):
     project_id: str
     node_id: str
+    request_id: str = Field(default_factory=lambda: str(uuid.uuid4()), min_length=1, max_length=240)
     action: Literal['script', 'resources', 'prompts'] = 'script'
     source_text: str = Field(default='', max_length=12000)
     script_data: dict = Field(default_factory=dict)
@@ -455,8 +488,9 @@ def worker_scope(record):
     user = None
     if actor:
         with connect() as db:
-            row = db.execute('SELECT id,role FROM auth_users WHERE id=?', (actor,)).fetchone()
-        user = {'id': actor, 'role': row[1] if row else 'user'}
+            row = db.execute('SELECT id,role,username,active FROM auth_users WHERE id=?', (actor,)).fetchone()
+        user = {'id': actor, 'role': row[1] if row else 'user',
+                'username': row[2] if row else '', 'active': bool(row[3]) if row else False}
     with access_scope(user), app.state.market_integration.worker_scope(record):
         yield
 
@@ -508,6 +542,7 @@ class PrivateUploads(StaticFiles):
 MODEL_STORES = {'text': 'llm_config', 'image': 'image_model_config', 'video': 'model_config', 'audio': 'audio_model_config'}
 MODEL_BUILTINS = {'text': DEFAULT_LLM, 'image': DEFAULT_IMAGE_MODEL, 'video': DEFAULT_MODEL, 'audio': DEFAULT_AUDIO_MODEL}
 MODEL_PATHS = {'text': '/chat/completions', 'image': '/images/generations', 'video': '/api/v3/contents/generations/tasks', 'audio': '/api/v3/tts/create'}
+account_video_models = AccountVideoModels(DATA)
 
 def require_model_kind(kind):
     if kind not in MODEL_STORES: raise HTTPException(422, '模型类型必须是 text、image、video 或 audio')
@@ -516,6 +551,12 @@ def require_model_kind(kind):
 def active_model_id(kind):
     require_model_kind(kind)
     builtin_id = MODEL_BUILTINS[kind]['id']
+    private_ids = {model['id'] for model in account_video_models.models()} if kind == 'video' else set()
+    if private_ids:
+        personal = raw_record('account_model_default', account_video_models.preference_id(kind)) or {}
+        preferred = personal.get('model_id')
+        if preferred in private_ids or preferred == builtin_id or (preferred and raw_record(MODEL_STORES[kind], preferred)):
+            return preferred
     pointer = raw_record('model_default', 'model-default:' + kind) or {}
     mid = pointer.get('model_id', builtin_id)
     return mid if mid == builtin_id or raw_record(MODEL_STORES[kind], mid) else builtin_id
@@ -524,7 +565,11 @@ def internal_registry_model(kind, mid=None):
     require_model_kind(kind)
     builtin = MODEL_BUILTINS[kind]
     mid = mid or active_model_id(kind)
-    override = raw_record(MODEL_STORES[kind], mid)
+    if mid.startswith(ACCOUNT_MODEL_PREFIX):
+        if kind != 'video': raise HTTPException(404, '模型配置不存在')
+        override = account_video_models.get(mid)
+    else:
+        override = raw_record(MODEL_STORES[kind], mid)
     if mid == builtin['id']:
         config = {**builtin, **(override or {}), 'id': mid}
         # Never send a legacy provider's environment key to the new gateway.
@@ -542,6 +587,17 @@ def internal_registry_model(kind, mid=None):
     config.setdefault('provider', '火山方舟 Ark' if kind == 'image' else '兼容接口')
     config['provider_id'] = provider_id(kind, config)
     config = with_model_gateway(config)
+    # Old releases may have saved a complete copy of the built-in text model.
+    # Resolve that exact legacy default without rewriting stored credentials or
+    # overriding separately configured/custom models.
+    if (kind == 'text' and mid == DEFAULT_LLM_ID
+            and config['provider_id'] == 'aimarket'
+            and config.get('model_id') == 'deepseek-v4-flash-vision-exp-0817'
+            and config.get('base_url', '').rstrip('/') in (model_gateway_origin(), model_gateway_origin() + '/v1')
+            and config.get('api_path') in ('/v1/chat/completions', '/chat/completions')):
+        config['model_id'] = DEFAULT_LLM['model_id']
+        if config.get('name') == 'DeepSeek V4 Flash Vision（默认）':
+            config['name'] = DEFAULT_LLM['name']
     if kind == 'video':
         config['query_path'] = video_query_path(config)
         config['capabilities'] = video_capabilities(config)
@@ -581,15 +637,22 @@ def registry_public(kind, config):
             **({'query_path': safe_public_model_url(video_query_path(config))} if kind == 'video' else {}),
             'api_key_set': bool(key) if market_available is None else market_available,
             'api_key_hint': ('••••' + key[-4:] if len(key) > 8 else '••••') if key and is_admin() and market_available is None else '',
-            'credential_source': 'market-session' if market_available is not None else 'administrator',
+            'credential_source': 'account' if is_account_video(config) else 'market-session' if market_available is not None else 'administrator',
+            'is_account_model': is_account_video(config),
+            'can_activate': is_admin() or account_video_models.can_select(kind),
+            'default_scope': 'account' if account_video_models.can_select(kind) else 'system',
             'available_for_session': market_available is not False,
             'timeout_seconds': int(provider_timeout(config)),
+            **({'enable_thinking': config.get('enable_thinking')} if kind == 'text' else {}),
             **({'capabilities': image_capabilities(config)} if kind == 'image' else {'capabilities': config.get('capabilities', {})} if kind == 'video' else {}),
             'is_default': config['id'] == active_model_id(kind),
             'is_builtin': config['id'] == MODEL_BUILTINS[kind]['id']}
 
 def validate_model_updates(kind, updates, current=None):
     updates = dict(updates)
+    if kind != 'text':
+        if updates.get('enable_thinking') is not None: raise HTTPException(422, '只有文本模型支持思考模式设置')
+        updates.pop('enable_thinking', None)
     for field in ('name', 'provider', 'provider_id', 'model_id', 'model', 'base_url', 'api_path', 'query_path', 'api_key'):
         if field in updates and isinstance(updates[field], str): updates[field] = updates[field].strip()
     if not updates.get('api_key'): updates.pop('api_key', None)
@@ -604,6 +667,7 @@ def validate_model_updates(kind, updates, current=None):
             if field in preset['defaults']: updates.setdefault(field, preset['defaults'][field])
         # A new service must not inherit another service's stored credentials.
         updates.setdefault('api_key', '')
+        if kind == 'text': updates.setdefault('enable_thinking', None)
     if kind == 'video' and (changed_provider or changed_model):
         updates.setdefault('capabilities', {})
     updates['provider_id'] = preset['id']
@@ -649,7 +713,8 @@ def model_public(config):
     return public | {'capabilities': config.get('capabilities', {})}
 
 def public_models():
-    return [model_public(internal_default_model())] + [model_public(internal_registry_model('video', item['id'])) for item in listing('model_config') if item.get('id') != DEFAULT_MODEL_ID]
+    configs = listing('model_config') + account_video_models.models()
+    return [model_public(internal_default_model())] + [model_public(internal_registry_model('video', item['id'])) for item in configs if item.get('id') != DEFAULT_MODEL_ID]
 
 def internal_llm_config():
     return internal_registry_model('text')
@@ -687,7 +752,9 @@ def llm_json(config, messages):
         raise RuntimeError('尚未配置脚本大模型 API Key')
     base_url = config['base_url'].rstrip('/')
     api_path = '/' + config.get('api_path', '').lstrip('/')
-    payload = {'model': config['model_id'], 'messages': messages, 'temperature': 0.7}
+    responses_api = api_path.rstrip('/').endswith('/responses')
+    payload = {'model': config['model_id'], 'input': responses_input(messages)} if responses_api else {'model': config['model_id'], 'messages': messages, 'temperature': 0.7}
+    if type(config.get('enable_thinking')) is bool: payload['enable_thinking'] = config['enable_thinking']
     response = provider_json('POST', base_url + api_path, config['api_key'], payload,
                              timeout=provider_timeout(config))
     if isinstance(response, dict):
@@ -697,9 +764,47 @@ def llm_json(config, messages):
                 failure = 'content_filter'
         if failure and normalize_content_error(failure) != failure:
             raise RuntimeError(normalize_content_error(failure))
+        if responses_api:
+            if failure or response.get('status') in ('failed', 'cancelled'):
+                detail = failure.get('message', failure) if isinstance(failure, dict) else failure
+                raise RuntimeError('文本模型未完成请求：' + safe_model_error(detail or response.get('status'), config['api_key'])[:400])
+            if response.get('status') in ('incomplete', 'queued', 'in_progress'):
+                reason = (response.get('incomplete_details') or {}).get('reason', '')
+                if reason == 'content_filter': raise RuntimeError(normalize_content_error(reason))
+                raise RuntimeError('文本模型返回的内容尚未完整生成，已保留原稿。请调整输出长度或稍后重试。')
+            for item in response.get('output') or []:
+                if not isinstance(item, dict) or item.get('type') != 'message': continue
+                for part in item.get('content') or []:
+                    if isinstance(part, dict) and part.get('type') == 'refusal':
+                        raise RuntimeError('文本模型未生成内容：' + safe_model_error(part.get('refusal', ''), config['api_key'])[:400])
     return response
 
+def responses_input(messages):
+    """Convert content parts to Responses input while retaining conversation roles."""
+    result = []
+    for message in messages:
+        content = message.get('content', '')
+        if isinstance(content, list):
+            parts = []
+            for part in content:
+                if part.get('type') == 'text':
+                    parts.append({'type': 'output_text' if message.get('role') == 'assistant' else 'input_text', 'text': part.get('text', '')})
+                elif part.get('type') == 'image_url':
+                    value = part.get('image_url') or {}
+                    parts.append({'type': 'input_image', 'image_url': value.get('url', ''), **({'detail': value['detail']} if value.get('detail') else {})})
+                else: parts.append(dict(part))
+            content = parts
+        result.append({'role': message['role'], 'content': content})
+    return result
+
+
 def llm_text(response):
+    if isinstance(response, dict) and isinstance(response.get('output'), list):
+        # Responses may put reasoning/tool items before the final assistant text.
+        return ''.join(part['text'] for item in response['output'] if isinstance(item, dict)
+                       and item.get('type') == 'message' and item.get('role', 'assistant') == 'assistant'
+                       for part in item.get('content') or [] if isinstance(part, dict)
+                       and part.get('type') == 'output_text' and isinstance(part.get('text'), str))
     choices = response.get('choices') if isinstance(response, dict) else None
     if isinstance(choices, list) and choices:
         message = choices[0].get('message', {}) if isinstance(choices[0], dict) else {}
@@ -983,6 +1088,30 @@ def provider_error_message(error):
         return '模型接口读取超时，模型可能仍在处理，请稍后重试。'
     return text[:500] or '模型服务请求失败'
 
+
+def video_file_error_message(error):
+    """Describe the file transfer separately from successful model generation."""
+    reason = getattr(error, 'reason', error)
+    if is_storage_full(error):
+        return '服务器磁盘空间不足，无法保存视频文件，请释放空间后重试。'
+    if isinstance(error, HTTPError):
+        if error.code in (401, 403):
+            return f'视频下载地址拒绝访问（HTTP {error.code}），请检查下载权限或链接有效期。'
+        if error.code in (404, 410):
+            return f'视频下载地址已失效或文件已移除（HTTP {error.code}）。'
+        return f'视频存储服务返回 HTTP {error.code}，请稍后重试下载。'
+    if isinstance(reason, ssl.SSLError):
+        return '服务器与视频存储服务的 HTTPS 连接失败，请检查证书和网络代理配置。'
+    if isinstance(reason, socket.gaierror):
+        return '服务器无法解析视频存储服务的域名，请检查服务器 DNS 配置。'
+    if isinstance(reason, (TimeoutError, socket.timeout)):
+        return '服务器下载视频超时，请检查服务器到视频存储服务的网络后重试。'
+    if isinstance(reason, PermissionError):
+        return '服务器没有视频文件目录的写入权限，请检查存储目录权限。'
+    if isinstance(reason, ConnectionError) or isinstance(error, URLError):
+        return '服务器无法连接视频存储服务，请检查服务器出口网络和代理配置。'
+    return re.sub(r'https?://[^\s<>]+', '[视频下载地址]', provider_error_message(error))
+
 MAX_REFERENCE_IMAGE_BYTES = 10 * 1024 * 1024
 
 def require_reference_image(asset_id):
@@ -1042,7 +1171,7 @@ def provider_payload(params, config):
             raise ValueError('AI Market 参考图需要上游可访问的 HTTP(S) URL，当前本地素材无法直接使用；可改用文生视频或火山方舟模型')
         return url
     payload = video_payload(params, config, reference_url, lambda aid: get('asset', aid).get('kind', 'image'))
-    if provider_id('video', config) == 'aimarket' and video_reference_transport(config) == 'data_uri':
+    if provider_id('video', config) in ('aimarket', 'minimax') and video_reference_transport(config) == 'data_uri':
         if len(json.dumps(payload, ensure_ascii=False).encode('utf-8')) > 64 * 1024 * 1024:
             raise ValueError('MiniMax H3 请求超过 64 MB，请减少参考图数量或压缩图片后重试')
     return payload
@@ -1072,7 +1201,10 @@ def provider_json(method, url, api_key, body=None, timeout=45):
         reason = error.reason
         if isinstance(reason, (TimeoutError, socket.timeout)) or 'timed out' in str(reason).lower():
             raise RuntimeError(f'模型接口读取超时（{int(timeout)}秒），模型可能仍在处理，请稍后重试。') from error
-        raise RuntimeError(f'无法连接模型接口：{reason}') from error
+        if isinstance(reason, socket.gaierror):
+            host = urlparse(url).hostname or '当前模型'
+            raise RuntimeError(f'无法解析模型接口域名（{host}）。请检查该模型的 Base URL、网络 DNS 或代理，恢复后点击“重试失败步骤”。') from error
+        raise RuntimeError(f'无法连接模型接口：{safe_model_error(reason, api_key)}') from error
 
 def is_quota_limit_error(value):
     text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
@@ -1133,7 +1265,7 @@ VIDEO_WORKER_LOCK = threading.RLock()
 
 
 def run_provider_task(tid, params, config, resume=False):
-    with worker_scope(get('task', tid)):
+    with worker_scope(get('task', tid)), account_video_credentials(config):
         return _run_provider_task(tid, params, config, resume)
 
 
@@ -1156,6 +1288,9 @@ def _run_provider_task(tid, params, config, resume=False):
     provider_task_id = get('task', tid).get('provider_task_id') if resume else None
     try:
         if not resume:
+            if get('task', tid).get('local_stop_requested'):
+                update_task(tid, status='cancelled', provider_may_continue=False, status_message='已停止，未提交模型请求')
+                return
             base_url = config['base_url'].rstrip('/')
             api_path = '/' + config.get('api_path', '').lstrip('/')
             created = provider_json('POST', base_url + api_path, config['api_key'], provider_payload(params, config))
@@ -1176,7 +1311,7 @@ def _run_provider_task(tid, params, config, resume=False):
             elapsed = max(0, time.time() - submitted)
             time.sleep(video_poll_delay(elapsed, errors))
             current = get('task', tid)
-            if current.get('deleted_at'):
+            if current.get('deleted_at') or current.get('queue_timed_out_at'):
                 return
             message = '本次生成较慢，仍在处理中' if elapsed >= VIDEO_SLOW_AFTER else '已提交，正在排队或生成'
             try:
@@ -1224,7 +1359,7 @@ def _run_provider_task(tid, params, config, resume=False):
                     error=None if provider_task_id else message, polling_interrupted=bool(provider_task_id),
                     query_paused=bool(provider_task_id), query_retry_at=time.time()+60,
                     status_message='查询暂时中断，稍后自动继续' if provider_task_id else '',
-                    submit_unknown=not provider_task_id and ('超时' in message or '未返回任务 ID' in message))
+                    submit_unknown=not provider_task_id and (request_result_unknown(error) or '未返回任务 ID' in message))
     finally:
         with VIDEO_WORKER_LOCK:
             ACTIVE_VIDEO_TASKS.discard(tid)
@@ -1296,7 +1431,7 @@ def finalize_video_task(tid):
                     raise ValueError('视频文件不存在，请重新生成或导入视频')
                 update_task(tid, video_cache_status='cached', video_cache_error='')
         except Exception as error:
-            update_task(tid, video_cache_status='failed', video_cache_error=provider_error_message(error),
+            update_task(tid, video_cache_status='failed', video_cache_error=video_file_error_message(error),
                 asset_save_error='', auto_save_video=False, asset_save_status='history',
                 status_message='生成已完成，文件下载失败；可在生成历史中重试保存')
         return ensure_video_asset(tid)
@@ -1349,6 +1484,16 @@ def reconcile_video_task(tid):
     """Resume only the GET loop of an existing task; never repeat its POST."""
     with VIDEO_WORKER_LOCK:
         current = get('task', tid)
+        if current.get('queue_timed_out_at') or current.get('deleted_at'):
+            return current
+        current = generation_queue.refresh_credentials('task', current)
+        queued = generation_queue.job('task', tid)
+        if queued and queued['state'] in ('waiting', 'credentials') and current.get('provider_task_id'):
+            generation_queue.patch(queued, state='provider')
+            ACTIVE_VIDEO_TASKS.discard(tid)
+            queued = {**queued, 'state': 'provider'}
+        if queued and queued['state'] in ('waiting', 'credentials'):
+            return {**current, **generation_queue.public('task', current)}
         if tid in ACTIVE_VIDEO_TASKS or current['status']=='done':
             return current
         if current.get('provider_task_id') and (current['status'] in ('queued','running') or current.get('polling_interrupted')):
@@ -1417,6 +1562,7 @@ def model_registry():
     for kind, store_kind in MODEL_STORES.items():
         builtin_id = MODEL_BUILTINS[kind]['id']
         ids = [builtin_id] + [item['id'] for item in listing(store_kind) if item.get('id') != builtin_id]
+        if kind == 'video': ids.extend(model['id'] for model in account_video_models.models())
         models.extend(registry_public(kind, internal_registry_model(kind, mid)) for mid in ids)
     return {'models': models, 'providers': provider_catalog(), 'can_manage': is_admin()}
 
@@ -1435,15 +1581,21 @@ def update_registry_model(kind: str, mid: str, patch: RegistryModelUpdate):
     require_admin()
     current = internal_registry_model(kind, mid)
     updates = validate_model_updates(kind, patch.model_dump(exclude_none=True), current)
+    if kind == 'text' and 'enable_thinking' in patch.model_fields_set: updates['enable_thinking'] = patch.enable_thinking
     body = {**current, **updates, 'id': mid, 'updated_at': time.time()}
     save(MODEL_STORES[kind], body)
     return registry_public(kind, body)
 
 @app.post('/api/model-registry/{kind}/{mid}/activate')
 def activate_registry_model(kind: str, mid: str):
-    require_admin()
+    personal = account_video_models.can_select(kind)
+    if not personal: require_admin()
     current = internal_registry_model(kind, mid)
-    save('model_default', {'id': 'model-default:' + kind, 'model_id': mid, 'updated_at': time.time()})
+    if personal:
+        save('account_model_default', {'id': account_video_models.preference_id(kind),
+             'model_id': mid, 'kind': kind, 'updated_at': time.time()})
+    else:
+        save('model_default', {'id': 'model-default:' + kind, 'model_id': mid, 'updated_at': time.time()})
     return registry_public(kind, current)
 
 def project_uses_model(value, mid):
@@ -1502,23 +1654,32 @@ def update_image_model_config(patch: ImageModelUpdate):
 
 
 def image_task_public(task):
-    public = {key: task[key] for key in ('id', 'status', 'name', 'prompt', 'model', 'size', 'watermark',
-                                      'aspect_ratio', 'count', 'assets', 'model_config_id', 'project_id', 'folder_id', 'created_at', 'updated_at', 'error', 'asset', 'visual_style', 'style_snapshot', 'effective_prompt') if key in task}
+    public = {key: task[key] for key in ('id', 'status', 'queue_state', 'status_message', 'submit_unknown', 'name', 'prompt', 'model', 'size', 'watermark',
+                                      'aspect_ratio', 'count', 'assets', 'model_config_id', 'project_id', 'folder_id', 'created_at', 'updated_at', 'error', 'asset', 'visual_style', 'style_snapshot', 'effective_prompt',
+                                      'request_id', 'node_id', 'stop_requested', 'local_stop_requested', 'stopped_at', 'provider_may_continue') if key in task}
+    public.update(generation_queue.public('image_task', task))
     return hydrate_task_assets(public)
 
 
 def hydrate_task_assets(public):
+    deleted_ids = set()
     def fresh(snapshot):
         if not snapshot or not snapshot.get('id'):
             return None
         try:
-            return asset_public(require_live_asset(snapshot['id']))
+            asset = get('asset', snapshot['id'])
+            if asset.get('deleted_at'):
+                deleted_ids.add(asset['id'])
+                return None
+            return asset_public(asset)
         except HTTPException:
             return None
     if 'asset' in public:
         public['asset'] = fresh(public['asset'])
     if 'assets' in public:
         public['assets'] = [asset for snapshot in public['assets'] if (asset := fresh(snapshot))]
+    if deleted_ids:
+        public['deleted_asset_ids'] = sorted(deleted_ids)
     return public
 
 
@@ -1529,11 +1690,15 @@ def run_image_generation(tid, config):
 
 def _run_image_generation(tid, config):
     task, asset, assets = None, None, []
+    request_pending = False
     try:
-        with IMAGE_WORKER_SLOTS:
+        with nullcontext():
             task = get('image_task', tid)
+            if task.get('local_stop_requested'):
+                save('image_task', {**task, 'status': 'cancelled', 'provider_may_continue': False, 'updated_at': time.time()})
+                return
             config = model_for_generation(config)
-            task = save('image_task', {**task, 'status': 'running', 'updated_at': time.time()})
+            task = save('image_task', {**task, 'status': 'running', 'status_message': '图片生成中', 'updated_at': time.time()})
             payload = {key: task[key] for key in ('model', 'prompt', 'size')}
             payload['prompt'] = task.get('effective_prompt') or task['prompt']
             payload['watermark'] = False
@@ -1555,8 +1720,15 @@ def _run_image_generation(tid, config):
             folder_id = task['folder_id'] if not task['folder_id'] or raw_record('asset_folder', task['folder_id']) else ''
             # Independent single-image calls give an exact count on models without group generation.
             for index in range(task.get('count', 1)):
+                if get('image_task', tid).get('local_stop_requested'):
+                    save('image_task', {**task, 'status': 'cancelled', 'provider_may_continue': False, 'status_message': '已停止后续生成，已完成的图片保留在生成历史', 'updated_at': time.time()})
+                    return
+                request_pending = True
                 response = provider_json('POST', config['base_url'].rstrip('/') + '/' + config.get('api_path', '/images/generations').lstrip('/'),
                                          config['api_key'], payload, timeout=180)
+                request_pending = False
+                if get('image_task', tid).get('queue_timed_out_at'):
+                    return
                 items = response.get('data') if isinstance(response, dict) else None
                 if not isinstance(items, list) or not items or not isinstance(items[0], dict) or not items[0].get('url'):
                     detail = response.get('error') if isinstance(response, dict) else None
@@ -1573,7 +1745,8 @@ def _run_image_generation(tid, config):
             save('image_task', {**task, 'status': 'succeeded', 'updated_at': time.time()})
     except Exception as error:
         message = '服务端磁盘空间不足，图片暂时无法保存。请释放空间后重试。' if is_storage_full(error) else image_error_message(error, config.get('api_key', ''))
-        failed = {**(task or {'id': tid}), 'status': 'failed', 'error': message, 'updated_at': time.time()}
+        unknown = request_pending and request_result_unknown(error)
+        failed = {**(task or {'id': tid}), 'status': 'blocked' if unknown else 'failed', 'submit_unknown': unknown, 'error': message, 'updated_at': time.time()}
         if assets: failed.update({'asset': assets[0], 'assets': assets})
         try:
             save('image_task', failed)
@@ -1604,22 +1777,38 @@ def _create_image_generation(request: ImageGenerationRequest):
         existing = IMAGE_TASK_FALLBACKS.get(tid) or raw_record('image_task', tid)
         if existing:
             require_access('image_task', existing)
-            comparable = {'aspect_ratio': 'adaptive', 'count': 1, **existing, 'reference_asset_ids': existing.get('reference_asset_ids') or []}
+            comparable = {'aspect_ratio': 'adaptive', 'count': 1, 'node_id': '', **existing, 'reference_asset_ids': existing.get('reference_asset_ids') or []}
             if existing.get('visual_style') != params.get('visual_style') or any(comparable.get(key) != value for key, value in params.items()) or (request.model_config_id and request.model_config_id != existing.get('model_config_id')):
                 raise HTTPException(409, '该生成请求已提交，请为修改后的内容重新生成请求编号')
             return image_task_public(existing)
         validate_asset_location(request.project_id, request.folder_id)
+        if request.node_id:
+            graph = creation_context(request.project_id)
+            node = next((n for n in graph['nodes'] if n['id'] == request.node_id and n['type'] in ('asset', 'prop', 'character')), None)
+            if not node: raise HTTPException(422, '请先保存图片节点')
+            if node.get('mujian') or node.get('image_settings', {}).get('mentions'):
+                from studio_graph import resolve_inputs
+                required = resolve_inputs(AgentHost(), graph, node)
+                if any(aid not in request.reference_asset_ids for aid in required):
+                    raise HTTPException(422, '生成请求缺少已连接的前置图片')
         for asset_id in request.reference_asset_ids:
             require_reference_image(asset_id)
         config = model_for_generation(internal_registry_model('image', request.model_config_id) if request.model_config_id else internal_image_config())
         if request.size not in image_capabilities(config)['resolutions']:
             raise HTTPException(422, '当前图片模型支持的分辨率为：' + '、'.join(image_capabilities(config)['resolutions']))
         if not config.get('api_key'): raise HTTPException(422, '请先绑定图片生成模型 API Key')
+        model_prompt = params['prompt']
+        if request.node_id:
+            from studio_graph import compile_reference_prompt
+            model_prompt = compile_reference_prompt(AgentHost(), graph, node, model_prompt, request.reference_asset_ids)
         try:
-            style_fields = style_task_fields(params.get('visual_style'), params['prompt'], 'image')
+            style_fields = style_task_fields(params.get('visual_style'), model_prompt, 'image')
+            if model_prompt != params['prompt']: style_fields.setdefault('effective_prompt', model_prompt)
         except ValueError as error:
             raise HTTPException(422, str(error)) from error
-        task = save('image_task', {**params, 'visual_style': params.get('visual_style'), **style_fields, 'id': tid, 'model': config['model'], 'model_config_id': config['id'], 'status': 'queued',
+        from studio_graph import binding_signature
+        studio_binding = binding_signature(graph, node) if request.node_id and node.get('mujian') else None
+        task = save('image_task', {**params, 'request_id': request_id, 'studio_binding': studio_binding, 'visual_style': params.get('visual_style'), **style_fields, 'id': tid, 'model': config['model'], 'model_config_id': config['id'], 'status': 'queued', 'queue_state': 'waiting', 'status_message': '已加入个人生成队列',
                                    'created_at': time.time(), 'updated_at': time.time()})
         ACTIVE_IMAGE_TASKS.add(tid)
     start_generation_worker('image_task', task, run_image_generation, (tid, config))
@@ -1632,6 +1821,10 @@ def image_generation_status(tid: str):
         task = IMAGE_TASK_FALLBACKS.get(tid) or get('image_task', tid)
         require_access('image_task', task)
         if task.get('deleted_at'): raise HTTPException(404, '生成记录已删除')
+        task = generation_queue.refresh_credentials('image_task', task)
+        queued = generation_queue.job('image_task', tid)
+        if queued and queued['state'] in ('waiting', 'credentials'):
+            return image_task_public(task)
         if task.get('status') in ('queued', 'running') and not manual_generation.live('image_task', task):
             task = save('image_task', {**task, 'status': 'failed', 'updated_at': time.time(),
                                       'error': '服务已重启，生成任务中断。请先检查生成历史是否已有结果，再决定是否重新生成。'})
@@ -1640,7 +1833,8 @@ def image_generation_status(tid: str):
 def audio_task_public(task):
     fields = ('id', 'status', 'name', 'prompt', 'mode', 'model', 'model_config_id', 'project_id', 'folder_id',
               'reference_asset_ids', 'speaker', 'audio_config', 'watermark', 'created_at', 'updated_at',
-              'error', 'asset', 'duration', 'original_duration', 'subtitle', 'log_id')
+              'error', 'asset', 'duration', 'original_duration', 'subtitle', 'log_id', 'request_id',
+              'stop_requested', 'local_stop_requested', 'stopped_at', 'provider_may_continue', 'status_message')
     return hydrate_task_assets({key: task[key] for key in fields if key in task})
 
 
@@ -1676,6 +1870,9 @@ def _run_audio_generation(tid, config):
     try:
         with AUDIO_WORKER_SLOTS:
             task = get('audio_task', tid)
+            if task.get('local_stop_requested'):
+                save('audio_task', {**task, 'status': 'cancelled', 'provider_may_continue': False, 'updated_at': time.time()})
+                return
             config = model_for_generation(config)
             task = save('audio_task', {**task, 'status': 'running', 'updated_at': time.time()})
             payload = audio_payload(task, config, audio_task_references(task))
@@ -1738,7 +1935,7 @@ def _create_audio_generation(request: AudioGenerationRequest):
             audio_payload(params, config, audio_task_references(params))
         except ValueError as error:
             raise HTTPException(422, str(error)) from error
-        task = save('audio_task', {**params, 'id': tid, 'model': config['model_id'], 'model_config_id': config['id'],
+        task = save('audio_task', {**params, 'request_id': request_id, 'id': tid, 'model': config['model_id'], 'model_config_id': config['id'],
                                    'status': 'queued', 'created_at': time.time(), 'updated_at': time.time()})
         ACTIVE_AUDIO_TASKS.add(tid)
     start_generation_worker('audio_task', task, run_audio_generation, (tid, config))
@@ -1762,6 +1959,7 @@ def update_llm_config(patch: LLMConfigUpdate):
     require_admin()
     current = internal_llm_config()
     updates = validate_model_updates('text', patch.model_dump(exclude_none=True))
+    if 'enable_thinking' in patch.model_fields_set: updates['enable_thinking'] = patch.enable_thinking
     body = {**current, **updates, 'id': current['id'], 'is_default': True, 'updated_at': time.time()}
     return llm_public(save('llm_config', body))
 
@@ -1773,6 +1971,7 @@ def polish_prompt(request: PromptPolishRequest):
     canvas applies the result to the currently edited node and saves it through
     the normal project update flow, so a failed request cannot overwrite text.
     """
+    generation_stop.check('text', request.request_id)
     config = model_for_generation(internal_llm_config())
     if not config.get('api_key'):
         raise HTTPException(422, '请先配置文本大模型 API Key')
@@ -1782,17 +1981,23 @@ def polish_prompt(request: PromptPolishRequest):
     system = '你是视频创作平台的提示词编辑。将用户的中文创意润色成具体、清晰、可直接用于视频生成的提示词。保留原意和关键主体，补充合理的场景、镜头、光线、动作与风格细节；不要擅自加入品牌、人物身份或敏感内容。只返回润色后的提示词，不要解释、标题、引号或 Markdown。'
     user = f'请润色下面这段文本节点内容，控制在 4000 字以内：\n{source}'
     try:
-        polished = clean_llm_text(llm_text(llm_json(config, [
+        generation_stop.check('text', request.request_id)
+        response = llm_json(config, [
             {'role': 'system', 'content': system},
             {'role': 'user', 'content': user},
-        ])))
+        ])
+        generation_stop.check('text', request.request_id)
+        polished = clean_llm_text(llm_text(response))
     except HTTPException:
+        generation_stop.check('text', request.request_id)
         raise
     except Exception as error:
+        generation_stop.check('text', request.request_id)
         raise HTTPException(502, provider_error_message(error))
     if not polished:
         raise HTTPException(502, '大模型未返回润色结果，请重试')
-    return {'text': polished[:4000], 'model': config['model_id']}
+    generation_stop.check('text', request.request_id)
+    return {'text': polished[:4000], 'model': config['model_id'], 'request_id': request.request_id}
 
 @app.get('/api/scripts/template')
 def script_excel_template():
@@ -1819,6 +2024,7 @@ def update_script(pid: str, nid: str, request: ScriptUpdateRequest):
 
 @app.post('/api/scripts/generate')
 def generate_script(request: ScriptGenerateRequest):
+    generation_stop.check('text', request.request_id)
     project = active_project(request.project_id)
     node = next((item for item in project.get('nodes', []) if item.get('id') == request.node_id and item.get('type') == 'script'), None)
     if not node: raise HTTPException(422, '脚本节点不存在，请先保存画布')
@@ -1833,21 +2039,28 @@ def generate_script(request: ScriptGenerateRequest):
         source_text = str(source.get('settings', {}).get('prompt', '') if source else '').strip()
     if request.action == 'script' and not source_text: raise HTTPException(422, '请先连接一个文本节点并填写内容')
     system = '你是专业影视分镜编剧。只输出符合要求的 JSON，不要 Markdown、解释或额外文字。中文内容要具体、可拍摄、避免空泛形容词。每个 resources 项必须给出文件形态 kind，只能是 image、video、audio。人物、场景、道具参考图或 Logo 用 image；视频片段用 video；配音、旁白、BGM、音乐、音效用 audio。不要要求用户准备文本或脚本文件，台词和剧本保留在分镜表中。category 保留资源的具体用途分类，不能用用途取代 kind。scene_indices 用整数数组标出该资源适用的镜号，不确定时为空数组。'
+    def call_model(user):
+        # A model call may take minutes. The stop endpoint must be able to write
+        # its receipt while it is in flight; only the final save takes the lock.
+        generation_stop.check('text', request.request_id)
+        response = llm_json(config, [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}])
+        generation_stop.check('text', request.request_id)
+        return parse_llm_json(response)
     try:
         if request.action == 'script':
             user = f'''根据下面的文本创意生成一份可拍摄的分镜脚本。输出 JSON：{{"title": "", "genre": "", "duration": "", "style": "", "scenes": [{{"duration":"6s","description":"画面描述","shot_size":"景别","lighting":"光影氛围","dialogue":"对白/旁白，没有则写+","sound":"音效","camera":"运镜"}}], "resources": [{{"name":"建议上传的资源名称","kind":"image|video|audio","category":"人物/场景/道具/Logo/旁白/BGM/音效/片段等用途","reason":"为什么建议准备","required":false,"scene_indices":[1]}}]}}。kind 必须从三种值选择一个，不可输出竖线组合。生成 4-12 个镜头，镜头时长合计与内容相符。文本创意：\n{source_text}'''
-            parsed = parse_llm_json(llm_json(config, [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}]))
+            parsed = call_model(user)
             result = normalise_script(parsed, existing.get('source_node_id', ''))
             result['resources'] = merge_preparation_resources(existing.get('resources', []), result.get('resources', []))
         elif request.action == 'resources':
             user = f'''分析这份分镜脚本需要哪些可上传资源。只输出 JSON：{{"resources":[{{"name":"资源名称","kind":"image|video|audio","category":"人物/场景/道具/Logo/旁白/BGM/音效/片段等用途","reason":"服务哪些镜头以及用途","required":false,"scene_indices":[1]}}]}}。所有资源都只是可选建议，有更好，没有也不应阻塞脚本完成或展开分镜。kind 必须从三种值选择一个，不可输出竖线组合。按文件形态分类，旁白和 BGM 应请求音频文件；已写出的台词文案和脚本不作为待上传资源。不要重复同类资源，最多 20 项。脚本：\n{json.dumps(existing, ensure_ascii=False)}'''
-            parsed = parse_llm_json(llm_json(config, [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}]))
+            parsed = call_model(user)
             incoming_resources = parsed.get('resources', []) if isinstance(parsed, dict) else []
             result = normalise_script({**existing, 'resources': merge_preparation_resources(existing.get('resources', []), incoming_resources)}, existing.get('source_node_id', ''))
         else:
             scene_scope = f'只处理第 {request.scene_index} 个镜头，并返回该镜头。' if request.scene_index else '处理全部镜头。'
             user = f'''为下面分镜生成视频模型可直接使用的提示词。{scene_scope}只输出 JSON：{{"prompts":[{{"scene_index":1,"storyboard_prompt":"主体、环境、构图、景别、光影和风格","motion_prompt":"人物或物体动作、镜头运动、速度和转场"}}]}}。storyboard_prompt 和 motion_prompt 必须使用简体中文，禁止将整段提示词翻译成英文，API、BIM 等专业术语和专有名称可以保留。每个镜头的两段中文提示词合计不超过 4000 字（含合并时的分隔符）。不要输出 final_prompt，应用会按用户可见的这两项原文合并最终提示词。提示词要具体、可拍摄，保留人物和场景连续性。脚本：\n{json.dumps(existing, ensure_ascii=False)}'''
-            parsed = parse_llm_json(llm_json(config, [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}]))
+            parsed = call_model(user)
             prompts = parsed.get('prompts', []) if isinstance(parsed, dict) else []
             prompt_map = {int(item.get('scene_index', 0)): item for item in prompts if isinstance(item, dict) and str(item.get('scene_index', '')).isdigit()}
             result = normalise_script(existing, existing.get('source_node_id', ''))
@@ -1867,12 +2080,16 @@ def generate_script(request: ScriptGenerateRequest):
                 if len(final) > 4000:
                     raise RuntimeError(f'大模型返回的第 {scene["index"]} 镜提示词超过 4000 字，原有内容已保留，请重新合成')
                 scene['storyboard_prompt'], scene['motion_prompt'], scene['final_prompt'] = storyboard, motion, final
-    except HTTPException: raise
+    except HTTPException:
+        generation_stop.check('text', request.request_id)
+        raise
     except Exception as error:
+        generation_stop.check('text', request.request_id)
         raise HTTPException(502, provider_error_message(error))
-    body = save_script_to_project(request.project_id, request.node_id, result, request.revision)
+    with generation_stop.submission('text', request.request_id):
+        body = save_script_to_project(request.project_id, request.node_id, result, request.revision)
     saved = next(node['script_data'] for node in body['nodes'] if node.get('id') == request.node_id)
-    return {'script_data': saved, 'project_revision': body['revision'], 'updated_at': body['updated_at'], 'model': config['model_id']}
+    return {'script_data': saved, 'project_revision': body['revision'], 'updated_at': body['updated_at'], 'model': config['model_id'], 'request_id': request.request_id}
 
 @app.get('/api/projects')
 def projects(trashed: bool = False):
@@ -2033,6 +2250,9 @@ def create_project(p: Project):
 @app.get('/api/projects/{pid}')
 def project(pid: str):
     graph = active_project(pid)
+    if any(n.get('mujian') for n in graph['nodes']):
+        from studio_graph import reconcile_bindings
+        graph = reconcile_bindings(AgentHost(), pid)
     service = getattr(app.state, 'agent_service', None)
     if service:
         for rid in {n.get('agent_run_id') for n in graph['nodes']} - {None}:
@@ -2374,6 +2594,25 @@ def retry_asset_file(aid: str):
     return asset_public(require_live_asset(aid))
 
 
+@app.get('/api/assets/{aid}/download')
+def download_asset_file(aid: str):
+    """Only serve an owned, persisted file; never redirect to a provider URL."""
+    asset = require_live_asset(aid)
+    url = str(asset.get('url') or '')
+    if not url.startswith('/uploads/'):
+        raise HTTPException(409, '素材文件尚未保存到服务器，请先重试文件下载。' + asset.get('file_error', ''))
+    name = url[len('/uploads/'):]
+    if not name or Path(name).name != name or '\\' in name:
+        raise HTTPException(404, '素材文件不存在')
+    path = (UPLOADS / name).resolve()
+    if path.parent != UPLOADS.resolve() or not path.is_file():
+        raise HTTPException(404, '服务器上的素材文件不存在，请重新导入或生成。')
+    filename = clean_asset_name(asset.get('name') or name)
+    if path.suffix and not filename.lower().endswith(path.suffix.lower()):
+        filename += path.suffix
+    return FileResponse(path, filename=filename, media_type=MIMES.get(path.suffix, 'application/octet-stream'))
+
+
 @app.post('/api/assets/from-task', status_code=201)
 def save_task_asset(body: AssetFromTask):
     validate_asset_location(folder_id=body.folder_id)
@@ -2478,8 +2717,14 @@ def video_graph_asset_ids(project, video):
             continue
         own_settings = owner.get('settings') or {}
         for mention in own_settings.get('mentions') or []:
-            if mention.get('asset_id') and mention.get('kind') not in ('text', 'script') and mention.get('token') and mention['token'] in str(own_settings.get('prompt') or ''):
-                add_asset(mention['asset_id'], owner.get('title') or '提示词引用')
+            if mention.get('kind') not in ('text', 'script') and mention.get('token') and mention['token'] in str(own_settings.get('prompt') or ''):
+                source = node_by_id.get(mention.get('node_id'))
+                aid = mention.get('asset_id') if not mention.get('node_id') else ''
+                if source:
+                    aid = source.get('referenceAssetId') if source.get('type') == 'video' else source.get('assetId')
+                    if not aid and source.get('type') == 'character':
+                        aid = (raw_record('character', source.get('characterId', '')) or {}).get('asset_id')
+                if mention.get('node_id') or aid: add_asset(aid, mention.get('name') or '提示词引用')
     order = settings.get('reference_order') or []
     rank = {asset_id: order.index(asset_id) for asset_id in asset_ids if asset_id in order}
     asset_ids.sort(key=lambda asset_id: rank.get(asset_id, len(order)))
@@ -2505,7 +2750,7 @@ def video_request_digest(request):
 def submit_video_task(p: Task, project_snapshot=None):
     # A saved request ID reconciles an interrupted Agent submission without
     # creating a second paid task. Freeze graph inputs for this one submission.
-    with submission_task_lock(VIDEO_SUBMIT_LOCK):
+    with generation_stop.submission('video', p.request_id), submission_task_lock(VIDEO_SUBMIT_LOCK):
         submission_owner = record_owner(project_snapshot or creation_context(p.project_id)) if current_principal() else None
         if p.request_id:
             previous = next((t for t in listing('task') if t.get('params', {}).get('request_id') == p.request_id
@@ -2525,6 +2770,9 @@ def _submit_video_task(p: Task, project_snapshot=None):
     project = project_snapshot or creation_context(p.project_id)
     video = next((n for n in project['nodes'] if n.get('id') == p.node_id and n.get('type', 'video' if 'video' in n.get('id', '') else '') == 'video'), None)
     if not video: raise HTTPException(422, '请先保存视频生成节点')
+    if video.get('mujian'):
+        from studio_graph import resolve_inputs
+        resolve_inputs(AgentHost(), project, video)
     # A video expanded from a storyboard must use the current shot prompt and
     # duration.  Aspect ratio and resolution stay on the video node.
     video_settings = video.get('settings') if isinstance(video.get('settings'), dict) else {}
@@ -2575,7 +2823,7 @@ def _submit_video_task(p: Task, project_snapshot=None):
         provider = provider_id('video', config)
         seed25 = provider == 'ark' and ('seedance-2-5' in model_id or 'seedance-2.5' in model_id)
         seed20 = provider == 'ark' and ('seedance-2-0' in model_id or 'seedance-2.0' in model_id)
-        h3 = provider == 'aimarket' and model_id == 'minimax-h3'
+        h3 = provider in ('aimarket', 'minimax') and model_id == 'minimax-h3'
         declared = provider == 'ark' and (config.get('capabilities') or {}).get('video_reference') is True
         if not (seed25 or seed20 or h3 or declared):
             raise HTTPException(422, f'{config["name"]}不支持视频参考，请选择 Seedance 2.0 / 2.5 或 MiniMax H3')
@@ -2626,12 +2874,19 @@ def _submit_video_task(p: Task, project_snapshot=None):
     params['model_config_id'] = config.get('id') or p.model_config_id or active_model_id('video')
     params['model_name'] = config['name']
     try:
-        params.update(style_task_fields(params.get('visual_style'), params['prompt'], 'video'))
+        model_prompt = params['prompt']
+        if video.get('mujian') or video.get('settings', {}).get('mentions'):
+            from studio_graph import compile_reference_prompt
+            model_prompt = compile_reference_prompt(AgentHost(), project, video, model_prompt, asset_ids)
+        params.update(style_task_fields(params.get('visual_style'), model_prompt, 'video'))
+        if model_prompt != params['prompt']: params.setdefault('effective_prompt', model_prompt)
     except ValueError as error:
         raise HTTPException(422, str(error)) from error
     if not config.get('api_key'):
         return save('task', {'id': tid, 'task_id': tid, 'project_id': p.project_id, 'params': params, 'status': 'blocked', 'error': f'请先在右侧模型选择中配置 {config["name"]} 的 API Key。当前未调用模型、未扣费。', 'created_at': time.time()})
-    task = save('task', {'id': tid, 'task_id': tid, 'project_id': p.project_id, 'params': params, 'status': 'queued', 'provider': config['provider'], 'created_at': time.time()})
+    from studio_graph import binding_signature
+    task = save('task', {'id': tid, 'task_id': tid, 'project_id': p.project_id, 'params': params, 'status': 'queued', 'queue_state': 'waiting', 'status_message': '已加入个人生成队列', 'provider': config['provider'],
+                         'studio_binding': binding_signature(project, video) if video.get('mujian') else None, 'created_at': time.time()})
     with submission_task_lock(VIDEO_WORKER_LOCK):
         ACTIVE_VIDEO_TASKS.add(tid)
     start_generation_worker('task', task, run_provider_task, (tid, params, config))
@@ -2641,7 +2896,8 @@ def _submit_video_task(p: Task, project_snapshot=None):
 def task(tid: str):
     value = get('task', tid)
     if value.get('deleted_at'): raise HTTPException(404, '生成记录已删除')
-    return refresh_video_task(tid)
+    value = generation_queue.refresh_credentials('task', value)
+    return {**refresh_video_task(tid), **generation_queue.public('task', value)}
 
 from agent_runtime import install_agent
 
@@ -2669,7 +2925,11 @@ def start_generation_worker(kind, task, target, args):
             active.discard(task['id'])
     def start():
         try:
-            threading.Thread(target=target, args=args, daemon=True).start()
+            if (kind == 'image_task' and target == run_image_generation or
+                    kind == 'task' and target == run_provider_task and len(args) == 3):
+                generation_queue.enqueue(kind, task, args[-1])
+            else:
+                threading.Thread(target=target, args=args, daemon=True).start()
         except Exception:
             unregister()
             save(kind, {**task, 'status': 'failed', 'error': '生成任务未能启动，请稍后重试', 'updated_at': time.time()})
@@ -2678,6 +2938,10 @@ def start_generation_worker(kind, task, target, args):
 
 
 manual_generation = ConversationGeneration(AgentHost())
+from generation_queue import install_generation_queue, request_result_unknown
+generation_queue = install_generation_queue(app, AgentHost())
+from generation_stop import install_generation_stop
+generation_stop = install_generation_stop(app, AgentHost())
 
 
 from media_library import migrate_media_library
@@ -2688,6 +2952,10 @@ migrate_agent_conversations(AgentHost())
 migrate_ownership(connect, DATA)
 install_conversations(app, AgentHost())
 install_agent(app, AgentHost())
+from studio_render import install_studio_render
+install_studio_render(app, AgentHost())
+from admin_logs import install_admin_logs
+install_admin_logs(app, AgentHost())
 
 app.mount('/uploads', PrivateUploads(directory=UPLOADS), name='uploads')
 app.mount('/', StaticFiles(directory=ROOT / 'public', html=True), name='frontend')

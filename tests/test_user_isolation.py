@@ -113,6 +113,32 @@ class UserIsolationTests(unittest.TestCase):
         self.assertEqual([a['id'] for a in self.request(self.a, 'GET', '/api/assets?collection=library')], [self.aa['id']])
         self.assertEqual(self.request(self.b, 'GET', '/api/assets?collection=library'), [])
 
+    def test_file_download_is_an_attachment_and_requires_the_asset_owner(self):
+        route = '/api/assets/' + self.aa['id'] + '/download'
+        stored_bytes = self.a.request('GET', self.aa['url'])[2]
+        status, headers, body = self.a.request('GET', route)
+        self.assertEqual(status, 200)
+        self.assertEqual(body, stored_bytes)
+        self.assertTrue(headers['content-disposition'].startswith('attachment;'))
+        self.assertIn('a.png', headers['content-disposition'])
+        self.assertEqual(self.b.request('GET', route)[0], 404)
+        self.assertEqual(Browser(self.h.app).request('GET', route)[0], 401)
+        self.assertEqual(self.request(self.a, 'GET', '/api/assets/' + self.aa['id'])['in_library'], False)
+        self.assertEqual(self.a.request('DELETE', '/api/assets/' + self.aa['id'])[0], 204)
+        self.assertEqual(self.a.request('GET', route)[0], 404)
+
+    def test_download_never_redirects_to_remote_or_reads_outside_uploads(self):
+        for url, expected in [('https://cdn.test/video.mp4?token=private', 409),
+                              ('/uploads/../private.txt', 404), ('/uploads/missing.mp4', 404)]:
+            with self.subTest(url=url):
+                asset = self.owned_save('dingyufu', 'asset', {'id': 'download-fixture', 'kind': 'video', 'name': '视频', 'url': url})
+                with patch.object(self.h, 'cache_generated_video') as download, patch.object(self.h, 'provider_json') as provider:
+                    status, headers, _ = self.a.request('GET', '/api/assets/' + asset['id'] + '/download')
+                    self.assertEqual(status, expected)
+                    self.assertNotIn('location', headers)
+                    download.assert_not_called()
+                    provider.assert_not_called()
+
     def test_remove_from_library_preserves_history_files_and_references(self):
         route = '/api/assets/' + self.aa['id'] + '/library'
         original_file = self.a.request('GET', self.aa['url'])[2]

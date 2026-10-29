@@ -14,9 +14,10 @@ export function installNodePlayers(root = document) {
   function enhance(media) {
     if (active.has(media) || media.closest('.node-player')) return;
     const audio = media.tagName === 'AUDIO';
+    const conversation = !audio && media.hasAttribute('data-conversation-video');
     const player = document.createElement('div');
     player.className = `node-player ${audio ? 'node-player-audio' : 'node-player-video media-node-interactive'}`;
-    if(!audio&&media.hasAttribute('data-conversation-video'))player.classList.add('node-player-conversation');
+    if(conversation)player.classList.add('node-player-conversation');
     player.setAttribute('role', 'group');
     player.setAttribute('aria-label', media.getAttribute('aria-label') || (audio ? '音频播放器' : '视频播放器'));
     if (audio) {
@@ -27,7 +28,9 @@ export function installNodePlayers(root = document) {
       }
       if (media.previousElementSibling?.matches('.media-node-audio-art,.al-audio-art')) media.previousElementSibling.remove();
     }
-    media.before(player); player.append(media); media.controls = false; media.preload = 'metadata';
+    media.before(player); player.append(media); media.controls = false;
+    // Conversation previews need a decoded first frame, not only dimensions.
+    media.preload = conversation ? 'auto' : 'metadata';
     player.insertAdjacentHTML('beforeend', `${audio ? '<div class="np-wave"><svg viewBox="0 0 600 160" preserveAspectRatio="none" aria-hidden="true"></svg><i class="np-cursor"></i></div>' : ''}<div class="np-controls"><button type="button" class="np-toggle" aria-label="播放">${glyph('play')}</button><span class="np-current">${playerTime(0,audio)}</span>${audio ? '<span class="np-divider">/</span>' : ''}<input class="np-seek" type="range" min="0" max="1000" value="0" step="1" aria-label="播放进度" disabled><span class="np-duration">${playerTime(0,audio)}</span>${audio ? '' : `<button type="button" class="np-volume" aria-label="静音">${glyph('volume')}</button><button type="button" class="np-fullscreen" aria-label="全屏">${glyph('fullscreen')}</button>`}</div><span class="np-status" role="status"></span>`);
     const find = selector => player.querySelector(selector);
     const seek = find('.np-seek'), toggle = find('.np-toggle'), status = find('.np-status');
@@ -120,7 +123,41 @@ export function installNodePlayers(root = document) {
     on(media,'waiting',() => {status.textContent='正在缓冲…';});
     on(media,'playing',() => {status.textContent=silentRecovery?recoveryMessage:'';});
     on(media,'canplay',() => {status.textContent=silentRecovery?recoveryMessage:'';});
-    on(media,'error',() => {status.textContent='无法播放，请检查文件或更换素材';toggle.disabled=true;seek.disabled=true;});
+    on(media,'error',() => {if(!conversation)status.textContent='无法播放，请检查文件或更换素材';toggle.disabled=true;seek.disabled=true;});
+    if (conversation) {
+      player.insertAdjacentHTML('beforeend', '<div class="np-preview"><span class="np-preview-spinner" aria-hidden="true"></span><span class="np-preview-error-icon" aria-hidden="true">'+icon('warning')+'</span><span class="np-preview-label" role="status" aria-live="polite"></span><button type="button" class="np-preview-retry" hidden>重新加载</button></div>');
+      const preview = find('.np-preview'), label = find('.np-preview-label'), retry = find('.np-preview-retry');
+      let previewState = '', slowTimer;
+      const clearSlowTimer = () => {clearTimeout(slowTimer);slowTimer=undefined;};
+      const syncPreview = () => {
+        // loadedmetadata alone does not mean there is a frame to display.
+        const next = media.error ? 'error' : media.readyState >= 2 ? 'ready' : 'loading';
+        if (next === previewState) return;
+        previewState = next;
+        clearSlowTimer();
+        player.classList.toggle('is-preview-loading', next === 'loading');
+        player.classList.toggle('is-preview-error', next === 'error');
+        player.setAttribute('aria-busy', String(next === 'loading'));
+        preview.hidden = next === 'ready';
+        retry.hidden = next !== 'error';
+        toggle.disabled = next !== 'ready';
+        label.textContent = next === 'error' ? '视频加载失败，请重试' : next === 'loading' ? '视频加载中…' : '';
+        if (next === 'loading') {
+          slowTimer = setTimeout(() => {
+            label.textContent = '视频加载较慢，请稍候';
+            retry.hidden = false;
+          }, 15000);
+        }
+      };
+      for (const event of ['loadstart','loadedmetadata','loadeddata','canplay','error','emptied']) on(media,event,syncPreview);
+      on(retry,'click',() => {
+        status.textContent='';silentRecovery=false;recoveryAttempted=false;
+        // Reload this file only; never resubmit a generation task.
+        media.load();previewState='';syncPreview();
+      });
+      abort.signal.addEventListener('abort',clearSlowTimer,{once:true});
+      syncPreview();
+    }
     if (!audio) {
       const volume = find('.np-volume');
       const syncVolume = () => {volume.innerHTML=glyph(media.muted || !media.volume?'muted':'volume');volume.setAttribute('aria-label',media.muted?'取消静音':'静音');};

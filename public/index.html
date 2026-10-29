@@ -30,30 +30,35 @@
   <link rel="stylesheet" href="theme.css?v=dark-only-1">
   <link rel="stylesheet" href="session.css?v=profile-2">
   <link rel="stylesheet" href="aurora-loader.css?v=1">
-  <link rel="stylesheet" href="agent-chat.css?v=conversation-preview-1">
+  <link rel="stylesheet" href="agent-chat.css?v=neutral-studio-1">
   <link rel="stylesheet" href="platform-theme.css?v=ui-cleanup-1">
-  <link rel="stylesheet" href="canvas-workspace.css?v=media-history-1">
-  <link rel="stylesheet" href="canvas-connections.css?v=1">
-  <link rel="stylesheet" href="canvas-agent.css?v=canvas-agent-float-2">
-  <link rel="stylesheet" href="node-context.css?v=compact-editor-top-1">
+  <link rel="stylesheet" href="canvas-workspace.css?v=node-anchored-3">
+  <link rel="stylesheet" href="canvas-connections.css?v=port-fade-2">
+  <link rel="stylesheet" href="canvas-agent.css?v=shared-studio-2">
+  <link rel="stylesheet" href="node-context.css?v=hide-outer-scrollbar-1">
   <link rel="stylesheet" href="inline-node-media.css?v=image-params-3">
-  <link rel="stylesheet" href="asset-mentions.css?v=video-reference-sync-3">
-  <link rel="stylesheet" href="node-player.css?v=conversation-video-1">
-  <link rel="stylesheet" href="canvas-groups.css?v=group-title-zoom-2">
-  <link rel="stylesheet" href="asset-history.css?v=asset-tab-motion-1">
-  <link rel="stylesheet" href="project-library.css?v=viewport-info-3">
-  <link rel="stylesheet" href="home-composer.css?v=conversation-video-1">
-  <link rel="stylesheet" href="dream-home.css?v=recent-video-1">
-  <link rel="stylesheet" href="home-tabs.css?v=agent-tab-order-1">
-  <link rel="stylesheet" href="generation-conversation.css?v=conversation-video-1">
+  <link rel="stylesheet" href="asset-mentions.css?v=studio-references-2">
+  <link rel="stylesheet" href="node-player.css?v=video-preview-loading-1">
+  <link rel="stylesheet" href="canvas-groups.css?v=soft-compact-1">
+  <link rel="stylesheet" href="asset-history.css?v=save-inline-2">
+  <link rel="stylesheet" href="project-library.css?v=project-types-1">
+  <link rel="stylesheet" href="home-composer.css?v=reference-library-preview-1">
+  <link rel="stylesheet" href="dream-home.css?v=larger-home-composer-1">
+  <link rel="stylesheet" href="home-tabs.css?v=agent-first-1">
+  <link rel="stylesheet" href="generation-conversation.css?v=deleted-media-2">
   <link rel="stylesheet" href="agent-conversation.css?v=compact-cards-2">
-  <link rel="stylesheet" href="/brand.css?v=recent-delete-5">
+  <link rel="stylesheet" href="agent-studio.css?v=floating-switch-1">
+  <link rel="stylesheet" href="studio-canvas.css?v=timeline-detail-1">
+  <link rel="stylesheet" href="/brand.css?v=brand-headings-1">
   <link rel="stylesheet" href="delete-confirm.css?v=1">
   <link rel="stylesheet" href="modal-motion.css?v=1">
   <link rel="stylesheet" href="image-lightbox.css?v=1">
   <link rel="stylesheet" href="loading-state.css?v=1">
   <link rel="stylesheet" href="asset-preview.css?v=media-history-1">
   <link rel="stylesheet" href="/visual-style-picker.css?v=2">
+  <link rel="stylesheet" href="request-button.css?v=stop-1">
+  <link rel="stylesheet" href="storyboard.css?v=neutral-studio-1">
+  <link rel="stylesheet" href="admin-logs.css?v=1">
 </head>
 <body>
   <div id="appBootScreen" role="status" aria-live="polite"><img class="app-boot-loader" src="/triangle-flow.svg?v=1" alt="" aria-hidden="true"><p id="appBootMessage">正在加载…</p><button id="appBootRetry" type="button" hidden>重新加载</button></div>
@@ -64,6 +69,7 @@
       <button data-view="projects" title="项目" aria-label="项目"><i aria-hidden="true"><svg class="ui-icon nav-icon nav-icon-projects" viewBox="0 0 24 24"><g class="nav-icon-motion"><path d="M3 9V6.5A2.5 2.5 0 0 1 5.5 4H9l2.3 2.5h7.2A2.5 2.5 0 0 1 21 9v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/><path class="nav-folder-lid" d="M3 10h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8Z"/></g></svg></i><span>项目</span></button>
       <button data-view="assets" title="资产库" aria-label="资产库"><i aria-hidden="true"><svg class="ui-icon nav-icon nav-icon-assets" viewBox="0 0 24 24"><g class="nav-icon-motion"><rect class="nav-asset-back" x="6" y="3" width="14" height="15" rx="3"/><g class="nav-asset-front"><rect x="3" y="6" width="14" height="15" rx="3"/><circle cx="7.5" cy="10.5" r="1.2"/><path d="m4 17 3.5-3.5 3 2.5 2-2 3.5 3.5"/></g></g></svg></i><span>资产库</span></button>
       <button data-view="models" title="模型管理" aria-label="模型管理"><i aria-hidden="true"><svg class="ui-icon nav-icon nav-icon-models" viewBox="0 0 24 24"><g class="nav-icon-motion"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M7 8h10M7 16h10"/><circle class="nav-model-top" cx="10" cy="8" r="2"/><circle class="nav-model-bottom" cx="14" cy="16" r="2"/></g></svg></i><span>模型管理</span></button>
+      <button id="adminLogsNav" data-view="logs" title="系统日志" aria-label="系统日志" hidden><i aria-hidden="true"><svg class="ui-icon nav-icon" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></i><span>系统日志</span></button>
     </nav>
     <div class="project-list"><div id="projectList"></div></div>
     <div class="side-bottom">
@@ -81,9 +87,11 @@
       <div id="projectBreadcrumb"><span class="crumb">创作空间 / </span><strong id="projectName">加载中…</strong><button class="edit" id="renameProject" title="重命名"><svg class="ui-icon ui-icon-sm" viewBox="0 0 24 24"><path d="m4 16-.8 4.8L8 20l10.7-10.7a2.4 2.4 0 0 0-3.4-3.4L4.6 16.6Z"/><path d="m13.8 7.2 3 3"/></svg></button><span class="save-state" id="saveState">已保存</span></div>
       <div id="modelPageBreadcrumb" hidden><span class="crumb">设置 / </span><strong>模型管理</strong></div>
       <div id="agentBreadcrumb" hidden><strong>对话创作</strong></div>
+      <div id="adminLogBreadcrumb" hidden><span class="crumb">管理中心 / </span><strong>系统日志</strong></div>
     </header>
 
     <section class="agent-view view" id="agentView" aria-label="Agent 对话创作"></section>
+    <section class="view" id="adminLogsView" aria-label="系统日志"></section>
     <section class="workspace view active-view" id="canvasView">
       <div class="canvas-head">
         <div><h1 id="canvasTitle">智慧工地宣传片</h1><p>V 移动节点 · H 抓手平移 · 滚轮缩放 · Space 临时抓手</p></div>
@@ -155,7 +163,7 @@
   <div class="session-status" id="sessionStatus" role="status" aria-live="polite" hidden></div>
   <script src="browser-runtime.js?v=http-uuid-1"></script>
   <script type="module" src="modal-motion.js?v=1"></script>
-  <script type="module" src="app.js?v=home-default-image-1"></script>
+  <script type="module" src="app.js?v=account-video-1"></script>
   <script type="module" src="sidebar-scrollbar.js?v=shared-overlay-2"></script>
 </body>
 </html>

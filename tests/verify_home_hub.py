@@ -62,7 +62,7 @@ def main():
                     page.screenshot(path=str(output/'08-mobile-references.png'))
                     assert page.locator('#agentView').evaluate('el=>el.scrollWidth<=el.clientWidth+1')
                     page.set_viewport_size({'width':1512,'height':1000})
-                for _ in range(3):items.first.locator('button').click()
+                for _ in range(3):items.first.locator('[data-home-remove],[data-remove]').click()
                 expect(items).to_have_count(0)
             page.locator('#homeTab-agent').click()
             expect(page.locator('#agentComposer [data-command=preferences],#agentComposer [data-command=scope],#agentModelLabel')).to_have_count(0)

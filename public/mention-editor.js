@@ -1,6 +1,6 @@
 // The textarea remains the serialized draft/API boundary; the visible editor
 // renders immutable reference tokens while keeping normal text freely editable.
-export function createMentionEditor(input,{references,visual,thumbnail,onHover,onLeave,onChange,onKey}) {
+export function createMentionEditor(input,{references,visual,thumbnail,onHover,onLeave,onChange,onKey,onPreview}) {
   const editor=document.createElement('div');
   editor.className='mention-editor';editor.dataset.mentionEditor=input.id||input.className;
   editor.setAttribute('role','textbox');editor.setAttribute('aria-multiline','true');
@@ -50,7 +50,7 @@ export function createMentionEditor(input,{references,visual,thumbnail,onHover,o
     editor.contentEditable=String(!input.readOnly&&!input.disabled);editor.setAttribute('aria-readonly',String(input.readOnly));
     editor.dataset.placeholder=input.placeholder;
     if(editing||composing)return;
-    const refs=references(),value=input.value,signature=value+JSON.stringify(refs.map(r=>[r.token,r.assetId,r.name,r.url,r.number]));
+    const refs=references(),value=input.value,signature=value+JSON.stringify(refs.map(r=>[r.token,r.assetId,r.name,r.url,r.number,r.pending]));
     if(signature===last)return;last=signature;
     renderStrip(refs,value);
     const focused=document.activeElement===editor,offset=focused?caret():0;
@@ -63,9 +63,15 @@ export function createMentionEditor(input,{references,visual,thumbnail,onHover,o
       if(at>position)editor.append(document.createTextNode(value.slice(position,at)));
       if(!next)break;
       const chip=document.createElement('span');chip.className='mention-token';chip.contentEditable='false';chip.dataset.mentionToken=next.token;
-      chip.dataset.assetId=next.assetId||'';chip.title=next.name;chip.setAttribute('aria-label',next.name);
+      chip.dataset.assetId=next.assetId||'';chip.dataset.nodeId=next.nodeId||'';chip.dataset.pending=String(!!next.pending);chip.title=next.name+(next.pending?' · 待生成':'');chip.setAttribute('aria-label',chip.title);
       chip.innerHTML=visual(next);chip.onpointerenter=()=>onHover(input,chip,next);
       chip.onpointerleave=onLeave;
+      if(onPreview&&next.url&&['image','prop','character'].includes(next.kind)){
+        chip.dataset.imagePreview='true';chip.tabIndex=0;chip.setAttribute('role','button');chip.setAttribute('aria-label',`放大预览 ${next.name||'参考图片'}`);
+        const preview=event=>{event.preventDefault();event.stopPropagation();onPreview(next);};
+        chip.onclick=preview;
+        chip.onkeydown=event=>{if(!event.isComposing&&['Enter',' '].includes(event.key))preview(event);};
+      }
       editor.append(chip);position=at+next.token.length;
     }
     if(!editor.lastChild||editor.lastChild.nodeType!==Node.TEXT_NODE)editor.append(document.createTextNode(''));

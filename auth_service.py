@@ -292,6 +292,7 @@ def install_auth(app: FastAPI, database: Path, public_directory: Path) -> AuthSt
             raise HTTPException(503, '跨站嵌入登录需要 HTTPS，请使用 HTTPS 地址或同站部署')
         address = request.client.host if request.client else 'unknown'
         user, token, ttl = store.login(payload.username, payload.password, address, payload.remember, request.cookies.get(COOKIE_NAME))
+        request.state.audit_user = user
         if request.cookies.get(COOKIE_NAME):
             market.revoke_session(token_hash(request.cookies[COOKIE_NAME]))
         response.set_cookie(

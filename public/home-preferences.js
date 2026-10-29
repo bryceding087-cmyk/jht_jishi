@@ -1,7 +1,32 @@
+// Keep one highlight mounted while its selected button and container change size.
+export function createSelectionIndicator(group, selector) {
+  const marker = document.createElement('span');
+  marker.className = 'selection-indicator';
+  marker.setAttribute('aria-hidden', 'true');
+  group.classList.add('has-selection-indicator');
+  group.prepend(marker);
+  let positioned = false;
+  function update(animate = true) {
+    const selected = group.querySelector(selector);
+    if (!selected?.offsetWidth) { marker.style.visibility = 'hidden'; return; }
+    marker.style.visibility = '';
+    if (!positioned || !animate) marker.style.transition = 'none';
+    marker.style.width = selected.offsetWidth + 'px';
+    marker.style.height = selected.offsetHeight + 'px';
+    marker.style.transform = `translate(${selected.offsetLeft}px, ${selected.offsetTop}px)`;
+    if (!positioned || !animate) { void marker.offsetWidth; marker.style.transition = ''; }
+    positioned = true;
+  }
+  const observer = new ResizeObserver(() => update(false));
+  observer.observe(group);
+  update(false);
+  return {update, destroy() { observer.disconnect(); marker.remove(); group.classList.remove('has-selection-indicator'); }};
+}
+
 // Compact parameter buttons share one top-layer panel, outside the scrolling composer.
 export function createHomePreferences({root,icon,escapeHtml:esc}) {
   const panel=document.createElement('div');panel.className='home-preference-panel';panel.setAttribute('popover','manual');panel.setAttribute('role','dialog');document.body.append(panel);
-  let anchor=null,sections=[],summary=null,composer=null,previousTranslate='';
+  let anchor=null,sections=[],summary=null,composer=null,previousTranslate='',indicators=[];
   function restoreComposer(){if(composer)composer.style.translate=previousTranslate;composer=null;}
   function close(restore=false){if(!anchor)return;const previous=anchor;anchor=null;previous.setAttribute('aria-expanded','false');panel.hidePopover();restoreComposer();if(restore&&previous.isConnected)previous.focus();}
   function position(){
@@ -36,10 +61,22 @@ export function createHomePreferences({root,icon,escapeHtml:esc}) {
     panel.style.left=Math.max(12,Math.min(r.left,innerWidth-width-12))+'px';panel.style.top=(r.bottom+10)+'px';
   }
   function draw(){
+    indicators.forEach(indicator=>indicator.destroy());
     panel.classList.toggle('is-choice-menu',sections.some(section=>section.menu));
-    panel.innerHTML=sections.map((section,i)=>`<section><h3>${esc(section.title)}</h3><div class="home-preference-options ${section.ratios?'ratios':''} ${section.title==='选择时长'?'durations':''}" role="group" aria-label="${esc(section.title)}">${Array.from(section.select.options).map(option=>`<button type="button" data-section="${i}" data-value="${esc(option.value)}" aria-pressed="${option.selected}" ${option.disabled?'disabled':''}>${section.ratios&&/^\d+:\d+$/.test(option.value)?`<i class="home-ratio-shape" style="--ratio:${option.value.replace(':','/')}"></i>`:''}<span>${esc(option.textContent)}</span></button>`).join('')}</div></section>`).join('');position();
+    panel.innerHTML=sections.map((section,i)=>`<section><h3>${esc(section.title)}</h3><div class="home-preference-options ${section.ratios?'ratios':''} ${section.title==='选择时长'?'durations':''}" role="group" aria-label="${esc(section.title)}">${Array.from(section.select.options).map(option=>`<button type="button" data-section="${i}" data-value="${esc(option.value)}" aria-pressed="${option.selected}" ${option.disabled||section.select.disabled?'disabled':''}>${section.ratios&&/^\d+:\d+$/.test(option.value)?`<i class="home-ratio-shape" style="--ratio:${option.value.replace(':','/')}"></i>`:''}<span>${esc(option.textContent)}</span></button>`).join('')}</div></section>`).join('');position();
+    indicators=[...panel.querySelectorAll('.home-preference-options')].map(group=>createSelectionIndicator(group,'[aria-pressed=true]'));
   }
-  panel.addEventListener('click',e=>{const button=e.target.closest('[data-value]');if(!button)return;const index=button.dataset.section,value=button.dataset.value,section=sections[Number(index)];section.select.value=value;section.select.dispatchEvent(new Event('change',{bubbles:true}));if(anchor){anchor.querySelector('span').textContent=summary();draw();panel.querySelector(`[data-section="${index}"][data-value="${CSS.escape(value)}"]`)?.focus({preventScroll:true});}});
+  function refresh(){
+    if(!anchor)return;
+    anchor.querySelector('span').textContent=summary();
+    panel.querySelectorAll('[data-value]').forEach(button=>{
+      const select=sections[Number(button.dataset.section)].select;
+      button.setAttribute('aria-pressed',String(select.value===button.dataset.value));
+      button.disabled=select.disabled||[...select.options].some(option=>option.value===button.dataset.value&&option.disabled);
+    });
+    indicators.forEach(indicator=>indicator.update());
+  }
+  panel.addEventListener('click',e=>{const button=e.target.closest('[data-value]');if(!button||button.disabled)return;const section=sections[Number(button.dataset.section)];if(section.select.value!==button.dataset.value){section.select.value=button.dataset.value;section.select.dispatchEvent(new Event('change',{bubbles:true}));}if(anchor){refresh();button.focus({preventScroll:true});}});
   panel.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();close(true);}if(['ArrowRight','ArrowLeft','ArrowDown','ArrowUp','Home','End'].includes(e.key)){const buttons=[...panel.querySelectorAll('button:not(:disabled)')],index=buttons.indexOf(document.activeElement);e.preventDefault();buttons[e.key==='Home'?0:e.key==='End'?buttons.length-1:(index+(['ArrowLeft','ArrowUp'].includes(e.key)?buttons.length-1:1))%buttons.length]?.focus();}if(e.key==='Tab'){const buttons=[...panel.querySelectorAll('button:not(:disabled)')];if(e.shiftKey&&document.activeElement===buttons[0]||!e.shiftKey&&document.activeElement===buttons.at(-1)){e.preventDefault();close(true);}}});
   document.addEventListener('pointerdown',e=>{if(anchor&&!panel.contains(e.target)&&!anchor.contains(e.target))close();});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&anchor){e.preventDefault();close(true);}});
@@ -52,5 +89,5 @@ export function createHomePreferences({root,icon,escapeHtml:esc}) {
     trigger.onclick=()=>{if(anchor===trigger)return close();close();anchor=trigger;sections=groups;summary=label;panel.setAttribute('aria-label',groups.map(g=>g.title).join('与'));trigger.setAttribute('aria-expanded','true');panel.showPopover();draw();panel.querySelector('[aria-pressed=true],button')?.focus({preventScroll:true});};
     return trigger;
   }
-  return {button,close};
+  return {button,close,refresh};
 }

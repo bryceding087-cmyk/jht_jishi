@@ -1,3 +1,4 @@
+import { beginMediaRequest, requestVersion, stoppedTask, captureMediaRequestFocus, mountMediaRequestButton, stopMediaRequest } from './media-request-stop.js?v=stop-1';
 import { icon } from './iconography.js?v=library-toggle-1';
 import { loadingMarkup } from './loading-state.js?v=1';
 
@@ -20,7 +21,7 @@ export function createAudioGenerator(ctx) {
     if(current?.asset?.id===asset.id){Object.assign(current.asset,asset);render(current);}
   });
   const active = session => current === session && session.overlay.isConnected && !session.suspended;
-  const busy = session => session.submitting || ['queued', 'running'].includes(session.status);
+  const busy = session => session.stopping || session.submitting || ['queued', 'running'].includes(session.status);
 
   function close() {
     if (!current) return;
@@ -89,6 +90,7 @@ export function createAudioGenerator(ctx) {
 
   function render(session) {
     if (!active(session)) return;
+    captureMediaRequestFocus(session);
     const locked = busy(session), finished = session.asset && session.status === 'succeeded';
     const config = session.audioConfig;
     session.overlay.innerHTML = `<section class="ag-dialog" role="dialog" aria-modal="true" aria-labelledby="agTitle"><header class="ag-header"><div><span>音频创作</span><h2 id="agTitle">AI 生成音频</h2></div><button type="button" id="agClose" aria-label="关闭音频生成">${icon('close')}</button></header>
@@ -104,6 +106,7 @@ export function createAudioGenerator(ctx) {
   }
 
   function bind(session) {
+    const locked = busy(session);
     const find = selector => session.overlay.querySelector(selector);
     find('#agClose').onclick = close;
     if(find('#agSaveLibrary'))find('#agSaveLibrary').onclick=async event=>{event.currentTarget.disabled=true;event.currentTarget.textContent=session.asset.in_library?'正在移出…':'正在保存…';const asset=await ctx.onSaveAsset?.(session.asset,!session.asset.in_library);if(asset)session.asset=asset;render(session);};
@@ -153,6 +156,8 @@ export function createAudioGenerator(ctx) {
     for (const [selector, key] of [['#agSampleRate','sample_rate'], ['#agSpeechRate','speech_rate'], ['#agLoudnessRate','loudness_rate'], ['#agPitchRate','pitch_rate']]) find(selector).onchange = event => { session.audioConfig[key] = Number(event.target.value); };
     find('#agSubtitles').onchange = event => { session.audioConfig.enable_subtitle = event.target.checked; };
     find('#agWatermark').onchange = event => { session.watermark = event.target.checked; };
+    mountMediaRequestButton(session,find('.ag-form-actions > button'),{sendLabel:'生成音频',onStop:()=>stop(session)},
+      session.stopping?'stopping':locked?'running':'idle',session.loading||!session.model?.api_key_set);
     find('#agForm').onsubmit = event => { event.preventDefault(); generate(session); };
     for (const action of ['up', 'down', 'remove']) session.overlay.querySelectorAll(`[data-ag-ref-${action}]`).forEach(button => button.onclick = () => {
       const index = Number(button.dataset[`agRef${action[0].toUpperCase()}${action.slice(1)}`]);
@@ -164,6 +169,8 @@ export function createAudioGenerator(ctx) {
   }
 
   async function acceptTask(session, task) {
+    if(!active(session)||session.stopping)return;
+    if(stoppedTask(task)){session.status='cancelled';session.error=task.status_message||'已停止等待，已有结果可在生成历史查看';render(session);return;}
     session.status = task.status;
     if (task.status === 'succeeded') {
       session.asset = task.asset || null; session.error = task.asset ? '' : '音频生成完成，但素材未能保存';
@@ -174,18 +181,29 @@ export function createAudioGenerator(ctx) {
 
   async function poll(session) {
     if (!active(session) || !session.taskId) return;
+    const version=requestVersion(session),taskId=session.taskId;
+    if(session.stopping)return;
+    const pollVersion=session.pollVersion=(session.pollVersion||0)+1;
     clearTimeout(session.timer);
     try {
       const task = await api(`/api/audio/generations/${encodeURIComponent(session.taskId)}`);
-      if (!active(session)) return;
+      if (!active(session)||version!==requestVersion(session)||pollVersion!==session.pollVersion||taskId!==session.taskId||session.stopping) return;
       session.pollErrors = 0; await acceptTask(session, task);
-      if (busy(session)) session.timer = setTimeout(() => poll(session), 2000);
+      if (version===requestVersion(session)&&pollVersion===session.pollVersion&&!session.stopping&&busy(session)) session.timer = setTimeout(() => poll(session), 2000);
     } catch (error) {
-      if (!active(session)) return;
+      if (!active(session)||version!==requestVersion(session)||pollVersion!==session.pollVersion||taskId!==session.taskId||session.stopping) return;
       session.pollErrors++;
       if (session.pollErrors >= 3) { session.error = '进度查询失败，任务仍在后台运行；请稍后从生成历史查看'; render(session); }
       else session.timer = setTimeout(() => poll(session), 2500);
     }
+  }
+
+  async function stop(session) {
+    if(!active(session))return;
+    if(!busy(session)){render(session);return;}
+    await stopMediaRequest(session,{api,json,target:{kind:'audio',project_id:session.options.project_id||undefined,
+      request_id:session.requestId||undefined,task_id:session.taskId||undefined},
+      render:()=>render(session),resume:result=>{if(result?.tasks?.[0]?.id)session.taskId=result.tasks[0].id;poll(session);}});
   }
 
   async function generate(session) {
@@ -201,18 +219,22 @@ export function createAudioGenerator(ctx) {
     const fingerprint = JSON.stringify(payload);
     if (session.fingerprint !== fingerprint || !session.uncertain) session.requestId = requestId();
     session.fingerprint = fingerprint; session.uncertain = true;
+    const version=beginMediaRequest(session);session.taskId=null;
     session.submitting = true; session.error = ''; session.asset = null; render(session);
     try {
       const task = await api('/api/audio/generations', json({...payload, request_id: session.requestId}));
-      session.uncertain = false; session.taskId = task.id;
+      if(!active(session)||version!==requestVersion(session))return;
+      session.taskId=task.id;
+      if(session.stopping)return;
+      session.uncertain = false;
       await session.options.onTask?.(task);
-      if (!active(session)) return;
+      if (!active(session)||version!==requestVersion(session)||session.stopping) return;
       session.submitting = false;
       await acceptTask(session, task);
-      if (busy(session)) poll(session);
+      if (version===requestVersion(session)&&!session.stopping&&busy(session)) poll(session);
     } catch (error) {
-      if (active(session)) { session.status = 'failed'; session.error = error.message || '提交音频任务失败'; }
-    } finally { session.submitting = false; render(session); }
+      if (active(session)&&version===requestVersion(session)&&!session.stopping) { session.status = 'failed'; session.error = error.message || '提交音频任务失败'; }
+    } finally { if(version===requestVersion(session)){session.submitting = false; render(session);} }
   }
 
   async function open(options = {}) {

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none" role="img" aria-labelledby="cf-breathe-title cf-breathe-desc">
+  <title id="cf-breathe-title">呼吸环流</title>
+  <desc id="cf-breathe-desc">2 秒循环，追逐与呼吸同步。青、蓝、紫三色细线，透明背景，无限循环。</desc>
+  <defs>
+    <linearGradient id="cf-breathe-color" x1="32" y1="25" x2="93" y2="98" gradientUnits="userSpaceOnUse"><stop stop-color="#20e8e4"/><stop offset=".48" stop-color="#1687ff"/><stop offset="1" stop-color="#a151ff"/></linearGradient>
+    <path id="cf-breathe-route" d="M64 28 A36 36 0 1 1 64 100 A36 36 0 1 1 64 28 Z" pathLength="300"/>
+  </defs>
+  <style>
+    .cf-breathe-track{stroke:url(#cf-breathe-color);stroke-width:2;opacity:.13}
+    .cf-breathe-line{stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dashoffset:var(--start,0px)}
+    .cf-breathe-motion{animation-play-state:var(--flow-play,running)}
+    .cf-breathe-line{stroke-dasharray:62 238;animation:cf-breathe-chase var(--flow-duration,2s) linear infinite,cf-breathe-reach var(--flow-duration,2s) ease-in-out infinite;animation-play-state:var(--flow-play,running)}
+    .cf-breathe-breath{transform-origin:64px 64px;animation:cf-breathe-breath var(--flow-duration,2s) ease-in-out infinite;animation-play-state:var(--flow-play,running)}
+    @keyframes cf-breathe-chase{from{stroke-dashoffset:var(--start,0px)}to{stroke-dashoffset:calc(var(--start,0px) - 300px)}}
+    @keyframes cf-breathe-reach{0%,100%{stroke-dasharray:62 238}50%{stroke-dasharray:84 216}}
+    @keyframes cf-breathe-breath{0%,100%{transform:scale(.94)}50%{transform:scale(1.04)}}
+    @media(prefers-reduced-motion:reduce){.cf-breathe-motion{animation:none!important}}
+  </style>
+  <g class="cf-breathe-breath cf-breathe-motion"><use href="#cf-breathe-route" class="cf-breathe-track"/>
+    <use href="#cf-breathe-route" class="cf-breathe-line cf-breathe-motion " stroke="#25dbed" style="--start:0px"/>
+    <use href="#cf-breathe-route" class="cf-breathe-line cf-breathe-motion " stroke="#318cff" style="--start:-100px"/>
+    <use href="#cf-breathe-route" class="cf-breathe-line cf-breathe-motion " stroke="#a170fa" style="--start:-200px"/></g>
+</svg>

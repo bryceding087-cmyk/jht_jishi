@@ -40,10 +40,10 @@
 .canvas-active .floating-editor .reference-asset > img, .inline-reference-list img, .agent-reference > img { width: 100%; height: 100%; border-radius: 7px; object-fit: cover; }
 .canvas-active .floating-editor .reference-audio-icon { width: 100%; height: 100%; background: #505050; color: #fff; }
 .reference-audio-icon .ui-icon, .inline-reference-list > div > .ui-icon, .agent-reference > .ui-icon { width: 32px; height: 32px; }
-.canvas-active .floating-editor .reference-actions, .inline-reference-list button, .agent-reference button { opacity: 0; transition: opacity .12s; }
+.canvas-active .floating-editor .reference-actions, .inline-reference-list button, .agent-reference [data-remove] { opacity: 0; transition: opacity .12s; }
 .canvas-active .floating-editor .reference-asset:hover .reference-actions, .canvas-active .floating-editor .reference-asset:focus-within .reference-actions, .inline-reference-list > div:hover button, .inline-reference-list > div:focus-within button, .agent-reference:hover button, .agent-reference:focus-within button { opacity: 1; }
 .agent-reference { display: inline-flex; align-items: center; justify-content: center; }
-.agent-reference button { position: absolute; right: -4px; top: -4px; width: 16px; height: 16px; border-radius: 50%; background: #444; color: #eee; padding: 0; }
+.agent-reference [data-remove] { position: absolute; right: -4px; top: -4px; width: 16px; height: 16px; border-radius: 50%; background: #444; color: #eee; padding: 0; }
 .canvas-active .floating-editor .reference-asset { width: 60px; height: 60px; padding: 0; }
 .canvas-active .floating-editor .reference-asset > img { width: 100%; height: 100%; }
 .inline-reference-list > div > .reference-number { padding: 0; top: 3px; left: 3px; border-radius: 50%; background: #111d; font-size: 11px; }
@@ -60,3 +60,15 @@
 .mention-token>.reference-video-cover{width:20px;height:20px;border-radius:5px}
 .mention-results .reference-video-cover{width:26px;height:26px;flex-shrink:0;border-radius:5px}
 .mention-linked .reference-video-cover{width:25px;height:25px;flex-shrink:0;border-radius:4px}
+
+.home-reference>.reference-image-preview,.agent-reference>.reference-image-preview{position:absolute;inset:0;display:block;width:100%;height:100%;padding:0;border:0;border-radius:inherit;overflow:hidden;background:transparent;cursor:zoom-in}
+.reference-image-preview>img{display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:cover}
+.reference-image-preview:focus-visible,.mention-token[data-image-preview]:focus-visible{outline:2px solid #b5d5d6;outline-offset:3px}
+.mention-token[data-image-preview]{cursor:zoom-in}
+.agent-reference>.reference-number{pointer-events:none}
+.mention-name{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mention-pending-label{padding-left:3px;color:#aaa;font-size:10px;line-height:1}
+.mention-token[data-pending="true"]{border-style:dashed;background:#292c2e}
+.reference-pending-cover{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:100%;height:100%;border-radius:7px;background:#292c2e;color:#aaa}
+.reference-pending-cover>.ui-icon{width:22px;height:22px}
+.reference-pending-cover>small{font-size:10px;line-height:14px}

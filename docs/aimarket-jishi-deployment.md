@@ -15,7 +15,7 @@
 
 | 用途 | 模型 ID | 接口 | 鉴权 |
 | --- | --- | --- | --- |
-| 文本 | `deepseek-v4-flash-vision-exp-0817` | `http://192.168.241.202:4091/v1/chat/completions` | `Authorization: Bearer <SDK 会话 Key>` |
+| 文本 | `deepseek-v4.1-flash` | `http://192.168.241.202:4091/v1/chat/completions` | `Authorization: Bearer <SDK 会话 Key>` |
 | 图片 | `doubao-seedream-5.0-pro` | `http://192.168.241.202:4091/v1/images/generations` | `Authorization: Bearer <SDK 会话 Key>` |
 | 视频提交 | `minimax-h3` | `http://192.168.241.202:4091/v1/video_generation` | `Authorization: Bearer <SDK 会话 Key>` |
 | 视频查询 | 同上 | `http://192.168.241.202:4091/v1/query/video_generation/{task_id}` | 同一会话 Key |

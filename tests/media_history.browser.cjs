@@ -330,6 +330,85 @@ if top > 4:
     await api(frame,'/api/test/media-history',{portrait:false});
     console.log('PASS: conversation videos use canvas controls, preserve playback while saving, show hover save state and fit portrait fullscreen');
 
+    const deletedVideo=(await history()).find(item=>item.task_id===portraitConversation.tid);
+    const deletedCard=frame.locator(`[data-home-job="${portraitConversation.tid}"]`);
+    await nav('assets');
+    await frame.locator('[data-al-collection="history"]').click();
+    await context.route('**/api/assets/'+deletedVideo.id,route=>route.request().method()==='DELETE'
+      ?route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({detail:'测试删除失败'})})
+      :route.continue());
+    await frame.locator(`[data-al-preview="${deletedVideo.id}"]`).click();
+    await frame.locator('#alPreviewDelete').click();
+    await frame.locator('#alDeleteConfirm').click();
+    await frame.waitForFunction(()=>document.querySelector('#alFormError')?.textContent.includes('测试删除失败'));
+    assert.equal(await portraitConversation.card.locator('video').count(),1,'failed deletion preserves the cached player');
+    await frame.locator('#alDeleteCancel').click();
+    await context.unroute('**/api/assets/'+deletedVideo.id);
+    await frame.locator(`[data-al-preview="${deletedVideo.id}"]`).click();
+    await frame.locator('#alPreviewDelete').click();
+    await frame.locator('#alDeleteConfirm').click();
+    await frame.locator('#alDeleteConfirm').waitFor({state:'detached'});
+    assert.equal(await portraitConversation.card.locator('video').count(),0,'successful deletion immediately removes the cached player');
+    assert.equal((await history()).some(item=>item.id===deletedVideo.id),false);
+    await frame.locator(`#projectList [data-conversation="${portraitConversation.cid}"]`).click();
+    await portraitConversation.card.locator('.home-deleted-media').waitFor();
+    assert.equal(await portraitConversation.card.locator('[data-home-save], [data-home-retry-file], .home-turn-note, .node-player').count(),0);
+    assert.equal(await portraitConversation.card.locator('.home-user-prompt').textContent(),'竖屏对话播放器测试');
+    assert.ok(await portraitConversation.card.locator('[data-home-edit]').isEnabled());
+    assert.ok(await portraitConversation.card.locator('[data-home-regenerate]').isEnabled());
+    await portraitConversation.card.locator('[data-home-details]').click();
+    assert.ok((await frame.locator('.home-result-details[open]').innerText()).includes('视频已删除'));
+    await frame.locator('.home-result-details[open] header button').click();
+    await frame.goto(info.app+'/market?conversation='+portraitConversation.cid);
+    await frame.waitForFunction(()=>!document.documentElement.hasAttribute('data-app-boot'));
+    await portraitConversation.card.locator('.home-deleted-media').waitFor();
+    assert.equal(await portraitConversation.card.locator('video').count(),0,'page reload must not resurrect the old video URL');
+    await portraitConversation.card.screenshot({path:'work/deleted-video-card.png'});
+    await frame.locator('#agentView').screenshot({path:'work/deleted-video-desktop.png'});
+    await page.locator('#studio').evaluate(el=>el.style.width='390px');
+    await frame.waitForFunction(()=>innerWidth===390);
+    assert.ok(await portraitConversation.card.locator('.home-deleted-media').evaluate(card=>{
+      const box=card.getBoundingClientRect();return box.left>=0&&box.right<=innerWidth;
+    }),'the deleted placeholder must fit the mobile viewport');
+    await frame.locator('#agentView').screenshot({path:'work/deleted-video-mobile.png'});
+    await page.locator('#studio').evaluate(el=>el.style.width='1200px');
+    await frame.waitForFunction(()=>innerWidth===1200);
+    const deletedRegenerationCalls=(await api(frame,'/api/test/media-history',{})).data.calls.video;
+    await portraitConversation.card.locator('[data-home-regenerate]').click();
+    await frame.waitForFunction(()=>document.querySelectorAll('[data-home-job]:not([hidden]) video').length===1);
+    assert.equal((await api(frame,'/api/test/media-history',{})).data.calls.video,deletedRegenerationCalls+1);
+    assert.equal(await deletedCard.locator('video').count(),0);
+    assert.equal(await deletedCard.locator('.home-deleted-media').count(),1);
+    console.log('PASS: deleted videos show a compact placeholder immediately and after reload, fit mobile, preserve prompt/details and allow regeneration; failed deletion preserves video');
+
+    for(const kind of ['image','audio']){
+      const prompt=kind==='image'?'阳光穿过树叶，人物转身微笑':'雨后森林中的鸟鸣与风声';
+      const result=await generate(kind,prompt);
+      const card=frame.locator(`[data-home-job="${result.tid}"]`);
+      const asset=(await history()).find(item=>item.task_id===result.tid);
+      if(kind==='image')await card.locator('.home-image-preview').click();
+      else {await nav('assets');await frame.locator(`[data-al-preview="${asset.id}"]`).click();}
+      await frame.locator('#alPreviewDelete').click();
+      await frame.locator('#alDeleteConfirm').click();
+      await frame.locator('#alDeleteConfirm').waitFor({state:'detached'});
+      assert.equal(await card.locator('img, audio').count(),0);
+      if(kind==='audio')await frame.locator(`#projectList [data-conversation="${result.cid}"]`).click();
+      await card.locator('.home-deleted-media').waitFor();
+      assert.equal(await card.locator('.home-deleted-media strong').textContent(),kind==='image'?'图片已删除':'音频已删除');
+      assert.equal(await card.locator('.home-deleted-media p').textContent(),'原素材已删除，提示词与生成参数仍保留');
+      assert.equal(await card.locator('[data-home-save], .home-task-state, .home-turn-note').count(),0);
+      await frame.goto(info.app+'/market?conversation='+result.cid);
+      await frame.waitForFunction(()=>!document.documentElement.hasAttribute('data-app-boot'));
+      await card.locator('.home-deleted-media').waitFor();
+      assert.equal(await card.locator('.home-user-prompt').textContent(),prompt);
+      assert.ok(await card.locator('[data-home-edit]').isEnabled());
+      await card.screenshot({path:`work/deleted-${kind}-card.png`});
+      await card.locator('[data-home-regenerate]').click();
+      await frame.waitForFunction(kind=>document.querySelectorAll(`[data-home-job]:not([hidden]) ${kind==='image'?'.home-image-preview':'audio'}`).length===1,kind);
+      assert.equal(await card.locator('.home-deleted-media').count(),1);
+    }
+    console.log('PASS: deleted image/audio results use the shared copy, survive page reload and retain working regeneration without old previews or save actions');
+
     await api(frame,'/api/test/media-history',{fail_download:true});
     const failure=await generate('video','测试下载失败恢复');
     await failure.card.locator('[data-home-retry-file]').waitFor();
@@ -346,8 +425,8 @@ if top > 4:
     assert.equal((await api(frame,'/api/test/media-history',{})).data.calls.video,before.video);
     console.log('PASS: failed video download terminates waiting; explicit retry preserves task and history without library membership');
 
-    const imageAsset=(await history()).find(item=>item.task_id&&item.kind==='image');
-    const audioAsset=(await history()).find(item=>item.kind==='audio');
+    const imageAsset=(await library()).find(item=>item.task_id&&item.kind==='image');
+    const audioAsset=(await library()).find(item=>item.kind==='audio');
     const project=(await api(frame,'/api/projects',{name:'历史与资产库测试',nodes:[
       {id:'video-node',type:'video-asset',title:'视频',assetId:failed.id,assetUrl:(await history()).find(item=>item.id===failed.id).url,x:100,y:120},
       {id:'image-node',type:'asset',title:'图片',assetId:imported.id,assetUrl:imported.url,x:500,y:120},
@@ -396,14 +475,20 @@ if top > 4:
     await frame.locator('#canvasView').screenshot({path:'work/media-history-canvas.png'});
     await frame.locator('.inline-picker-head button').click({timeout:5000});
     await frame.getByRole('textbox',{name:'音频生成描述',exact:true}).fill('画布音频生成测试');
+    const previousAudioIds=(await history()).filter(item=>item.kind==='audio').map(item=>item.id);
     await frame.locator('.inline-generate-button').click();
-    await frame.waitForFunction(async()=>{
+    await frame.waitForFunction(async previous=>{
       const m=await import('/market-session.js?v=market-sdk-3');const data=await (await fetch('/api/assets',m.withMarketSession({},'/api/assets'))).json();
-      return data.some(item=>item.kind==='audio'&&item.source==='generated'&&!item.in_library);
-    });
+      return data.some(item=>item.kind==='audio'&&item.source==='generated'&&!previous.includes(item.id));
+    },previousAudioIds);
     await frame.waitForFunction(()=>document.querySelector('[data-context="save"]')?.textContent.includes('保存至资产库')&&!document.querySelector('[data-context="save"]')?.textContent.includes('已保存'));
-    const canvasAudio=(await history()).find(item=>item.kind==='audio'&&!item.in_library);
+    const canvasAudio=(await history()).find(item=>item.kind==='audio'&&!previousAudioIds.includes(item.id));
     assert.ok(canvasAudio);
+    await frame.waitForFunction(async({pid,aid})=>{
+      const m=await import('/market-session.js?v=market-sdk-3'),url='/api/projects/'+pid;
+      const data=await (await fetch(url,m.withMarketSession({},url))).json();
+      return data.nodes.find(node=>node.id==='audio-node')?.assetId===aid;
+    },{pid:project.id,aid:canvasAudio.id});
     await frame.locator('[data-context="save"]').click();
     await frame.waitForFunction(()=>document.querySelector('[data-context="save"]')?.textContent.includes('移出资产库'));
     assert.equal((await history()).find(item=>item.id===canvasAudio.id).in_library,true);
@@ -437,7 +522,10 @@ if top > 4:
     if(await frame.locator('#editorClose').isVisible())await frame.locator('#editorClose').click();
     await frame.locator('#workspaceZoom').click();await frame.locator('[data-zoom="fit"]').click();
     await frame.locator('[data-node="image-node"] .frame-name').click();
-    if(await frame.locator('#editorClose').isVisible())await frame.locator('#editorClose').click();
+    await frame.locator('#inspector').waitFor({state:'visible'});
+    await frame.waitForFunction(()=>document.querySelector('#inspector .inline-model-select')?.disabled===false);
+    await frame.locator('#editorClose').click();
+    await frame.locator('#inspector').waitFor({state:'hidden'});
     await videoNode.locator('.frame-name').click();
     assert.ok(await frame.locator('#generateBtn').isDisabled(),'reselecting a queued node must keep generation locked');
     await frame.evaluate(()=>document.querySelector('#generateBtn').onclick());

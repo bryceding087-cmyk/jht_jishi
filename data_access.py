@@ -65,7 +65,7 @@ def parent_records(kind, record):
         yield 'agent_run', record.get('run_id') or record['id'].split(':', 1)[0]
     if kind == 'asset' and record.get('task_id'):
         yield {'video': 'task', 'audio': 'audio_task'}.get(record.get('kind'), 'image_task'), record['task_id']
-    if kind in ('asset', 'task', 'image_task', 'audio_task', 'agent_run') and record.get('project_id'):
+    if kind in ('asset', 'task', 'image_task', 'audio_task', 'agent_run', 'studio_render') and record.get('project_id'):
         yield 'conversation', record['project_id']
         yield 'project', record['project_id']
 

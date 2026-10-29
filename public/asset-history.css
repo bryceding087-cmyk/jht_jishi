@@ -14,7 +14,8 @@
 .al-history .al-history-filters [data-al-action=upload] { display: flex; align-items: center; gap: 6px; width: auto; white-space: nowrap; }
 .al-history-actions button:disabled { opacity: .6; cursor: default; }
 .agent-media-card footer { flex-wrap: wrap; gap: 10px; }
-.agent-save-library { background: #303030; border: 1px solid #555; border-radius: 8px; padding: 7px 10px; color: #eee; }
+.agent-save-library { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex-shrink: 0; white-space: nowrap; background: #303030; border: 1px solid #555; border-radius: 8px; padding: 7px 10px; color: #eee; }
+.agent-save-library > .ui-icon { flex-shrink: 0; }
 .agent-save-library:disabled { color: #aaa; cursor: default; }
 .al-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 27px; }
 .al-history-heading h1 { margin: 0; font-size: 20px; line-height: 28px; font-weight: 600; }

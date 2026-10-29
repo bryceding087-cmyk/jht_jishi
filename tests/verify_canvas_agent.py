@@ -30,7 +30,7 @@ def main():
             page.locator(f'#projectList [data-project="{project["id"]}"]').click();expect(page.locator('#canvasView')).to_be_visible()
             canvas_before=page.locator('#canvasView').bounding_box();node_before=page.locator('[data-node="idea"]').bounding_box()
             page.locator('#workspaceAgent').click();panel=page.locator('#canvasAgentPanel');expect(panel).to_be_visible()
-            expect(page.locator('#canvasView')).to_be_visible();expect(panel.locator('.agent-dock-starters button')).to_have_count(4)
+            expect(page.locator('#canvasView')).to_be_visible();expect(panel.locator('[data-dock-starter]')).to_have_count(0)
             expect(panel.locator('#agentView')).to_be_visible()
             page.wait_for_timeout(350)
             assert abs(page.locator('main').bounding_box()['width']-1512)<2
@@ -43,8 +43,6 @@ def main():
             assert page.locator('[data-node="idea"]').bounding_box()==node_before
             assert page.locator('iframe:visible').count()==0
             page.screenshot(path=str(output/'01-right-panel.png'))
-            panel.locator('[data-dock-starter="sense"]').click()
-            expect(page.locator('#agentInput')).to_have_value('请基于当前画布继续创作：\n项目：春日影像\n故事创意：春日城市的晨光')
             editor=panel.locator('#agentInput + .mention-editor');editor.fill('保留我的画布草稿')
             panel.locator('.canvas-agent-close').click();expect(panel).to_be_hidden()
             page.locator('#workspaceAgent').click();expect(panel).to_be_visible();expect(page.locator('#agentInput')).to_have_value('保留我的画布草稿')
@@ -81,7 +79,7 @@ def main():
             page.screenshot(path=str(output/'03-mobile.png'))
             page.emulate_media(reduced_motion='reduce');panel.locator('.canvas-agent-close').click();expect(panel).to_be_hidden()
             page.locator('#workspaceAgent').click();expect(panel).to_be_visible()
-            assert panel.locator('.agent-dock-starters button').first.evaluate('el=>getComputedStyle(el).animationName')=='none'
+            assert panel.locator('.agent-welcome').evaluate('el=>getComputedStyle(el).animationName')=='none'
             assert not errors,errors
             browser.close()
         print('PASS: floating window bounds and corners, unchanged canvas and node position, draft, resize, keyboard, project-bound run, graph refresh, navigation cleanup, mobile and reduced motion')

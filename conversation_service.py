@@ -5,6 +5,7 @@ import uuid
 from typing import Literal
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
+from conversation_titles import short_title
 
 
 class ConversationMetadata(BaseModel):
@@ -13,7 +14,7 @@ class ConversationMetadata(BaseModel):
 
 
 class ConversationCreate(BaseModel):
-    title: str = Field(min_length=1, max_length=80)
+    title: str | None = Field(default=None, min_length=1, max_length=80)
     kind: Literal['image', 'video', 'audio']
     prompt: str = Field(min_length=1, max_length=4000)
     settings: dict = Field(default_factory=dict)
@@ -21,10 +22,29 @@ class ConversationCreate(BaseModel):
 
 
 def create_context(h, name, kind, owner, *, context_id=None, nodes=None, prompt='', settings=None):
+    automatic = name is None
+    name = short_title(prompt, kind) if automatic else name
     return h.save('conversation', {'id':context_id or 'conversation-'+str(uuid.uuid4()),
         'name':name, 'title':name, 'creation_type':'conversation', 'kind':kind, 'owner_id':str(owner),
+        'title_source': 'initial' if automatic else 'manual',
         'prompt':prompt, 'settings':settings or {}, 'nodes':nodes or [], 'edges':[], 'groups':[],
         'revision':1, 'created_at':time.time(), 'updated_at':time.time()})
+
+
+def refine_initial_title(h, cid, suggestion):
+    """Merge once, atomically with manual renames and generation updates."""
+    if not isinstance(suggestion, str) or not suggestion.strip():
+        return None
+    with h.connect() as db:
+        db.execute('BEGIN IMMEDIATE')
+        row = db.execute("SELECT body FROM records WHERE kind='conversation' AND id=?", (cid,)).fetchone()
+        value = json.loads(row[0]) if row else None
+        if not value or value.get('deleted_at') or value.get('title_source') != 'initial':
+            return None
+        title = short_title(suggestion, value.get('kind'), summarize=False)
+        value.update(name=title, title=title, title_source='generated', revision=value.get('revision', 0) + 1)
+        db.execute("UPDATE records SET body=? WHERE kind='conversation' AND id=?", (json.dumps(value, ensure_ascii=False), cid))
+        return title
 
 
 def conversation_covers(h, context_ids):
@@ -58,7 +78,9 @@ def conversation_activity(h, context_ids):
             if cid not in context_ids or task.get('deleted_at'):
                 continue
             status = task.get('status', '')
-            if (kind == 'video' and task.get('provider_task_id') and task.get('polling_interrupted')
+            if task.get('local_stop_requested'):
+                status = 'stopped'
+            elif (kind == 'video' and task.get('provider_task_id') and task.get('polling_interrupted')
                     and status not in ('done', 'succeeded')):
                 status = 'running'
             active = status in ('queued', 'running', 'waiting_tool')
@@ -114,11 +136,13 @@ def install_conversations(app, h):
         run=h.raw_record('agent_run',value['run_id']) if value.get('run_id') else None
         return {k:value.get(k) for k in ('id','title','name','kind','creation_type','prompt','settings','created_at','updated_at','pinned','owner_id','creator_name','creator_username')} | {
             'run_id':run['id'] if run else None,'status':run['status'] if run else '',
+            'canvas_project_id':(run.get('studio') or {}).get('canvas_project_id') if run else None,
             'updated_at':max(value.get('updated_at',0),run['updated_at'] if run else 0)}
 
     @router.get('')
-    def conversations(request:Request):
-        items = [public(c) for c in h.listing('conversation') if not c.get('deleted_at') and authorized(c, request)]
+    def conversations(request:Request, trashed: bool = False):
+        items = [public(c) for c in h.listing('conversation') if not c.get('permanently_deleted')
+                 and (bool(c.get('trashed_at')) if trashed else not c.get('deleted_at')) and authorized(c, request)]
         covers = conversation_covers(h, {c['id'] for c in items})
         activity = conversation_activity(h, {c['id'] for c in items if c['kind'] in ('image', 'video', 'audio')})
         for item in items:
@@ -126,6 +150,53 @@ def install_conversations(app, h):
             item.update(status=generation.get('status', item['status']), active_task=generation.get('active_task'),
                 updated_at=max(item['updated_at'], generation.get('updated_at', 0)), cover=covers.get(item['id']))
         return sorted(items, key=lambda c:c['updated_at'], reverse=True)
+
+    @router.get('/{cid}/info')
+    def conversation_info(cid: str, request: Request):
+        value = owned(cid, request)
+        return public(value) | h.record_creator(value, legacy_owner=True)
+
+    def recycle(cid, request, action):
+        now = time.time()
+        with h.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = db.execute("SELECT body FROM records WHERE kind='conversation' AND id=?", (cid,)).fetchone()
+            value = json.loads(row[0]) if row else None
+            if not value or not authorized(value, request) or value.get('permanently_deleted'):
+                raise HTTPException(404, '对话不存在')
+            if action in ('restore', 'purge') and not value.get('trashed_at'):
+                raise HTTPException(409, '对话不在回收站中')
+            if action == 'trash' and value.get('deleted_at'):
+                raise HTTPException(409, '对话已被删除')
+            if action == 'restore':
+                value.pop('deleted_at', None)
+                value.pop('trashed_at', None)
+            else:
+                value.update(deleted_at=now, trashed_at=now)
+                if action == 'purge':
+                    value['permanently_deleted'] = True
+            value.update(updated_at=now, revision=value.get('revision', 0) + 1)
+            db.execute("UPDATE records SET body=? WHERE kind='conversation' AND id=?", (json.dumps(value, ensure_ascii=False), cid))
+            # Preserve generated assets and history; restoring never restarts a model request.
+            for rid, body in db.execute("SELECT id,body FROM records WHERE kind='agent_run'").fetchall():
+                run = json.loads(body)
+                if run.get('project_id') != cid or not h.can_access('agent_run', run):
+                    continue
+                if action == 'restore':
+                    run.pop('deleted_at', None)
+                else:
+                    run.update(deleted_at=now, status='cancelled', stop_requested=True)
+                run['updated_at'] = now
+                db.execute("UPDATE records SET body=? WHERE kind='agent_run' AND id=?", (json.dumps(run, ensure_ascii=False), rid))
+        return public(value)
+
+    @router.delete('/{cid}', status_code=204)
+    def trash_conversation(cid: str, request: Request, permanent: bool = False):
+        recycle(cid, request, 'purge' if permanent else 'trash')
+
+    @router.post('/{cid}/restore')
+    def restore_conversation(cid: str, request: Request):
+        return recycle(cid, request, 'restore')
 
     @router.post('',status_code=201)
     def create(body:ConversationCreate,request:Request):
@@ -157,13 +228,13 @@ def install_conversations(app, h):
             if not row:
                 raise HTTPException(404, '对话不存在')
             value = json.loads(row[0])
-            if not authorized(value, request):
+            if not authorized(value, request) or value.get('deleted_at'):
                 raise HTTPException(404, '对话不存在')
             if body.title is not None:
                 title = body.title.strip()
                 if not title:
                     raise HTTPException(422, '名称不能为空')
-                value.update(title=title, name=title)
+                value.update(title=title, name=title, title_source='manual')
             if body.pinned is not None:
                 value['pinned'] = body.pinned
             value.update(updated_at=time.time(), revision=value.get('revision', 0) + 1)
@@ -180,8 +251,11 @@ def install_conversations(app, h):
                 if kind=='image_task':item=h.image_generation_status(task['id'])
                 elif kind=='audio_task':item=h.audio_generation_status(task['id'])
                 else:
-                    task = h.refresh_video_task(task['id'])
+                    if not task.get('local_stop_requested'):
+                        task = h.refresh_video_task(task['id'])
                     item={k:task.get(k) for k in ('id','status','error','video_url','params','created_at','updated_at','provider_task_id','status_message','query_paused','auto_save_video','asset_save_status','asset_id','video_cache_status','video_cache_error')}
+                item.update({key: task.get(key) for key in ('request_id', 'stop_requested', 'local_stop_requested', 'stopped_at', 'provider_may_continue')})
+                item['request_id'] = task.get('request_id') or (task.get('params') or {}).get('request_id')
                 settings = task.get('params') if kind == 'task' else {
                     key: task[key] for key in ('model_config_id', 'model', 'reference_asset_ids', 'size', 'aspect_ratio', 'count', 'watermark', 'mode', 'audio_config', 'speaker', 'visual_style', 'style_snapshot', 'effective_prompt') if key in task
                 }

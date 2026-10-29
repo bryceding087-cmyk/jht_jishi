@@ -9,6 +9,34 @@ from video_service import validate_video_url, PublicVideoRedirectHandler, downlo
 class VideoDownloadTests(unittest.TestCase):
     origin = 'http://192.168.241.202:4091'
 
+    def test_server_downloads_gateway_video_via_internal_origin_and_preserves_signature(self):
+        path = '/v1/video-assets/result.mp4?token=a%2Fb%2Bc&expires=999&part=1&part=2'
+        with patch('video_service.build_opener') as opener, patch('video_service.socket.getaddrinfo', side_effect=AssertionError('no public DNS needed')):
+            response = opener.return_value.open.return_value.__enter__.return_value
+            response.geturl.return_value = self.origin + path
+            response.headers = {'Content-Type': 'video/mp4'}
+            response.read.side_effect = [b'fixture-video', b'']
+            self.assertEqual(download_generated_video('https://aimarket.hncig.cn:4090' + path, self.origin), (b'fixture-video', '.mp4'))
+            self.assertEqual(opener.return_value.open.call_args.args[0].full_url, self.origin + path)
+
+    def test_local_video_downloads_use_public_gateway_and_cdn_urls_stay_unchanged(self):
+        from model_gateway import video_download_url
+        local = 'https://aimarket.hncig.cn:4090'
+        path = '/v1/video-assets/result.mp4?signature=keep%2Fthis'
+        self.assertEqual(video_download_url(self.origin + path, local), local + path)
+        for url in ('https://cdn.test' + path, local + '/unrelated/file.mp4',
+                    'https://aimarket.hncig.cn.evil.test:4090' + path,
+                    'https://user@aimarket.hncig.cn:4090' + path):
+            self.assertEqual(video_download_url(url, self.origin), url)
+
+    def test_gateway_video_redirect_also_uses_internal_route(self):
+        handler = PublicVideoRedirectHandler(self.origin)
+        path = '/v1/video-assets/redirected.mp4?token=a%2Fb'
+        with patch('video_service.socket.getaddrinfo', side_effect=AssertionError('no public DNS needed')):
+            request = handler.redirect_request(Request(self.origin + '/file.mp4'), None, 302, '', {},
+                'https://aimarket.hncig.cn:4090' + path)
+            self.assertEqual(request.full_url, self.origin + path)
+
     def test_exact_gateway_origin_is_allowed_without_public_dns(self):
         with patch('video_service.socket.getaddrinfo', side_effect=AssertionError('no DNS needed')):
             self.assertEqual(validate_video_url(self.origin + '/generated/file.mp4', self.origin), self.origin + '/generated/file.mp4')

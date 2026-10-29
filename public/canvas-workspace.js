@@ -1,6 +1,7 @@
 import { setSurfaceVisible, surfaceIsOpen } from './canvas-motion.js?v=liblib-detail-2';
-import { createNodeContext } from './node-context.js?v=library-toggle-1';
+import { createNodeContext } from './node-context.js?v=canvas-scope-5';
 import { createVisualStylePicker } from './visual-style-picker.js?v=4';
+import { createStoryboard, storyboardItems, createViewSwitch } from './storyboard.js?v=video-cover-1';
 // Canvas chrome shares the existing editors and persistence with the application.
 // Its screen-space overlays never participate in node/world coordinates.
 export function createCanvasWorkspace(api) {
@@ -9,10 +10,16 @@ export function createCanvasWorkspace(api) {
   const canvas = $('#canvas');
   const inspector = $('#inspector');
   const button = (id, name, glyph, extra = '') => `<button id="${id}" type="button" title="${name}" aria-label="${name}" ${extra}>${icon(glyph)}</button>`;
-  let frame = 0, dismissed = false, lastSelection, mode = 'workflow', boardKey = '', mapBounds, paletteAnchor;
+  let frame = 0, dismissed = false, lastSelection, mode = 'workflow', mapBounds, paletteAnchor;
 
   $('#projectBreadcrumb').insertAdjacentHTML('afterbegin', `<button id="workspaceMenu" type="button" title="项目与导航" aria-label="项目与导航" aria-expanded="false"><img class="workspace-menu-logo" src="/brand-logo-transparent.png?v=brand-2" alt="" aria-hidden="true">${icon('panel')}</button>`);
-  $('header').insertAdjacentHTML('beforeend', `<div class="workspace-modes" role="tablist" aria-label="画布视图"><button role="tab" id="workflowMode" aria-selected="true">${icon('link')}工作流</button><button role="tab" id="storyboardMode" aria-selected="false">${icon('grid')}故事板</button></div>`);
+  $('header').insertAdjacentHTML('beforeend', '<div class="workspace-modes"></div>');
+  const viewSwitch=createViewSwitch($('.workspace-modes'),{value:'workflow',onChange:async next=>{
+    if(next==='storyboard'&&await api.openStudioStoryboard?.())return;
+    setMode(next);
+  },onError:error=>api.toast(error.message)});
+  $('.workspace-modes [data-view-mode=workflow]').id='workflowMode';
+  $('.workspace-modes [data-view-mode=storyboard]').id='storyboardMode';
   canvas.insertAdjacentHTML('beforeend', `
     <div class="workspace-chrome canvas-utilities" role="toolbar" aria-label="画布视图工具">
       <button id="workspaceAssets" class="utility-label" type="button">${icon('panel')}<span>资产管理</span></button><i></i>
@@ -147,6 +154,9 @@ export function createCanvasWorkspace(api) {
   $('#arrangeCanvas').onclick = arrange;
   function arrange() {
     if (!state.nodes.length) return;
+    api.history.transaction(arrangeLayout, { includeViewport: true });
+  }
+  function arrangeLayout() {
     if(api.arrangeGroupedCanvas?.())return;
     // Longest-path ranks in a DAG; cycles fall into one final column, without a loop.
     const indegree = new Map(state.nodes.map(n => [n.id, 0]));
@@ -187,9 +197,9 @@ export function createCanvasWorkspace(api) {
     const scale = Math.min(200 / (right - left), 115 / (bottom - top));
     mapBounds = { left, top, scale };
     const rect = (x, y, w, h, cls) => `<rect class="${cls}" x="${(x-left)*scale}" y="${(y-top)*scale}" width="${w*scale}" height="${h*scale}" rx="1"/>`;
-    host.querySelector('svg').innerHTML = nodes.map(n => { const size = api.nodeFootprint(n); return rect(n.x,n.y,size.width,size.height,n.id === state.selectedNodeId ? 'map-node selected' : 'map-node'); }).join('') + rect(-state.panX/state.zoom,-state.panY/state.zoom,canvas.clientWidth/state.zoom,canvas.clientHeight/state.zoom,'map-viewport');
+    host.querySelector(':scope > svg').innerHTML = nodes.map(n => { const size = api.nodeFootprint(n); return rect(n.x,n.y,size.width,size.height,n.id === state.selectedNodeId ? 'map-node selected' : 'map-node'); }).join('') + rect(-state.panX/state.zoom,-state.panY/state.zoom,canvas.clientWidth/state.zoom,canvas.clientHeight/state.zoom,'map-viewport');
   }
-  $('#workspaceMinimap svg').onclick = event => {
+  $('#workspaceMinimap > svg').onclick = event => {
     if (!mapBounds) return;
     const r = event.currentTarget.getBoundingClientRect();
     const x = (event.clientX-r.left)/r.width*200/mapBounds.scale+mapBounds.left;
@@ -198,30 +208,19 @@ export function createCanvasWorkspace(api) {
     api.setZoom(state.zoom); api.scheduleSave();
   };
   function setMode(next) {
-    mode = next; setSurfaceVisible($('#workspaceBoard'), next === 'storyboard');
+    mode = next; viewSwitch.set(next);if(next!=='storyboard')board?.pause();setSurfaceVisible($('#workspaceBoard'), next === 'storyboard');
     canvas.classList.toggle('storyboard-active', next === 'storyboard');
     $('#workflowMode').setAttribute('aria-selected', String(next === 'workflow'));
     $('#storyboardMode').setAttribute('aria-selected', String(next === 'storyboard'));
     refresh();
   }
-  $('#workflowMode').onclick = () => setMode('workflow');
-  $('#storyboardMode').onclick = () => setMode('storyboard');
+  let board;
   function renderBoard() {
-    if (mode !== 'storyboard') return;
-    const key = JSON.stringify([state.project?.id, state.nodes, state.nodeTasks]);
-    if (key === boardKey) return; boardKey = key;
-    const shots = state.nodes.filter(n => ['video','video-asset','asset','script'].includes(n.type)).sort((a,b)=>a.x-b.x||a.y-b.y);
-    $('#workspaceBoard').innerHTML = `<div class="board-heading"><div><small>STORYBOARD</small><h1>${esc(state.project?.name || '故事板')}</h1><p>${shots.length} 个画面 · 按画布顺序浏览，点击返回节点编辑</p></div><button id="boardAdd">${icon('plus')}添加节点</button></div><div class="board-grid">${shots.length ? shots.map((n,i) => {
-      const asset = state.assets.find(a => a.id === n.assetId), task = state.nodeTasks[n.id];
-      const image = asset?.kind === 'image' ? asset.url : '';
-      const video = task?.video_url || (asset?.kind === 'video' ? asset.url : '');
-      const description = n.type === 'video' ? api.videoInput(n).prompt : n.type === 'script' ? n.script_data?.title || '点击编写分镜脚本' : asset?.name || n.title || '点击画面，继续你的创作';
-      return `<article class="board-card"><div class="board-media">${image ? `<img src="${esc(image)}" alt="${esc(n.title)}">` : video ? `<video src="${esc(video)}" controls preload="metadata" playsinline></video>` : icon(n.type === 'script' ? 'script' : 'video')}</div><button data-board-node="${esc(n.id)}"><span class="board-number">${String(i+1).padStart(2,'0')}</span><span><b>${esc(n.title || '未命名画面')}</b><small>${esc(n.settings?.aspect_ratio || '16:9')}${['video','video-asset'].includes(n.type) ? ` · ${n.settings?.duration || 5}s` : ''}</small></span>${icon('arrowUpRight')}</button><p>${esc(description.slice(0,120))}</p></article>`;
-    }).join('') : '<div class="board-empty">还没有画面，添加图片、视频或脚本节点开始创作。</div>'}</div>`;
-    $('#boardAdd').onclick = () => { setMode('workflow'); api.showNodePalette(); };
-    document.querySelectorAll('[data-board-node]').forEach(b => b.onclick = () => {
-      const node = state.nodes.find(n=>n.id===b.dataset.boardNode); setMode('workflow'); api.updateSelection(node.id); api.fitCanvas([node]); api.scheduleSave();
-    });
+    if(mode!=='storyboard')return;
+    board ||= createStoryboard($('#workspaceBoard'),{esc,icon,
+      onSelect:id=>{const node=state.nodes.find(n=>n.id===id);if(!node)return;setMode('workflow');api.updateSelection(id);api.fitCanvas([node]);api.scheduleSave();},
+      onAction:()=>{setMode('workflow');api.showNodePalette();}});
+    board.update({title:state.project?.name,items:storyboardItems({nodes:state.nodes},state.assets,state.nodeTasks),actions:[{id:'add',label:'添加节点',primary:true}]});
   }
   const upload = () => $('#workspaceUploadInput').click();
   $('#workspaceUploadInput').onchange = async event => {
@@ -308,31 +307,28 @@ export function createCanvasWorkspace(api) {
     $('#workspaceZoomValue').textContent=`${Math.round(state.zoom*100)}%`;
     $('#workspaceNodeCount').textContent=`${state.nodes.length} 个节点`;
     $('#workspaceEmpty').hidden=!!state.nodes.length||mode!=='workflow';
-    const dragging = !!state.drag?.moved;
-    const editorVisible = !(dragging || dismissed || !node || mode!=='workflow' || state.selectedNodeIds?.size>1);
+    const movingNodes=!!state.drag?.moved&&state.drag.kind!=='pan';
+    const editorVisible = !(movingNodes || dismissed || !node || mode!=='workflow' || state.selectedNodeIds?.size>1);
     if(!editorVisible||node.type!=='video')stylePicker.close();
-    inspector.classList.toggle('gesture-hidden', dragging);
+    inspector.classList.toggle('gesture-hidden',movingNodes);
     setSurfaceVisible(inspector, editorVisible, { key: node?.id });
-    nodeContext.paint(node, !dragging && !!node && mode==='workflow' && state.selectedNodeIds?.size<=1);
+    nodeContext.paint(node, !movingNodes && !!node && mode==='workflow' && state.selectedNodeIds?.size<=1);
     if (editorVisible) {
       inspector.dataset.nodeType=node?.type||'';
       // A collapsed rail must not leave the re-used editor inert.
       api.setRailState('inspector', false, false);
       const card=node&&$(`.node[data-node="${CSS.escape(node.id)}"]`);
       const bounds=canvas.getBoundingClientRect(), r=card?.getBoundingClientRect();
-      const width=node?.type==='script'?920:node?.type==='video'?640:520;
+      const width=node?.type==='script'?920:node?.type==='video'?760:520;
       const scale=state.zoom;
-      const visibleWidth=Math.min(width,(canvas.clientWidth-24)/scale);
-      inspector.style.width=visibleWidth+'px';
+      inspector.style.width=width+'px';
       inspector.style.maxWidth='none';
-      inspector.style.maxHeight=Math.max(120,(canvas.clientHeight-100)/scale)+'px';
+      inspector.style.maxHeight='520px';
       inspector.style.transformOrigin='top left';
       inspector.style.transform=`scale(${scale})`;
-      const desiredLeft=r?r.left-bounds.left+r.width/2-visibleWidth*scale/2:16;
+      const desiredLeft=r?r.left-bounds.left+r.width/2-width*scale/2:16;
       const desiredTop=r?r.bottom-bounds.top+12*scale:80;
-      const left=Math.max(12,Math.min(canvas.clientWidth-visibleWidth*scale-12,desiredLeft));
-      const top=Math.max(60,Math.min(canvas.clientHeight-inspector.offsetHeight*scale-40,desiredTop));
-      inspector.style.left=left+'px'; inspector.style.top=top+'px';
+      inspector.style.left=desiredLeft+'px'; inspector.style.top=desiredTop+'px';
     }
     positionPalette(); minimap(); renderBoard();
   }
@@ -341,5 +337,5 @@ export function createCanvasWorkspace(api) {
   function onView(view) { closeNavigation(); if(view!=='canvas') inspector.hidden=true; else { dismissed=false; refresh(); } }
   function onSelect() { dismissed=false; refresh(); }
   refresh();
-  return { refresh, onView, onSelect, enhancePalette };
+  return { refresh, onView, onSelect, enhancePalette, setMode };
 }
