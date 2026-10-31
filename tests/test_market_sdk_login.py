@@ -55,6 +55,24 @@ class MarketSDKLoginTests(unittest.TestCase):
             'organization': {'id': 'org', 'name': '测试部门', 'type': 'department'}, 'role': 'admin'},
             'agent': {'id': 'fixture-agent', 'name': '建绘通'}, 'apiKey': 'sk-fixture-' + subject}
 
+    @patch.dict(os.environ, {'JIANHUITONG_MARKET_MODEL_ORIGIN': 'http://gateway.test:4091'})
+    def test_shared_wan_uses_each_market_users_session_key(self):
+        from market_video_models import install_shared_market_video_models, WAN_MODEL_ID
+        install_shared_market_video_models(self.h.connect)
+        for subject in ('user-a', 'user-b'):
+            session = self.login(subject)
+            binding = session['binding_id']
+            user = self.call('GET', '/api/auth/me', binding=binding)['user']
+            model = next(m for m in self.call('GET', '/api/models', binding=binding) if m['id'] == WAN_MODEL_ID)
+            self.assertTrue(model['api_key_set'])
+            self.assertTrue(model['available_for_session'])
+            self.assertEqual(model['credential_source'], 'market-session')
+            record = {'_market_binding_id': binding, '_market_actor_id': user['id']}
+            with self.market.worker_scope(record):
+                for path in (model['api_path'], '/v1/tasks/fixture-task'):
+                    self.assertEqual(model_api_key(self.market.settings.model_origin + path, ''), 'sk-fixture-' + subject)
+        self.assertEqual(self.h.raw_record('model_config', WAN_MODEL_ID)['api_key'], '')
+
     def call(self, method, path, body=None, binding=None, expected=200, browser=None, **kwargs):
         headers = kwargs.pop('headers', {})
         if binding:

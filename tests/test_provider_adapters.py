@@ -30,6 +30,25 @@ def params(**overrides):
 
 
 class ProviderContractTests(unittest.TestCase):
+    def test_wan_dashscope_payload_and_query(self):
+        from market_video_models import WAN_MODEL
+        wire = video_payload(params(resolution='480p', duration=2), WAN_MODEL, lambda _: None)
+        self.assertEqual(wire, {'model': 'wan3.0-video', 'input': {'prompt': '镜头缓慢向前移动'},
+                               'parameters': {'resolution': '480P', 'duration': 2, 'ratio': '16:9'}})
+        self.assertEqual(video_query_url(WAN_MODEL, 'task/42'),
+                         'http://192.168.241.202:4091/v1/tasks/task%2F42')
+        for mode in ('image-to-video', 'first-last', 'multi-frame'):
+            with self.subTest(mode=mode), self.assertRaisesRegex(ValueError, '文生视频'):
+                video_payload(params(mode=mode, asset_ids=['image']), WAN_MODEL, lambda _: None)
+
+    def test_wan_response_states_and_string_error_codes(self):
+        for status, expected in [('PENDING', 'queued'), ('RUNNING', 'running'), ('SUCCEEDED', 'done'), ('FAILED', 'failed')]:
+            self.assertEqual(video_result({'output': {'task_id': 'wan42', 'task_status': status,
+                              'video_url': 'https://cdn.example/wan.mp4'}})['status'], expected)
+        result = video_result({'code': 'InvalidParameter', 'message': '参数无效'})
+        self.assertEqual(result['status'], 'failed')
+        self.assertEqual(result['error'], '参数无效')
+
     def test_aimarket_submission_matches_documented_request(self):
         self.assertEqual(video_payload(params(prompt='蓝天白云，镜头缓慢移动'), aimarket_config(), lambda _: None), {
             'model': 'minimax-h3', 'content': [{'type': 'text', 'text': '蓝天白云，镜头缓慢移动'}],
@@ -132,6 +151,54 @@ class ModelRegistryIntegrationTests(unittest.TestCase):
     def create_model(self, **overrides):
         config = {'kind': 'video', **aimarket_config(), **overrides}
         return self.module.create_registry_model(self.module.RegistryModelCreate(**config))
+
+    def test_shared_wan_seed_is_visible_to_members_and_preserves_admin_edits(self):
+        from market_video_models import install_shared_market_video_models, WAN_MODEL_ID
+        from data_access import access_scope
+        install_shared_market_video_models(self.module.connect)
+        for uid in ('member-a', 'member-b'):
+            with access_scope({'id': uid, 'role': 'member', 'active': True}):
+                models = self.module.model_registry()['models']
+                wan = next(m for m in models if m['id'] == WAN_MODEL_ID)
+                self.assertFalse(wan['is_default'])
+                self.assertEqual(wan['model_id'], 'wan3.0-video')
+                self.assertNotIn('api_key', wan)
+        model = self.module.internal_registry_model('video', WAN_MODEL_ID)
+        self.module.save('model_config', {**model, 'name': '管理员改名'})
+        install_shared_market_video_models(self.module.connect)
+        self.assertEqual(self.module.internal_registry_model('video', WAN_MODEL_ID)['name'], '管理员改名')
+        with self.module.connect() as db:
+            db.execute('DELETE FROM records WHERE id=?', (WAN_MODEL_ID,))
+        install_shared_market_video_models(self.module.connect)
+        self.assertIsNone(self.module.raw_record('model_config', WAN_MODEL_ID))
+
+    def test_wan_actual_request_has_async_header_only_on_submission(self):
+        from market_video_models import WAN_MODEL
+        response = unittest.mock.MagicMock()
+        response.__enter__.return_value.read.return_value = b'{"output":{"task_id":"wan42","task_status":"PENDING"}}'
+        with patch.object(self.module, 'open_model_request', return_value=response) as send:
+            self.module.provider_json('POST', WAN_MODEL['base_url'] + WAN_MODEL['api_path'], 'fixture-key',
+                                      video_payload(params(resolution='480p', duration=2), WAN_MODEL, lambda _: None))
+            request = send.call_args.args[0]
+            self.assertEqual(request.get_header('X-dashscope-async'), 'enable')
+            self.assertEqual(request.get_header('Authorization'), 'Bearer fixture-key')
+            self.module.provider_json('GET', video_query_url(WAN_MODEL, 'wan42'), 'fixture-key')
+            self.assertIsNone(send.call_args.args[0].get_header('X-dashscope-async'))
+
+    def test_wan_worker_submits_polls_and_saves_local_video(self):
+        from market_video_models import WAN_MODEL
+        self.module.save('task', {'id': 'wan-task', 'status': 'queued'})
+        responses = [{'output': {'task_id': 'wan42', 'task_status': 'PENDING'}},
+                     {'output': {'task_id': 'wan42', 'task_status': 'RUNNING'}},
+                     {'output': {'task_id': 'wan42', 'task_status': 'SUCCEEDED',
+                                 'video_url': 'https://cdn.example/wan.mp4'}}]
+        with patch.object(self.module, 'provider_json', side_effect=responses) as send, \
+                patch.object(self.module.time, 'sleep'), \
+                patch.object(self.module, 'cache_generated_video', return_value='/uploads/wan.mp4'):
+            self.module.run_provider_task('wan-task', params(resolution='480p', duration=2), WAN_MODEL)
+        self.assertEqual(send.call_args_list[0].args[1], WAN_MODEL['base_url'] + WAN_MODEL['api_path'])
+        self.assertEqual(send.call_args_list[1].args[1], WAN_MODEL['base_url'] + '/v1/tasks/wan42')
+        self.assertEqual(self.module.get('task', 'wan-task')['video_url'], '/uploads/wan.mp4')
 
     def create_video_project(self):
         return self.module.create_project(self.module.Project(
@@ -345,6 +412,23 @@ class ModelRegistryIntegrationTests(unittest.TestCase):
         self.module.save('asset', {'id': 'remote', 'kind': 'image', 'url': 'https://cdn.example/image.png'})
         payload = self.module.provider_payload(params(asset_ids=['remote']), aimarket_config())
         self.assertEqual(payload['content'][1]['image_url']['url'], 'https://cdn.example/image.png')
+
+    def test_video_images_use_derivatives_but_image_generation_keeps_original(self):
+        buffer=io.BytesIO();Image.new('RGB',(3000,2000),'blue').save(buffer,'PNG')
+        # Generated sources preserve the original pixels in the asset library.
+        asset=self.module.store_uploaded_asset(buffer.getvalue(),'large.png','',source='generated')
+        path=self.module.UPLOADS/Path(asset['url']).name
+        before=path.read_bytes()
+        for config in (aimarket_config(),{'provider_id':'ark','model_id':'fixture-video'}):
+            payload=self.module.provider_payload(params(asset_ids=[asset['id']],mode='image-to-video'),config)
+            uri=payload['content'][1]['image_url']['url']
+            with Image.open(io.BytesIO(base64.b64decode(uri.split(',',1)[1]))) as image:
+                self.assertLessEqual(max(image.size),1920)
+        self.assertEqual(path.read_bytes(),before)
+        self.assertEqual(base64.b64decode(self.module.reference_image_data_uri(asset['id']).split(',',1)[1]),before)
+        # Frame order and roles must survive compression, including same-image loops.
+        wire=self.module.provider_payload(params(asset_ids=[asset['id'],asset['id']],mode='first-last'),aimarket_config())
+        self.assertEqual([item['role'] for item in wire['content'][1:]],['first_frame','last_frame'])
 
     def test_missing_h3_reference_is_rejected_before_submission(self):
         self.module.save('task', {'id': 'image-task', 'status': 'queued'})

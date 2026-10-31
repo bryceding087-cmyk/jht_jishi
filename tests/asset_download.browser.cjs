@@ -29,7 +29,8 @@ const setup=String.raw`
             downloads['calls']+=1
             downloads['internal'] &= request.full_url.startswith('http://gateway.test:4091/v1/video-assets/')
             downloads['signature'] &= request.full_url.endswith('?token=a%2Fb%2Bc&expires=999')
-            if downloads['fail']:raise URLError(ConnectionRefusedError('fixture offline'))
+            # Terminal fixture failure; bounded transient retries have separate coverage.
+            if downloads['fail']:raise ValueError('服务器无法连接视频存储服务，请检查服务器出口网络和代理配置。')
             return VideoResponse(request.full_url)
     video_service.build_opener=lambda *args:VideoOpener()
     @app.app.post('/api/test/downloads')

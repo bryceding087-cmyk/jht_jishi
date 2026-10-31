@@ -1,6 +1,8 @@
 .node-player { --np-progress: 0%; position: relative; width: 100%; height: 100%; min-width: 0; overflow: hidden; color: #eee; background: #252525; font-family: inherit; }
 .node-player-video { container-type: inline-size; }
 .node-player-video > video { display: block; width: 100%; height: 100%; object-fit: contain; margin: 0; }
+/* The application supplies its own triangle loading indicator. */
+video::-webkit-media-controls-loading-panel { display: none !important; }
 .node-player .np-controls { position: absolute; inset: auto 0 0; display: flex; align-items: center; gap: 8px; height: 42px; padding: 10px 12px 8px; background: linear-gradient(transparent,rgba(0,0,0,.65)); color: #fff; }
 .node-player .np-controls button { display: grid; place-items: center; flex: 0 0 22px; width: 22px; height: 24px; border: 0; padding: 2px; margin: 0; color: inherit; background: none; cursor: pointer; box-shadow: none; border-radius: 4px; }
 .node-player button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -65,9 +67,7 @@ video[data-conversation-video]:not(.node-player > video),
 .node-player-conversation .np-preview[hidden],
 .node-player-conversation .np-preview-retry[hidden] { display: none; }
 .node-player-conversation .np-preview-spinner {
-  width: 30px; height: 30px; flex: none; box-sizing: border-box;
-  border: 2px solid #ffffff20; border-top-color: #d4e5f4; border-radius: 50%;
-  animation: np-preview-spin .9s linear infinite;
+  display: block; width: 64px; height: 64px; flex: none;
 }
 .node-player-conversation .np-preview-error-icon { display: none; width: 28px; height: 28px; color: #b9bec4; }
 .node-player-conversation .np-preview-error-icon svg { width: 100%; height: 100%; }
@@ -80,9 +80,7 @@ video[data-conversation-video]:not(.node-player > video),
 }
 .node-player-conversation .np-preview-retry:hover { background: #ffffff18; border-color: #ffffff50; }
 .node-player-conversation:is(.is-preview-loading,.is-preview-error) :is(.np-controls,.np-library,.np-status) { visibility: hidden; }
-@keyframes np-preview-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .node-player-conversation .np-preview-spinner { animation: none; }
   .node-player-conversation .np-preview-retry { transition: none; }
 }
 .node-player-conversation .np-status { right: 64px; }

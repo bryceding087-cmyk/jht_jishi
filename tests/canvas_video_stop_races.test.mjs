@@ -137,4 +137,25 @@ for(const entry of ['submit','retry'])for(const oldResponse of ['queued','error'
   assert.equal(env.button.state,'running');
 }
 
-console.log('PASS: canvas video submit/retry already_finished preserves results; late POST/history/GET cannot roll back state; failed-stop recovery, replacement requests and legacy task IDs stay isolated.');
+// Automatic queue expiry sets the same write-protection flags as an explicit
+// stop. It must remain a failure in the canvas and after a history reload.
+{
+  const env=harness();
+  const expired={...env.task('expired-task','failed'),created_at:2,queue_timed_out_at:2000,
+    local_stop_requested:true,stop_requested:true,
+    error:'任务超过 30 分钟没有有效进展，已判定失败并释放生成名额'};
+  env.context.updateTaskNode(expired,'clip');
+  assert.equal(env.state.nodeTasks.clip.status,'failed');
+  assert.equal(env.state.nodeTasks.clip.error,expired.error);
+  assert.equal(env.busy(),false);
+  env.context.updateTaskNode(env.task('expired-task','running'),'clip');
+  assert.equal(env.state.nodeTasks.clip.status,'failed','late poll cannot restore an expired task');
+  env.setHistory([expired]);await env.context.loadHistory();
+  assert.equal(env.state.nodeTasks.clip.status,'failed');
+  assert.equal(env.state.taskPollers.size,0,'expired task must not resume polling');
+  const next={...env.task('after-timeout','running'),created_at:3};
+  env.context.updateTaskNode(next,'clip');
+  assert.equal(env.state.nodeTasks.clip.status,'running');
+  assert.equal(stoppedTask(env.state.nodeTasks.clip),false);
+}
+console.log('PASS: canvas stop/result races stay isolated; automatic queue expiry retains failure instead of showing a user stop.');

@@ -17,6 +17,7 @@ from urllib.error import URLError
 from fastapi import HTTPException
 from data_access import access_scope, current_principal
 from generation_stop import task_request_id
+from video_callbacks import WAITING_MESSAGE
 
 KINDS = {'image_task': 'image', 'task': 'video'}
 LIMITS = {'image_task': None, 'task': 10}
@@ -171,8 +172,10 @@ class GenerationQueue:
                     self.active_set(job['kind']).add(task['id'])
                 else:
                     self.patch(job, state='unknown')
-                    self.h.save(job['kind'], {**task, 'status': 'blocked', 'submit_unknown': True,
-                        'queue_state': 'unknown', 'error': '服务中断时生成结果未知，请核对供应商记录；未自动重新提交。'})
+                    video = job['kind'] == 'task'
+                    self.h.save(job['kind'], {**task, 'status': 'running' if video else 'blocked', 'submit_unknown': True,
+                        'queue_state': 'unknown', 'status_message': WAITING_MESSAGE if video else '生成结果待核对',
+                        'error': None if video else '服务中断时生成结果未知，请核对供应商记录；未自动重新提交。'})
             self.sweep(self.jobs())
 
     def refresh_credentials(self, kind, task):
@@ -323,8 +326,10 @@ class GenerationQueue:
                 # Before a request is issued, credentials may have expired. Do
                 # not convert arbitrary execution exceptions into a safe retry.
                 if task and not task.get('queue_timed_out_at') and not task.get('deleted_at'):
-                    self.h.save(job['kind'], {**task, 'status': 'blocked', 'submit_unknown': True,
-                        'error': '生成执行中断，请核对原任务；未自动重新提交。'})
+                    video = job['kind'] == 'task'
+                    self.h.save(job['kind'], {**task, 'status': 'running' if video else 'blocked', 'submit_unknown': True,
+                        'status_message': WAITING_MESSAGE if video else '生成结果待核对',
+                        'error': None if video else '生成执行中断，请核对原任务；未自动重新提交。'})
             log.exception('Generation queue worker interrupted')
         finally:
             with access_scope(None), self.lock:
@@ -349,7 +354,8 @@ class GenerationQueue:
         waiting = [j for j in jobs if j['kind'] == kind and j['user_id'] == job['user_id'] and j['state'] in WAITING]
         ahead = next((i for i,j in enumerate(waiting) if j['id'] == job['id']), 0)
         labels = {'waiting': f'个人队列排队中，前面还有 {ahead} 个任务' if ahead else '个人队列排队中，等待生成名额', 'credentials': '等待重新连接集市或配置模型',
-            'executing': '生成中', 'provider': '供应商任务仍在处理中', 'unknown': '生成结果待核对，未自动重发'}
+            'executing': '生成中', 'provider': '供应商任务仍在处理中',
+            'unknown': WAITING_MESSAGE if kind == 'task' else '生成结果待核对，未自动重发'}
         result = {'queue_state': job['state'], 'queue_ahead': ahead, 'queue_limit': LIMITS[kind],
             'queue_global_limit': GLOBAL_LIMITS[kind],
             'can_cancel_queue': job['state'] in WAITING}

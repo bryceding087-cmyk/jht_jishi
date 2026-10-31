@@ -15,7 +15,9 @@ const tasks = [
 const updates = [], polls = [];
 const history = { innerHTML: '', querySelectorAll: () => [] };
 const state = { project: { id: 'saved-project' }, nodeTasks: {} };
-const env = vm.createContext({ state,
+const env = vm.createContext({ state, videoRequests: new Map(),
+  videoSubmissionKey: (nodeId, projectId) => `${projectId}:${nodeId}`,
+  stoppedTask: task => !!task?.local_stop_requested,
   api: async url => { assert.equal(url, '/api/tasks?project_id=saved-project'); return tasks; },
   updateTaskNode: (task, nodeId) => updates.push([task.id, nodeId]),
   syncVideoGenerateButton: () => {},
@@ -56,3 +58,13 @@ await loading;
 assert.deepEqual(state.nodeTasks, {});
 assert.equal(history.innerHTML, previousHtml);
 console.log('PASS: history arriving after a project switch cannot overwrite the new canvas');
+
+// Both the compact canvas badge and full task details expose uncertainty.
+vm.runInContext(source.slice(source.indexOf('function statusText('), source.indexOf('\n', source.indexOf('function statusText('))), env);
+assert.equal(env.statusText('running', {submit_unknown:true}, true), '提交结果待确认');
+assert.equal(env.statusText('running', {submit_unknown:true}, false), '提交结果待确认');
+assert.equal(env.statusText('cancelled', {submit_unknown:true}, true), '已停止');
+console.log('PASS: uncertain video submissions have consistent labels and retain stop status');
+assert.equal(env.statusText('failed', {queue_timed_out_at:2000,local_stop_requested:true}, true), '任务超时');
+assert.equal(env.statusText('failed', {}, true), '生成失败');
+console.log('PASS: queue expiry is labeled as a timeout; explicit cancellation remains stopped');

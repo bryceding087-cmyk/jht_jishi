@@ -30,8 +30,8 @@ export function createAssetLibrary(ctx) {
   async function refresh() {
     clearTimeout(refreshTimer);
     const sequence=++refreshSequence;
-    ui.loading=true;ui.error='';redraw();
-    const options = { background: state.view === 'assets' };
+    ui.loading=true;ui.error='';if(!ui.loaded)redraw();
+    const options = { background: true };
     const results = await Promise.allSettled([api('/api/assets', options), api('/api/asset-folders', options), api('/api/characters', options)]);
     if(sequence!==refreshSequence)return false;
     if (results[0].status === 'fulfilled') state.assets = results[0].value;
@@ -111,11 +111,14 @@ export function createAssetLibrary(ctx) {
   const previewObserver = new IntersectionObserver(entries=>{
     for(const entry of entries)if(!entry.isIntersecting&&activePreview?.card===entry.target)stopPreviews();
   });
+  const boundPreviewCards = new WeakSet();
   function bindPreviews(host) {
     previewObserver.disconnect();
     host.querySelectorAll('.al-history-card').forEach(card=>{
       const video=card.querySelector('video');if(!video)return;
       previewObserver.observe(card);
+      if(boundPreviewCards.has(card))return;
+      boundPreviewCards.add(card);
       card.addEventListener('pointerenter',event=>{if(event.pointerType!=='touch')startPreview(card,video);});
       card.addEventListener('pointerleave',()=>{if(activePreview?.video===video)stopPreviews();});
       video.addEventListener('error',()=>{if(activePreview?.video===video)stopPreviews();});
@@ -135,7 +138,7 @@ export function createAssetLibrary(ctx) {
       <button type="button" class="al-history-preview" data-al-preview="${id}" aria-label="预览 ${esc(asset.name)}">${kind==='audio'?`<span class="al-history-note">${musicNote}</span>`:kind==='video'?`<video data-media-src="${safeUrl(asset.url)}" preload="none" muted loop playsinline></video>`:`<img data-media-src="${safeUrl(asset.url)}" alt="${esc(asset.name)}" decoding="async">`}</button>
       <input class="al-history-check" type="checkbox" data-al-select="${id}" aria-label="选择 ${esc(asset.name)}" ${ui.selected.has(asset.id)?'checked':''}>
       ${kind==='audio'||kind==='video'?`<span class="al-history-duration" data-duration-for="${id}" ${duration?'':'hidden'}>${duration.toFixed(1)}s</span>`:''}
-      ${asset.file_status==='failed'?'<span class="al-history-file-error">文件下载失败 · 可重试</span>':''}
+      ${kind==='video'&&asset.task_id?`<span class="al-history-file-error ${asset.file_status==='cached'?'is-saved':asset.file_status==='pending'?'is-saving':''}">${asset.file_status==='cached'?'文件已保存':asset.file_status==='pending'?'正在保存 · 临时预览':'文件未保存 · 可恢复'}</span>`:''}
       <div class="al-history-actions"><button type="button" data-al-save="${id}" ${saving.has(asset.id)?'disabled':''} aria-label="${asset.in_library?'移出资产库':'保存至资产库'}" title="${asset.in_library?'移出资产库':'保存至资产库'}">${icon(asset.in_library?'libraryRemove':'library')}</button><button type="button" data-al-download="${id}" aria-label="下载 ${esc(asset.name)}" title="下载">${icon('download')}</button><button type="button" data-al-delete="${id}" aria-label="删除 ${esc(asset.name)}" title="删除">${icon('trash')}</button></div>
     </article>`;
   }
@@ -166,9 +169,56 @@ export function createAssetLibrary(ctx) {
   const tabResize=new ResizeObserver(entries=>{
     for(const entry of entries){const group=entry.target.closest('.al-collection-tabs,.al-history-tabs');if(group?.isConnected)moveTabSlider(group);}
   });
+  function setMarkup(element, markup) {
+    if(element.renderedMarkup===markup)return;
+    element.innerHTML=markup;element.renderedMarkup=markup;
+  }
+  function renderHistoryGroups(host, groups) {
+    const container=$('.al-history-groups',host);
+    const cards=new Map([...container.querySelectorAll('.al-history-card')].map(card=>[card.dataset.assetId,card]));
+    const days=new Map([...container.querySelectorAll('.al-history-day')].map(day=>[day.getAttribute('aria-label'),day]));
+    let previousDay=null;
+    for(const [date,assets] of groups){
+      let day=days.get(date);
+      if(!day){day=document.createElement('section');day.className='al-history-day';day.setAttribute('aria-label',date);const heading=document.createElement('h2');heading.textContent=date;const grid=document.createElement('div');grid.className='al-history-grid';day.append(heading,grid);}
+      const grid=day.querySelector('.al-history-grid');let previousCard=null;
+      for(const asset of assets){
+        const markup=historyCard(asset),source=JSON.stringify([kindOf(asset),asset.url]);
+        let card=cards.get(asset.id);
+        if(!card||card.mediaSource!==source){
+          const template=document.createElement('template');template.innerHTML=markup;
+          const next=template.content.firstElementChild;
+          if(card)card.replaceWith(next);card=next;card.mediaSource=source;
+        }else if(card.renderedMarkup!==markup){
+          // Status/selection changes must not recreate the media decoder.
+          const template=document.createElement('template');template.innerHTML=markup;
+          const next=template.content.firstElementChild;
+          card.title=next.title;card.classList.toggle('is-selected',ui.selected.has(asset.id));
+          const check=card.querySelector('input');check.checked=ui.selected.has(asset.id);check.setAttribute('aria-label',next.querySelector('input').getAttribute('aria-label'));
+          card.querySelector('.al-history-preview').setAttribute('aria-label',next.querySelector('.al-history-preview').getAttribute('aria-label'));
+          for(const selector of ['.al-history-duration','.al-history-file-error','.al-history-actions']){
+            const old=card.querySelector(selector),fresh=next.querySelector(selector);
+            if(old&&fresh){if(old.outerHTML!==fresh.outerHTML)old.replaceWith(fresh);}
+            else if(old)old.remove();else if(fresh)card.append(fresh);
+          }
+        }
+        card.renderedMarkup=markup;
+        const position=previousCard?previousCard.nextElementSibling:grid.firstElementChild;
+        if(position!==card)grid.insertBefore(card,position);
+        previousCard=card;cards.delete(asset.id);
+      }
+      const position=previousDay?previousDay.nextElementSibling:container.firstElementChild;
+      if(position!==day)container.insertBefore(day,position);
+      previousDay=day;days.delete(date);
+    }
+    for(const card of cards.values())card.remove();
+    for(const day of days.values())day.remove();
+    container.querySelector('.al-history-empty')?.remove();
+    if(!groups.size&&!ui.loading&&ui.loaded)container.insertAdjacentHTML('beforeend','<div class="al-history-empty">暂无素材</div>');
+    if(activePreview&&!activePreview.card.isConnected)stopPreviews();
+  }
   function render() {
     const host=$('#libraryGrid');if(!host)return;
-    stopPreviews();
     host.classList.add('asset-library-host');
     const assets=filteredAssets(),groups=new Map();
     for(const asset of assets){const date=calendarDate(asset.created_at);if(!groups.has(date))groups.set(date,[]);groups.get(date).push(asset);}
@@ -191,10 +241,10 @@ export function createAssetLibrary(ctx) {
       button.querySelector('small').textContent=pool.filter(asset=>matchesType(asset,button.dataset.alTab)).length;
     });
     $('.al-collection-note',host).textContent=ui.collection==='history'?'生成和导入的内容会保留在这里，点击「保存至资产库」即可收藏复用。':'这里展示你手动保存的内容，可从生成历史添加。';
-    $('.al-history-jobs',host).innerHTML=uploadJobs();
-    $('.al-history-error',host).innerHTML=ui.error?`<div class="al-error" role="alert">${esc(ui.error)} ${action('retry','重新读取')}</div>`:'';
-    $('.al-history-selection-slot',host).innerHTML=ui.selected.size?`<div class="al-history-selection"><label><input id="alSelectAll" type="checkbox" ${assets.length&&assets.every(asset=>ui.selected.has(asset.id))?'checked':''}>全选</label><span>已选 ${ui.selected.size} 项</span><button type="button" data-al-action="download-selected">下载</button><button type="button" data-al-action="delete-selected">删除</button><button type="button" data-al-action="clear-selection">取消选择</button></div>`:'';
-    $('.al-history-groups',host).innerHTML=[...groups].map(([date,list])=>`<section class="al-history-day" aria-label="${date}"><h2>${date}</h2><div class="al-history-grid">${list.map(historyCard).join('')}</div></section>`).join('')||(!ui.loading&&ui.loaded?'<div class="al-history-empty">暂无素材</div>':'');
+    setMarkup($('.al-history-jobs',host),uploadJobs());
+    setMarkup($('.al-history-error',host),ui.error?`<div class="al-error" role="alert">${esc(ui.error)} ${action('retry','重新读取')}</div>`:'');
+    setMarkup($('.al-history-selection-slot',host),ui.selected.size?`<div class="al-history-selection"><label><input id="alSelectAll" type="checkbox" ${assets.length&&assets.every(asset=>ui.selected.has(asset.id))?'checked':''}>全选</label><span>已选 ${ui.selected.size} 项</span><button type="button" data-al-action="download-selected">下载</button><button type="button" data-al-action="delete-selected">删除</button><button type="button" data-al-action="clear-selection">取消选择</button></div>`:'');
+    renderHistoryGroups(host,groups);
     $('#alHistorySort',host).title=ui.sort==='newest'?'最新优先':'最早优先';
     $('#alHistorySort',host).setAttribute('aria-label',ui.sort==='newest'?'当前最新优先，切换最早优先':'当前最早优先，切换最新优先');
     host.querySelectorAll('.al-collection-tabs,.al-history-tabs').forEach(moveTabSlider);
@@ -264,7 +314,7 @@ export function createAssetLibrary(ctx) {
       document.body.append(link); link.click(); link.remove();
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
     };
-    if (/^(?:https?:\/\/|\/)/.test(url)) {
+    if (/^(?:https?:\/\/|\/)/.test(url) || kindOf(asset)==='video' && asset.task_id) {
       if (!asset.id || downloading.has(asset.id)) return;
       const id = asset.id;
       downloading.add(id);
@@ -274,6 +324,12 @@ export function createAssetLibrary(ctx) {
         asset = await api(`/api/assets/${encodeURIComponent(id)}`, {background:true});
         if (kindOf(asset)==='video' && asset.task_id && (asset.file_status!=='cached' || !asset.url?.startsWith('/uploads/'))) {
           asset = rememberAsset(await api(`/api/assets/${encodeURIComponent(id)}/retry-file`, {...json({}),background:true}));
+          const deadline=Date.now()+180000;
+          while(asset.file_status==='pending'&&Date.now()<deadline){
+            await new Promise(resolve=>setTimeout(resolve,2000));
+            asset=rememberAsset(await api(`/api/assets/${encodeURIComponent(id)}`,{background:true}));
+          }
+          if(asset.file_status==='pending'){toast('视频仍在后台保存，完成后可再次点击下载');return;}
           if (asset.file_status!=='cached') throw new Error('服务器未能保存视频文件。'+(asset.file_error||'请稍后重试。'));
         }
         const blob = await api(`/api/assets/${encodeURIComponent(id)}/download`, {responseType:'blob',background:true,redirect:'error'});
@@ -337,7 +393,7 @@ export function createAssetLibrary(ctx) {
     stopPreviews();
     const kind = kindOf(asset), url = safeUrl(asset.url), label = TYPES[kind]?.[0] || '素材';
     const media = kind === 'image' ? `<img class="al-preview-backdrop" src="${url}" alt="" aria-hidden="true"><img class="al-preview-original" src="${url}" alt="${esc(asset.name)}">`
-      : kind === 'video' ? `<video class="al-preview-backdrop" src="${url}" muted preload="auto" playsinline aria-hidden="true" tabindex="-1"></video><video class="al-preview-original" src="${url}" controls preload="auto" playsinline></video>`
+      : kind === 'video' ? `<video class="al-preview-backdrop" src="${url}" muted preload="auto" playsinline aria-hidden="true" tabindex="-1"></video><video class="al-preview-original" src="${url}" preload="auto" playsinline></video>`
       : `${thumbnail(asset,true)}`;
     showModal(`<div class="al-preview-layout" id="alPreviewLayout"><div class="al-preview-stage al-preview-stage-${kind}">${media}<div class="al-preview-wait">${loadingMarkup(`正在加载${label}…`)}</div></div><aside class="al-preview-sidebar"><h2>${label}</h2><div class="al-preview-info">${loadingMarkup('正在读取素材信息…')}</div><footer class="al-preview-actions"><button type="button" id="alPreviewSave">${icon(asset.in_library?'libraryRemove':'library')}${asset.in_library?'移出资产库':'保存至资产库'}</button><button type="button" id="alPreviewAdd">${icon('plus')}${onPick?'选择素材':'添加到画布'}</button><button type="button" class="al-preview-delete" id="alPreviewDelete">${icon('trash')}删除</button><button type="button" id="alPreviewDownload" ${url?'':'disabled'}>${icon('download')}下载</button></footer></aside></div>`, 'asset-modal asset-preview-modal');
     const root = $('#alPreviewLayout'), original = $('.al-preview-original', root), background = $('.al-preview-backdrop', root), wait = $('.al-preview-wait', root);
@@ -353,6 +409,7 @@ export function createAssetLibrary(ctx) {
     let dimensions = '', duration = Number(asset.duration) || 0;
     const updateMedia = () => {
       wait.hidden = true;
+      if(kind==='video')original.controls=true;
       const width = original?.naturalWidth || original?.videoWidth, height = original?.naturalHeight || original?.videoHeight;
       if (width && height) dimensions = `${width} × ${height}`;
       if (Number.isFinite(original?.duration)) duration = original.duration;
@@ -360,9 +417,17 @@ export function createAssetLibrary(ctx) {
       const length = $('#alPreviewDuration', root); if (length) length.textContent = duration ? `${duration.toFixed(1)} 秒` : '—';
     };
     if (original) {
+      if(kind==='video')original.addEventListener('loadstart',()=>{original.controls=false;wait.hidden=false;wait.innerHTML=loadingMarkup('正在加载视频…');});
       original.addEventListener(kind === 'image' ? 'load' : 'loadeddata', updateMedia);
       if (original.complete && original.naturalWidth || original.readyState >= 2) updateMedia();
       original.addEventListener('error', () => {
+        if(kind==='video'&&asset.task_id&&asset.file_status==='pending'){
+          wait.hidden=false;wait.innerHTML=loadingMarkup('正在恢复并保存视频…');return;
+        }
+        if(kind==='video'&&asset.task_id&&['failed','expired','fallback'].includes(asset.file_status)){
+          wait.hidden=false;wait.innerHTML='<span>视频文件尚未保存</span><button type="button">恢复视频</button>';
+          wait.querySelector('button').onclick=async event=>{event.currentTarget.disabled=true;const result=await retryFile(asset);if(result&&root.isConnected)preview(result,onPick);};return;
+        }
         wait.hidden = false;wait.innerHTML = '<span>媒体加载失败</span><button type="button">重新加载</button>';
         wait.querySelector('button').onclick = () => { wait.innerHTML = loadingMarkup(`正在加载${label}…`); if(kind==='video')original.load();else original.src=asset.url; };
       });
@@ -380,14 +445,23 @@ export function createAssetLibrary(ctx) {
       const badges = [generation?.model_name || generation?.model_id, generation?.aspect_ratio, generation?.size || generation?.resolution, generation?.duration ? `${generation.duration} 秒` : ''].filter(Boolean);
       $('.al-preview-info',root).innerHTML = `<dl class="al-preview-properties"><div><dt>名称</dt><dd>${esc(details.name)}</dd></div><div><dt>创作者</dt><dd>${esc(details.creator_name||'未记录')}</dd></div><div><dt>创建于</dt><dd>${esc(created)}</dd></div><div><dt>来源</dt><dd>${sourceOf(details)==='generated'?'AI 生成':'上传素材'}</dd></div><div><dt>尺寸</dt><dd id="alPreviewDimensions">${esc(dimensions||'—')}</dd></div>${kind==='video'||kind==='audio'?`<div><dt>时长</dt><dd id="alPreviewDuration">${duration?`${duration.toFixed(1)} 秒`:'—'}</dd></div>`:''}<div><dt>文件大小</dt><dd>${esc(bytes(details.size_bytes)||'—')}</dd></div></dl><div class="al-preview-section-heading"><span>生成信息</span>${prompt?`<button type="button" id="alPreviewCopy" aria-label="复制生成提示词" title="复制提示词">${icon('copy')}</button>`:''}</div><p class="al-preview-prompt ${prompt?'':'is-empty'}">${esc(prompt||'暂无生成信息')}</p>${badges.length?`<div class="al-preview-badges">${badges.map(text=>`<span title="${esc(text)}">${esc(text)}</span>`).join('')}</div>`:''}${refs.length?`<div class="al-preview-section-heading">参考素材</div><div class="al-preview-references">${refs.map(ref=>`<button type="button" data-preview-reference="${esc(ref.id)}" title="${esc(ref.name)}">${['image','prop'].includes(ref.kind)?`<img src="${safeUrl(ref.url)}" alt="${esc(ref.name)}">`:icon(ref.kind==='video'?'video':'audio')}</button>`).join('')}</div>`:''}${details.description?`<div class="al-preview-section-heading">素材说明</div><p class="al-preview-prompt">${esc(details.description)}</p>`:''}`;
       $('#alPreviewCopy',root)?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(prompt);toast('提示词已复制');}catch{toast('复制失败，请选择提示词手动复制');}});
-      if(details.file_status==='failed'){
-        $('.al-preview-info',root).insertAdjacentHTML('afterbegin',`<div class="al-error" role="alert">视频已生成，服务器保存文件失败。${details.file_error?`<p>${esc(details.file_error)}</p>`:''}<button type="button" id="alRetryFile">重试下载</button></div>`);
+      if(kind==='video'&&details.task_id){
+        $('.al-preview-info',root).insertAdjacentHTML('afterbegin',`<p class="al-preview-file-state" role="status">${details.file_status==='cached'?'视频文件已保存，可预览和下载':details.file_status==='pending'?'临时预览 · 视频文件正在保存，完成后可长期访问':'视频文件尚未保存，当前预览可能失效'}</p>`);
+      }
+      if(['failed','expired','fallback'].includes(details.file_status)){
+        $('.al-preview-info',root).insertAdjacentHTML('afterbegin',`<div class="al-error" role="alert">视频已生成，服务器保存文件失败。${details.file_error?`<p>${esc(details.file_error)}</p>`:''}<button type="button" id="alRetryFile">恢复视频</button></div>`);
         $('#alRetryFile',root).onclick=async event=>{const button=event.currentTarget;button.disabled=true;const result=await retryFile(details);if(result&&root.isConnected)preview(result,onPick);else button.disabled=false;};
       }
       $$('[data-preview-reference]',root).forEach(button=>button.onclick=()=>preview(byId(button.dataset.previewReference)||refs.find(ref=>ref.id===button.dataset.previewReference)));
     };
     const loadInfo = async () => {
-      try { const details=await api(`/api/assets/${encodeURIComponent(asset.id)}`);drawInfo(details); }
+      if(!root.isConnected)return;
+      try { const details=await api(`/api/assets/${encodeURIComponent(asset.id)}`,{background:true});
+        if(!root.isConnected)return;
+        if(kind==='video'&&details.file_status==='cached'&&details.url!==asset.url){rememberAsset(details);preview(details,onPick);return;}
+        drawInfo(details);
+        if(details.file_status==='pending')setTimeout(loadInfo,2000);
+      }
       catch(error) { if(root.isConnected){drawInfo(asset);$('.al-preview-info',root).insertAdjacentHTML('beforeend',`<div class="al-preview-detail-error" role="alert">${esc(error.message)}<button type="button" id="alPreviewRetry">重新读取</button></div>`);$('#alPreviewRetry',root).onclick=loadInfo;} }
     };
     loadInfo();
@@ -398,6 +472,7 @@ export function createAssetLibrary(ctx) {
     for(const task of Object.values(state.nodeTasks||{})){
       if(task.asset_id===asset.id||asset.kind==='video'&&task.id===asset.task_id){
         task.asset_id=asset.id;task.asset_save_status=asset.in_library?'saved':'history';
+        task.video_url=asset.url;task.video_cache_status=asset.file_status;task.video_cache_error=asset.file_error;
       }
     }
     if(!asset.in_library&&ui.collection==='library')ui.selected.delete(asset.id);
@@ -417,7 +492,7 @@ export function createAssetLibrary(ctx) {
     saving.set(id,promise);try{return await promise;}finally{saving.delete(id);redraw();}
   }
   async function retryFile(asset) {
-    try {const result=rememberAsset(await api(`/api/assets/${encodeURIComponent(asset.id)}/retry-file`,json({})));toast(result.file_status==='cached'?'视频文件已下载，已保留在生成历史':result.file_error||'文件下载失败，请稍后重试');return result;}
+    try {const result=rememberAsset(await api(`/api/assets/${encodeURIComponent(asset.id)}/retry-file`,json({})));toast(result.file_status==='cached'?'视频文件已保存':result.file_status==='pending'?'正在恢复并保存视频，可离开页面等待':result.file_error||'视频恢复失败，请稍后重试');if(result.file_status==='pending')refresh();return result;}
     catch(error){toast(error.message);return null;}
   }
   function saveNode(node) { return setLibraryMembership(node?.assetId || node?.asset_id); }
@@ -560,5 +635,5 @@ export function createAssetLibrary(ctx) {
   const editCharacter = openCharacters;
   document.addEventListener('pointerdown', event => { if (event.target.closest('.al-card-menu, .al-card-more')) return; closeAssetMenus(); });
   document.addEventListener('keydown', event => { if (event.key === 'Escape') closeAssetMenus(); });
-  return { render, openPicker, openCharacters, editCharacter, saveNode, saveTask, setLibraryMembership, retryFile, refresh, upload, stopPreviews, preview };
+  return { downloadAsset, render, openPicker, openCharacters, editCharacter, saveNode, saveTask, setLibraryMembership, retryFile, refresh, upload, stopPreviews, preview };
 }

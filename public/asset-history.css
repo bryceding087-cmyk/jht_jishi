@@ -93,3 +93,6 @@
   .al-history-tabs { gap: 0; }
   .al-history-tabs button { padding: 6px 10px; }
 }
+.al-history-file-error.is-saved { background: #203e31; color: #a9e4c1; }
+.al-history-file-error.is-saving { background: #433b26; color: #f0d79b; }
+.al-preview-file-state { color: #babfc8; font-size: 13px; line-height: 1.6; }

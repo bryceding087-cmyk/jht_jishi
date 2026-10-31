@@ -16,6 +16,7 @@ from starlette.concurrency import run_in_threadpool
 from creator_metadata import creator_scope, user_creator
 from data_access import access_scope
 from market_service import exact_origin, install_market
+from video_callbacks import is_callback_request
 from storage.database import database_for
 from storage.schema import auth_users, auth_sessions, auth_login_limits
 from sqlalchemy import delete, func, insert, select, update
@@ -233,6 +234,15 @@ def install_auth(app: FastAPI, database: Path, public_directory: Path) -> AuthSt
 
     @app.middleware('http')
     async def authenticate_request(request: Request, call_next):
+        if is_callback_request(request.method, request.url.path):
+            # Only this POST route uses a per-task callback capability instead
+            # of a browser session/CSRF. The handler validates the capability.
+            request.state.user = None
+            with access_scope(None):
+                response = await call_next(request)
+            response.headers['Cache-Control'] = 'no-store'
+            response.headers['X-Content-Type-Options'] = 'nosniff'
+            return response
         user = await run_in_threadpool(store.current_user, request.cookies.get(COOKIE_NAME))
         try:
             market_user = await run_in_threadpool(market.user_for_request, request)

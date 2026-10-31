@@ -111,9 +111,22 @@ def video_reference_transport(config):
                           or config.get('model_id') == 'minimax-h3') else 'public_http_url'
 
 
+def is_market_wan(config):
+    return provider_id('video', config) == 'aimarket' and config.get('model_id') == 'wan3.0-video'
+
+
+def video_request_headers(method, url, body):
+    if (method == 'POST' and isinstance(body, dict) and body.get('model') == 'wan3.0-video'
+            and urlparse(url).path == '/v1/services/aigc/video-generation/video-synthesis'):
+        return {'X-DashScope-Async': 'enable'}
+    return {}
+
+
 def video_query_path(config):
     if config.get('query_path'):
         return config['query_path']
+    if is_market_wan(config):
+        return '/v1/tasks/{task_id}'
     if provider_id('video', config) in ('aimarket', 'minimax'):
         return provider_preset('video', config)['defaults']['query_path']
     return config.get('api_path', PROVIDERS['video'][0]['defaults']['api_path']).rstrip('/') + '/{task_id}'
@@ -125,6 +138,15 @@ def video_query_url(config, task_id):
 
 
 def video_payload(params, config, reference_url, reference_kind=lambda _: 'image'):
+    if is_market_wan(config):
+        if params.get('asset_ids') or params.get('mode', 'text-to-video') != 'text-to-video':
+            raise ValueError('通义万相 Wan 3.0 当前仅接入文生视频，请移除参考素材')
+        inputs = {'prompt': params.get('effective_prompt') or params['prompt']}
+        if params.get('negative_prompt'):
+            inputs['negative_prompt'] = params['negative_prompt']
+        return {'model': config['model_id'], 'input': inputs,
+                'parameters': {'resolution': params['resolution'].upper(),
+                               'duration': params['duration'], 'ratio': params['aspect_ratio']}}
     prompt = params.get('effective_prompt') or params['prompt']
     if params.get('negative_prompt'):
         prompt += '\n\nNegative prompt: ' + params['negative_prompt']
@@ -202,6 +224,8 @@ def video_response_error(response):
                 return normalized.get('status_msg') or normalized
             return normalized
         code = item.get('code')
+        if isinstance(code, str) and not code.isdigit() and code.strip().lower() not in ('', 'ok', 'success'):
+            return normalize_content_error(item.get('message') or item.get('msg') or code)
         if item.get('success') is False or (isinstance(code, (int, str)) and str(code).isdigit() and str(code) not in ('0', '200')):
             normalized = normalize_content_error(item)
             if normalized != item:

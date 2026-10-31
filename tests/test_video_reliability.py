@@ -68,7 +68,7 @@ class VideoReliabilityTests(unittest.TestCase):
     def test_long_job_enters_history_and_manual_save_reuses_the_file(self):
         self.seed()
         messages = []
-        def response(method, *args):
+        def response(method, *args, **kwargs):
             if method == 'POST': return {'task_id': 'original-id'}
             messages.append(self.h.get('task', 'video-fixture').get('status_message'))
             return {'status': 'Processing'} if len(messages) <= 130 else self.done()
@@ -152,6 +152,9 @@ class VideoReliabilityTests(unittest.TestCase):
             thread.assert_not_called()
         with patch.object(self.h, 'cache_generated_video', side_effect=self.cache):
             result = self.h.retry_asset_file(asset['id'])
+            self.assertEqual(result['file_status'], 'pending')
+            self.h.video_files.process(task['id'])
+            result = self.h.get('asset', asset['id'])
         self.assertEqual(result['file_status'], 'cached')
         self.assertFalse(result['in_library'])
         self.h.save_asset_to_library(asset['id'])
@@ -183,7 +186,7 @@ class VideoReliabilityTests(unittest.TestCase):
             current = self.h.refresh_video_task('video-fixture')
             self.assertEqual(current['video_cache_status'], 'failed')
             self.assertEqual(current['asset_save_status'], 'history')
-            self.assertIn('重试', current['status_message'])
+            self.assertIn('恢复视频', current['status_message'])
             thread.assert_not_called()
 
     def test_failed_manual_save_does_not_claim_library_membership_or_resubmit(self):
@@ -238,7 +241,7 @@ class VideoReliabilityTests(unittest.TestCase):
         user = {'id': record['user_id'], 'role': 'user'}
         with access_scope(user):
             self.seed(_market_binding_id=bid, _market_actor_id=user['id'])
-            def response(method, url, key, *args):
+            def response(method, url, key, *args, **kwargs):
                 used = model_api_key(url, key)
                 if method == 'POST':
                     market.revoke(bid)

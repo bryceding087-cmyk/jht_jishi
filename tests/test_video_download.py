@@ -69,6 +69,15 @@ class VideoDownloadTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 download_generated_video(self.origin + '/file.mp4', self.origin)
 
+    def test_short_response_is_never_marked_as_a_saved_video(self):
+        with patch('video_service.build_opener') as opener:
+            response = opener.return_value.open.return_value.__enter__.return_value
+            response.geturl.return_value = self.origin + '/file.mp4'
+            response.headers = {'Content-Type': 'video/mp4', 'Content-Length': '100'}
+            response.read.side_effect = [b'only part of the video', b'']
+            with self.assertRaises(ConnectionError):
+                download_generated_video(self.origin + '/file.mp4', self.origin)
+
 
 if __name__ == '__main__':
     unittest.main()

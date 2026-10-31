@@ -253,7 +253,7 @@ def install_conversations(app, h):
                 else:
                     if not task.get('local_stop_requested'):
                         task = h.refresh_video_task(task['id'])
-                    item={k:task.get(k) for k in ('id','status','error','video_url','params','created_at','updated_at','provider_task_id','status_message','query_paused','auto_save_video','asset_save_status','asset_id','video_cache_status','video_cache_error')}
+                    item={k:task.get(k) for k in ('id','status','error','video_url','params','created_at','updated_at','provider_task_id','submit_unknown','queue_state','status_message','query_paused','auto_save_video','asset_save_status','asset_id','video_cache_status','video_cache_error')}
                 item.update({key: task.get(key) for key in ('request_id', 'stop_requested', 'local_stop_requested', 'stopped_at', 'provider_may_continue')})
                 item['request_id'] = task.get('request_id') or (task.get('params') or {}).get('request_id')
                 settings = task.get('params') if kind == 'task' else {

@@ -20,9 +20,10 @@ from image_service import download_generated_image, image_error_message, image_c
 from audio_service import (AudioGenerationRequest, audio_reference, image_reference, audio_payload,
                            request_audio, decode_audio_result, audio_error_message)
 from video_service import download_generated_video
+from video_reference_images import video_reference_image
 from provider_adapters import (provider_catalog, provider_id, provider_preset, video_capabilities, video_query_path,
                                video_query_url, video_payload, video_task_id, video_response_error, video_result,
-                               video_reference_transport, response_objects, STATES)
+                               video_reference_transport, video_request_headers, response_objects, STATES)
 from auth_service import install_auth
 from market_service import (stamp_market_credentials, refresh_market_credentials, model_for_generation,
                             model_api_key, model_session_state, open_model_request,
@@ -41,6 +42,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from conversation_generation import ConversationGeneration, transaction_connection, after_commit
 from visual_styles import VisualStyleSelection, public_styles, style_task_fields
 from model_gateway import DOCKER_MODEL_ORIGIN, with_model_gateway, model_gateway_origin
+from video_callbacks import SUBMIT_TIMEOUT, WAITING_MESSAGE, install_video_callbacks
+from video_file_recovery import VideoFileRecovery
 
 ROOT = Path(__file__).parent
 DATA = Path(os.environ.get('JIANHUITONG_DATA_DIR') or ROOT / 'data')
@@ -53,9 +56,13 @@ async def application_lifespan(application):
     generation_queue.start()
     await run_in_threadpool(manual_generation.recover)
     await run_in_threadpool(recover_video_tasks)
+    video_callbacks.start()
+    video_files.start()
     try:
         yield
     finally:
+        video_callbacks.stop()
+        video_files.stop()
         generation_queue.stop()
 
 
@@ -1144,6 +1151,9 @@ def asset_data_uri(asset_id):
     file_path = UPLOADS / file_name
     if not file_path.exists():
         raise RuntimeError(f'素材文件不存在：{asset.get("name", asset_id)}')
+    if is_image_asset_kind(asset.get('kind', 'image')):
+        reference = video_reference_image(file_path)
+        return f'data:{reference.mime};base64,' + base64.b64encode(reference.data).decode('ascii')
     encoded = base64.b64encode(file_path.read_bytes()).decode('ascii')
     if asset.get('kind') == 'video':
         if file_path.suffix.lower() != '.mp4':
@@ -1166,7 +1176,7 @@ def provider_payload(params, config):
             raise ValueError('当前服务商仅接入图片或视频参考素材')
         url = str(asset.get('url') or '')
         if video_reference_transport(config) == 'data_uri' and url.startswith('/uploads/'):
-            return asset_data_uri(asset_id) if asset.get('kind') == 'video' else reference_image_data_uri(asset_id)
+            return asset_data_uri(asset_id)
         if not url.startswith(('https://', 'http://')):
             raise ValueError('AI Market 参考图需要上游可访问的 HTTP(S) URL，当前本地素材无法直接使用；可改用文生视频或火山方舟模型')
         return url
@@ -1178,8 +1188,10 @@ def provider_payload(params, config):
 
 def provider_json(method, url, api_key, body=None, timeout=45):
     api_key = model_api_key(url, api_key)
-    payload = None if body is None else json.dumps(body, ensure_ascii=False).encode('utf-8')
-    request = Request(url, data=payload, method=method, headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json', 'Accept': 'application/json'})
+    payload = None if body is None else json.dumps(body, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
+    request = Request(url, data=payload, method=method, headers={
+        'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json', 'Accept': 'application/json',
+        **video_request_headers(method, url, body)})
     try:
         with open_model_request(request, timeout=timeout, fallback=urlopen) as response:
             raw = response.read().decode('utf-8')
@@ -1211,8 +1223,14 @@ def is_quota_limit_error(value):
     return 'SetLimitExceeded' in text or 'has reached the set usage limit' in text or 'has reached the set inference limit' in text
 
 def update_task(tid, **updates):
-    current = get('task', tid)
-    return save('task', {**current, **updates, 'updated_at': time.time()})
+    with VIDEO_WORKER_LOCK:
+        current = get('task', tid)
+        # Callback verification and normal polling can finish concurrently.
+        if (current.get('status') == 'done' or current.get('status') in ('failed', 'blocked')
+                and current.get('provider_task_id') and not current.get('polling_interrupted')
+                and not current.get('submit_unknown')) and updates.get('status') in ('queued', 'running'):
+            return current
+        return save('task', {**current, **updates, 'updated_at': time.time()})
 
 
 def cache_generated_video(url):
@@ -1250,9 +1268,11 @@ def persisted_task_video_url(task_id):
 
 def normalize_task_video(task):
     """Use a saved local asset when an older task still points at a remote URL."""
-    if task.get('video_cache_status') == 'expired' and task.get('video_url'):
-        return save('task', {**task, 'video_url': '', 'updated_at': time.time()})
-    if task.get('status') != 'done' or not task.get('video_url') or str(task['video_url']).startswith('/uploads/'):
+    if task.get('status') != 'done':
+        return task
+    url = str(task.get('video_url') or '')
+    name = url[len('/uploads/'):] if url.startswith('/uploads/') else ''
+    if name and Path(name).name == name and '\\' not in name and (UPLOADS / name).is_file():
         return task
     local_url = persisted_task_video_url(task.get('id', ''))
     if not local_url:
@@ -1283,9 +1303,45 @@ def video_failure_is_terminal(response):
                for item in response_objects(response) for key in ('task_status', 'status', 'state'))
 
 
+def apply_video_result(tid, result, message='已提交，正在排队或生成'):
+    parsed = video_result(result)
+    if parsed['status'] == 'failed' and not video_failure_is_terminal(result):
+        raise RuntimeError('查询接口暂未返回有效任务状态')
+    if parsed['status'] == 'done' and not parsed['video_url']:
+        raise RuntimeError('模型已完成，正在等待视频地址')
+    with VIDEO_WORKER_LOCK:
+        current = get('task', tid)
+        if (current.get('deleted_at') or current.get('queue_timed_out_at')
+                or current['status'] in ('done', 'cancelled')
+                or current['status'] in ('failed', 'blocked') and current.get('provider_task_id')
+                and not current.get('polling_interrupted') and not current.get('submit_unknown')):
+            return current['status']
+        common = dict(error=None, submit_unknown=False, query_errors=0, polling_interrupted=False,
+                      query_paused=False, last_query_at=time.time(), provider_response=result)
+        status = parsed['status']
+        if status in ('queued', 'running'):
+            update_task(tid, **common, status=status, status_message=message)
+        elif status == 'done':
+            update_task(tid, **common, status='done', video_url=parsed['video_url'], provider_video_url=parsed['video_url'],
+                video_cache_status='pending', asset_save_status='history',
+                status_message='生成完成，已加入生成历史', completed_at=time.time())
+        elif status == 'failed':
+            error = parsed['error'] or '模型任务失败'
+            status = 'blocked' if is_quota_limit_error(error) else 'failed'
+            common['error'] = normalize_content_error(error)
+            update_task(tid, **common, status=status, status_message='生成失败')
+        return status
+
+
 def _run_provider_task(tid, params, config, resume=False):
     config = with_model_gateway(config)
-    provider_task_id = get('task', tid).get('provider_task_id') if resume else None
+    original = get('task', tid)
+    if not original.get('video_source'):
+        update_task(tid, video_source=video_source_snapshot(config))
+    provider_task_id = original.get('provider_task_id')
+    if original.get('submit_unknown') and not provider_task_id:
+        return  # An ambiguous submission is never automatically POSTed again.
+    resume = resume or bool(provider_task_id)
     try:
         if not resume:
             if get('task', tid).get('local_stop_requested'):
@@ -1293,13 +1349,26 @@ def _run_provider_task(tid, params, config, resume=False):
                 return
             base_url = config['base_url'].rstrip('/')
             api_path = '/' + config.get('api_path', '').lstrip('/')
-            created = provider_json('POST', base_url + api_path, config['api_key'], provider_payload(params, config))
+            payload = provider_payload(params, config)
+            callback_url = video_callbacks.prepare(get('task', tid), config)
+            if callback_url:
+                payload['callback_url'] = callback_url
+            update_task(tid, submission_started_at=time.time(),
+                        submission_request_bytes=len(json.dumps(payload, ensure_ascii=False, separators=(',', ':')).encode('utf-8')),
+                        submission_reference_count=len(params.get('asset_ids', [])))
+            created = provider_json('POST', base_url + api_path, config['api_key'], payload, timeout=SUBMIT_TIMEOUT)
             creation_error = video_response_error(created)
             if creation_error:
                 raise RuntimeError(creation_error)
-            provider_task_id = video_task_id(created)
-            update_task(tid, status='queued', provider_task_id=provider_task_id, provider_response=created,
-                        submitted_at=time.time(), status_message='已提交，正在排队或生成', auto_save_video=False)
+            with VIDEO_WORKER_LOCK:
+                current = get('task', tid)
+                provider_task_id = video_task_id(created) or current.get('provider_task_id')
+                if current.get('provider_task_id') and current['provider_task_id'] != provider_task_id:
+                    raise RuntimeError('提交与回调返回的任务编号不一致')
+                if current['status'] in ('done', 'failed', 'blocked') and current.get('provider_task_id') and not current.get('submit_unknown'):
+                    return
+                update_task(tid, status='queued', provider_task_id=provider_task_id, provider_response=created,
+                            submit_unknown=False, submitted_at=time.time(), status_message='已提交，正在排队或生成', auto_save_video=False)
         if not provider_task_id:
             raise RuntimeError('模型接口未返回任务 ID')
         current = update_task(tid, polling_interrupted=False, query_paused=False, error=None, auto_save_video=False)
@@ -1311,7 +1380,7 @@ def _run_provider_task(tid, params, config, resume=False):
             elapsed = max(0, time.time() - submitted)
             time.sleep(video_poll_delay(elapsed, errors))
             current = get('task', tid)
-            if current.get('deleted_at') or current.get('queue_timed_out_at'):
+            if current.get('deleted_at') or current.get('queue_timed_out_at') or current['status'] in ('done', 'failed', 'blocked', 'cancelled'):
                 return
             message = '本次生成较慢，仍在处理中' if elapsed >= VIDEO_SLOW_AFTER else '已提交，正在排队或生成'
             try:
@@ -1319,11 +1388,7 @@ def _run_provider_task(tid, params, config, resume=False):
                 # exact submitted job, never create a new one or call another URL.
                 with video_query_credentials(query_url, config['api_key'], current.get('_market_actor_id', '')):
                     result = provider_json('GET', query_url, config['api_key'])
-                parsed = video_result(result)
-                if parsed['status'] == 'failed' and not video_failure_is_terminal(result):
-                    raise RuntimeError('查询接口暂未返回有效任务状态')
-                if parsed['status'] == 'done' and not parsed['video_url']:
-                    raise RuntimeError('模型已完成，正在等待视频地址')
+                status = apply_video_result(tid, result, message)
             except Exception as error:
                 errors += 1
                 if getattr(error, 'status_code', None) in (401, 403, 428):
@@ -1335,31 +1400,24 @@ def _run_provider_task(tid, params, config, resume=False):
                     last_query_at=time.time())
                 continue
             errors = 0
-            status = parsed['status']
-            if status in ('queued', 'running'):
-                update_task(tid, status=status, error=None, query_errors=0, status_message=message,
-                            last_query_at=time.time(), provider_response=result)
-            elif status == 'done':
-                update_task(tid, status='done', error=None, video_url=parsed['video_url'],
-                    video_cache_status='pending', asset_save_status='history', provider_response=result,
-                    status_message='生成完成，已加入生成历史', completed_at=time.time())
+            if status == 'done':
                 finalize_video_task(tid)
                 return
-            elif status == 'failed':
-                provider_error = parsed['error'] or '模型任务失败'
-                update_task(tid, status='blocked' if is_quota_limit_error(provider_error) else 'failed',
-                    error=normalize_content_error(provider_error), provider_response=result,
-                    status_message='生成失败', polling_interrupted=False)
+            elif status in ('failed', 'blocked', 'cancelled'):
                 return
         update_task(tid, status='running', error=None, polling_interrupted=True, query_paused=True,
                     query_retry_at=time.time()+60, status_message='任务仍未结束，重新打开项目后继续查询原任务')
     except Exception as error:
         message = provider_error_message(error)
-        update_task(tid, status='running' if provider_task_id else 'blocked' if is_quota_limit_error(message) else 'failed',
-                    error=None if provider_task_id else message, polling_interrupted=bool(provider_task_id),
-                    query_paused=bool(provider_task_id), query_retry_at=time.time()+60,
-                    status_message='查询暂时中断，稍后自动继续' if provider_task_id else '',
-                    submit_unknown=not provider_task_id and (request_result_unknown(error) or '未返回任务 ID' in message))
+        with VIDEO_WORKER_LOCK:
+            current = get('task', tid)
+            provider_task_id = current.get('provider_task_id') or provider_task_id
+            unknown = not provider_task_id and (request_result_unknown(error) or '未返回任务 ID' in message)
+            update_task(tid, status='running' if provider_task_id or unknown else 'blocked' if is_quota_limit_error(message) else 'failed',
+                        error=None if provider_task_id or unknown else message, polling_interrupted=bool(provider_task_id),
+                        query_paused=bool(provider_task_id), query_retry_at=time.time()+60,
+                        status_message='查询暂时中断，稍后自动继续' if provider_task_id else WAITING_MESSAGE if unknown else '',
+                        submit_unknown=unknown, submit_error=message if unknown else None)
     finally:
         with VIDEO_WORKER_LOCK:
             ACTIVE_VIDEO_TASKS.discard(tid)
@@ -1369,20 +1427,20 @@ def ensure_video_asset(tid):
     """Record completed video in history independently of library membership."""
     with _task_asset_lock:
         task = normalize_task_video(get('task', tid))
-        if task.get('deleted_at') or task.get('status') != 'done' or not task.get('video_url'):
+        if task.get('deleted_at') or task.get('status') != 'done' or not (task.get('video_url') or task.get('provider_task_id')):
             return None
         if task.get('asset_save_status') == 'pending' and task.get('asset_save_error'):
             task = update_task(tid, video_cache_status='failed', video_cache_error=task['asset_save_error'])
         previous = next((a for a in listing('asset') if a.get('task_id') == tid and a.get('kind') == 'video'), None)
         if previous and previous.get('deleted_at'):
             return previous
-        url = task['video_url']
+        url = task.get('video_url', '')
         name = url[len('/uploads/'):] if url.startswith('/uploads/') else ''
         path = UPLOADS / name if name and Path(name).name == name and '\\' not in name else None
         cached = bool(path and path.is_file())
-        if not cached and (not task.get('video_cache_status') or path):
+        if not cached and (not task.get('video_cache_status') or path and task.get('video_cache_status') == 'cached'):
             task = update_task(tid, video_cache_status='failed' if path else 'pending',
-                video_cache_error='视频文件不存在，请重新生成或导入视频' if path else '')
+                video_cache_error='服务器上的视频文件不存在，可尝试恢复原任务的视频' if path else '')
         asset = {**(previous or {}), 'id': previous['id'] if previous else str(uuid.uuid5(uuid.NAMESPACE_URL, 'jht-video-task:' + tid)),
             'kind': 'video', 'name': (previous or {}).get('name') or clean_asset_name((task.get('params') or {}).get('prompt', '')[:50] or '生成视频'),
             'url': url, 'source': 'generated', 'project_id': task.get('project_id', ''),
@@ -1392,14 +1450,15 @@ def ensure_video_asset(tid):
             'created_at': (previous or {}).get('created_at') or task.get('completed_at') or task.get('created_at') or time.time(),
             'duration': (task.get('params') or {}).get('duration', 0),
             'file_status': 'cached' if cached else task.get('video_cache_status', 'pending'),
-            'file_error': task.get('video_cache_error', ''), **record_creator(task)}
+            'file_error': '' if cached else task.get('video_cache_error', ''), **record_creator(task)}
         if asset != previous:
             asset = save('asset', asset)
         updates = {'asset_id': asset['id'], 'asset_save_status': 'saved' if asset['in_library'] else 'history',
-            'auto_save_video': False, 'status_message': ('生成完成，文件下载失败，可在生成历史中重试下载'
-                if asset['file_status'] == 'failed' else '生成完成，已保存至资产库' if asset['in_library'] else '生成完成，已加入生成历史')}
+            'auto_save_video': False, 'status_message': ('视频已生成，文件尚未保存，可恢复视频'
+                if asset['file_status'] in ('failed', 'expired') else '视频已生成，正在保存文件'
+                if not cached else '视频文件已保存，已加入资产库' if asset['in_library'] else '视频文件已保存，已加入生成历史')}
         if cached:
-            updates.update(video_cache_status='cached', video_cache_error='')
+            updates.update(video_cache_status='cached', video_cache_error='', video_cache_retry_at=0)
         if any(task.get(k) != v for k, v in updates.items()):
             update_task(tid, **updates)
         return asset
@@ -1409,38 +1468,148 @@ _video_file_locks = {}
 _video_file_lock_guard = threading.Lock()
 
 
-def finalize_video_task(tid):
-    # Download failures are separate from generation and never loop forever.
+def video_source_snapshot(config):
+    source = {k: config.get(k) for k in ('id', 'provider_id', 'model_id', 'base_url', 'api_path', 'query_path')}
+    if config.get('provider_id') != 'aimarket':
+        source['key_fingerprint'] = hashlib.sha256(config.get('api_key', '').encode()).hexdigest()
+    return source
+
+
+def refresh_video_download_url(task):
+    """GET the original job with its owner's credentials; never create a video."""
+    if not task.get('provider_task_id'):
+        return task
+    user = current_principal()
+    if user and not user.get('active', True):
+        raise ValueError('任务所属账号已停用，无法恢复视频')
+    params = task.get('params') or {}
+    source = task.get('video_source')
+    config = with_model_gateway(internal_registry_model('video', (source or {}).get('id') or params.get('model_config_id')))
+    if source and source != video_source_snapshot(config):
+        raise ValueError('原视频模型配置已变更，请核对原模型与账号后恢复视频')
+    if not source and params.get('model') and params['model'] != config.get('model_id'):
+        raise ValueError('原视频模型与当前配置不同，请核对原模型后恢复视频')
+    # Provisioned official keys remain available after a marketplace session
+    # expires. Gateway keys must come from the original actor's current binding.
+    if not is_account_video(config):
+        config = model_for_generation(config)
+    if not config.get('api_key'):
+        raise ValueError('恢复视频需要原模型的查询凭据，请重新连接集市或核对模型配置')
+    url = video_query_url(config, task['provider_task_id'])
+    with account_video_credentials(config), video_query_credentials(url, config['api_key'], str((user or {}).get('id', ''))):
+        result = provider_json('GET', url, config['api_key'])
+    result_id = video_task_id(result)
+    if result_id and result_id != task['provider_task_id']:
+        raise ValueError('查询返回的任务编号不一致，已停止恢复')
+    parsed = video_result(result)
+    if parsed['status'] != 'done' or not parsed['video_url']:
+        raise ValueError('供应商暂未返回原任务的可用视频，结果可能已过期或被移除；未重新生成')
+    return update_task(task['id'], video_url=parsed['video_url'], provider_video_url=parsed['video_url'],
+                       provider_response=result, video_url_refreshed_at=time.time())
+
+
+def retryable_video_file_error(error):
+    reason = getattr(error, 'reason', error)
+    if isinstance(error, HTTPError):
+        return error.code in (408, 429) or error.code >= 500
+    return (isinstance(reason, (TimeoutError, ConnectionError, socket.gaierror))
+            or getattr(error, 'status_code', 0) in (408, 429, 500, 502, 503, 504)
+            or '超时' in str(error))
+
+
+def finalize_video_task(tid, refresh_url=False):
+    # One bounded attempt. Retry times are persisted; the dispatcher owns waits.
     with _video_file_lock_guard:
         lock = _video_file_locks.setdefault(tid, threading.Lock())
     with lock:
         current = get('task', tid)
-        if current.get('deleted_at') or current.get('status') != 'done' or not current.get('video_url'):
+        if current.get('deleted_at') or current.get('status') != 'done':
             return
         asset = ensure_video_asset(tid)
         if not asset or asset.get('deleted_at'):
+            update_task(tid, video_cache_retry_at=0, video_cache_status='deleted')
             return
+        if asset.get('file_status') == 'cached':
+            return asset
         current = get('task', tid)
+        if current.get('video_cache_retry_at', 0) > time.time() or int(current.get('video_cache_attempts', 0)) >= 3:
+            return asset
+        refresh_url = refresh_url or current.get('video_cache_status') in ('failed', 'expired', 'fallback') or str(current.get('video_url', '')).startswith('/uploads/')
+        attempts = int(current.get('video_cache_attempts', 0)) + 1
+        update_task(tid, video_cache_status='pending', video_cache_retry_at=0,
+                    video_cache_attempts=attempts, video_cache_error='')
+        ensure_video_asset(tid)
         try:
-            if not current.get('video_url', '').startswith('/uploads/'):
-                update_task(tid, video_cache_status='pending', video_cache_error='')
-                url = cache_generated_video(current['video_url'])
-                update_task(tid, video_url=url, video_cache_status='cached', video_cache_error='')
-            else:
-                if not asset.get('size_bytes'):
-                    raise ValueError('视频文件不存在，请重新生成或导入视频')
-                update_task(tid, video_cache_status='cached', video_cache_error='')
+            with worker_scope(current):
+                user = current_principal()
+                if user and not user.get('active', True):
+                    raise ValueError('任务所属账号已停用，无法恢复视频')
+                if refresh_url:
+                    current = refresh_video_download_url(current)
+                remote = current.get('video_url') or current.get('provider_video_url')
+                if not remote or str(remote).startswith('/uploads/'):
+                    raise ValueError('服务器上的视频文件不存在，且原任务没有可用的下载地址')
+                try:
+                    url = cache_generated_video(remote)
+                except HTTPError as error:
+                    if refresh_url or not current.get('provider_task_id') or error.code not in (401, 403, 404, 410):
+                        raise
+                    current = refresh_video_download_url(current)
+                    url = cache_generated_video(current['video_url'])
+            # A user may delete the record while the file is being transferred.
+            latest = get('task', tid)
+            if latest.get('deleted_at'):
+                return
+            update_task(tid, video_url=url, provider_video_url=current.get('provider_video_url') or remote,
+                        video_cache_status='cached', video_cache_error='', video_cache_retry_at=0,
+                        video_saved_at=time.time())
         except Exception as error:
-            update_task(tid, video_cache_status='failed', video_cache_error=video_file_error_message(error),
-                asset_save_error='', auto_save_video=False, asset_save_status='history',
-                status_message='生成已完成，文件下载失败；可在生成历史中重试保存')
+            retry = attempts < 3 and retryable_video_file_error(error)
+            message = (str(error.detail) if isinstance(error, HTTPException) else video_file_error_message(error))
+            update_task(tid, video_cache_status='pending' if retry else 'failed', video_cache_error=message,
+                video_cache_retry_at=time.time() + (30 if attempts == 1 else 120) if retry else 0,
+                asset_save_error='', auto_save_video=False, asset_save_status='history')
+            if retry:
+                video_files.wake.set()
         return ensure_video_asset(tid)
+
+
+def request_video_file_recovery(tid):
+    """Return immediately; the saved job continues even if the browser closes."""
+    task = get('task', tid)
+    asset = ensure_video_asset(tid)
+    if not asset or asset.get('deleted_at'):
+        raise HTTPException(422, '原任务尚未完成或生成记录已删除')
+    if asset.get('file_status') == 'cached':
+        return asset
+    with _video_file_lock_guard:
+        lock = _video_file_locks.setdefault(tid, threading.Lock())
+    if not lock.acquire(blocking=False):
+        return asset
+    try:
+        task = get('task', tid)
+        asset = ensure_video_asset(tid)
+        if not asset or asset.get('deleted_at'):
+            raise HTTPException(422, '生成记录已删除')
+        refreshed = refresh_market_credentials(task)
+        if refreshed != task:
+            task = update_task(tid, _market_binding_id=refreshed['_market_binding_id'])
+        if asset.get('file_status') == 'cached' or task.get('video_cache_status') == 'pending' and task.get('video_cache_retry_at'):
+            return asset
+        update_task(tid, video_cache_status='pending', video_cache_error='', video_cache_attempts=0,
+                    video_cache_retry_at=time.time(), asset_save_error='')
+    finally:
+        lock.release()
+    video_files.wake.set()
+    return ensure_video_asset(tid)
 
 
 def refresh_video_task(tid):
     current = normalize_task_video(get('task', tid))
     if current.get('deleted_at'):
         return current
+    if current.get('submit_unknown') and not current.get('provider_task_id') and not current.get('queue_timed_out_at'):
+        return update_task(tid, status='running', error=None, status_message=WAITING_MESSAGE)
     if current.get('provider_task_id') and (current['status'] in ('queued', 'running') or current.get('polling_interrupted')):
         try:
             return reconcile_video_task(tid)
@@ -1449,14 +1618,17 @@ def refresh_video_task(tid):
                 raise
             return update_task(tid, status='running', error=None, polling_interrupted=True, query_paused=True,
                 query_retry_at=time.time()+30, status_message='等待重新连接集市以继续查询，原任务已保留')
-    if current['status'] == 'done' and current.get('video_url'):
+    if current['status'] == 'done' and (current.get('video_url') or current.get('provider_task_id')):
         legacy_pending = current.get('auto_save_video') and current.get('asset_save_status') == 'pending'
         asset = ensure_video_asset(tid)
         if asset and asset.get('deleted_at'):
             return update_task(tid, asset_save_status='deleted', auto_save_video=False,
                 video_cache_status='deleted', status_message='生成记录已删除')
         current = get('task', tid)
-        if current.get('video_cache_status') == 'pending' or (legacy_pending and current.get('video_cache_status') != 'failed'):
+        with _video_file_lock_guard:
+            file_lock = _video_file_locks.get(tid)
+            saving_file = bool(file_lock and file_lock.locked())
+        if not saving_file and not current.get('video_cache_retry_at') and (current.get('video_cache_status') == 'pending' or (legacy_pending and current.get('video_cache_status') != 'failed')):
             with VIDEO_WORKER_LOCK:
                 if tid not in ACTIVE_VIDEO_TASKS:
                     ACTIVE_VIDEO_TASKS.add(tid)
@@ -1515,8 +1687,7 @@ def reconcile_video_task(tid):
                 status_message='本次生成较慢，仍在处理中' if time.time()-current.get('created_at',time.time()) >= VIDEO_SLOW_AFTER else '已提交，正在排队或生成')
             start_generation_worker('task', current, run_provider_task, (tid,current['params'],config,True))
         elif current['status'] in ('queued','running'):
-            current=update_task(tid,status='blocked',submit_unknown=True,
-                                error='服务中断时未收到供应商任务编号。请先核对供应商记录，重试可能再次计费。')
+            current=update_task(tid,status='running',submit_unknown=True,error=None,status_message=WAITING_MESSAGE)
         return current
 
 @app.get('/api/health')
@@ -2394,7 +2565,7 @@ def asset_public(asset, projects=None, characters=None, all_assets=None, convers
 @app.get('/api/assets')
 def assets(collection: Literal['history', 'library'] = 'history'):
     for task in listing('task'):
-        if task.get('status') == 'done' and task.get('video_url') and not task.get('deleted_at'):
+        if task.get('status') == 'done' and (task.get('video_url') or task.get('provider_task_id')) and not task.get('deleted_at'):
             refresh_video_task(task['id'])
     projects, characters = listing('project'), listing('character')
     all_assets = listing('asset')
@@ -2405,6 +2576,11 @@ def assets(collection: Literal['history', 'library'] = 'history'):
 @app.get('/api/assets/{aid}')
 def asset_details(aid: str):
     asset = require_live_asset(aid)
+    if asset.get('kind') == 'video' and asset.get('task_id'):
+        task = raw_record('task', asset['task_id'])
+        if task and task.get('status') == 'done':
+            ensure_video_asset(task['id'])
+            asset = require_live_asset(aid)
     result = asset_public(asset)
     kind = asset.get('kind', 'image')
     task = raw_record({'video': 'task', 'audio': 'audio_task'}.get(kind, 'image_task'), asset.get('task_id', '')) or {}
@@ -2558,6 +2734,10 @@ def video_history_asset(tid: str):
 def save_asset_to_library(aid: str):
     asset = require_live_asset(aid)
     if asset.get('kind') == 'video' and asset.get('task_id') and (asset.get('file_status') != 'cached' or not asset.get('url', '').startswith('/uploads/')):
+        task = get('task', asset['task_id'])
+        refreshed = refresh_market_credentials(task)
+        if refreshed != task:
+            update_task(task['id'], _market_binding_id=refreshed['_market_binding_id'])
         finalize_video_task(asset['task_id'])
         asset = require_live_asset(aid)
         if asset.get('file_status') != 'cached' or not asset.get('url', '').startswith('/uploads/'):
@@ -2585,12 +2765,12 @@ def remove_asset_from_library(aid: str):
     return asset_public(asset)
 
 
-@app.post('/api/assets/{aid}/retry-file')
+@app.post('/api/assets/{aid}/retry-file', status_code=202)
 def retry_asset_file(aid: str):
     asset = require_live_asset(aid)
     if asset.get('kind') != 'video' or not asset.get('task_id'):
         raise HTTPException(422, '此记录没有可重试的视频下载')
-    finalize_video_task(asset['task_id'])
+    request_video_file_recovery(asset['task_id'])
     return asset_public(require_live_asset(aid))
 
 
@@ -2629,17 +2809,10 @@ def tasks(project_id: str | None = None):
     return [refresh_video_task(t['id']) for t in listing('task') if not t.get('deleted_at') and (not project_id or t['project_id'] == project_id)]
 
 
-@app.post('/api/tasks/{tid}/cache-video')
+@app.post('/api/tasks/{tid}/cache-video', status_code=202)
 def cache_task_video(tid: str):
-    """Repair an older task whose provider URL has not expired yet."""
-    task = normalize_task_video(get('task', tid))
-    if task.get('status') != 'done' or not task.get('video_url'):
-        raise HTTPException(422, '只有生成成功的视频才能缓存')
-    finalize_video_task(tid)
-    current = get('task', tid)
-    if current.get('video_cache_status') != 'cached':
-        raise HTTPException(502, '视频已生成，文件下载失败，可稍后重试下载')
-    return current
+    request_video_file_recovery(tid)
+    return get('task', tid)
 
 def script_scene_image_resources(script, scene_index=None):
     data = normalise_script(script.get('script_data') or {})
@@ -2817,6 +2990,8 @@ def _submit_video_task(p: Task, project_snapshot=None):
         params['client_input_digest'] = request_digest
         return save('task', {'id': tid, 'task_id': tid, 'project_id': p.project_id, 'params': params, 'status': 'blocked', 'error': '提示词未通过内容安全审核，请修改后重试。当前未调用模型、未扣费。', 'created_at': time.time()})
     config = resolve_model_config(p.model_config_id, p.model)
+    if (config.get('capabilities') or {}).get('modes') == ['text-to-video'] and (asset_ids or mode != 'text-to-video'):
+        raise HTTPException(422, f'{config["name"]}当前仅接入文生视频，请移除参考素材')
     video_refs = [get('asset', aid) for aid in asset_ids if get('asset', aid).get('kind') == 'video']
     if video_refs:
         model_id = str(config.get('model_id', '')).lower()
@@ -2942,6 +3117,8 @@ from generation_queue import install_generation_queue, request_result_unknown
 generation_queue = install_generation_queue(app, AgentHost())
 from generation_stop import install_generation_stop
 generation_stop = install_generation_stop(app, AgentHost())
+video_callbacks = install_video_callbacks(app, AgentHost())
+video_files = VideoFileRecovery(AgentHost())
 
 
 from media_library import migrate_media_library
@@ -2950,6 +3127,8 @@ migrate_media_library(connect, DATA)
 from conversation_service import install_conversations, migrate_agent_conversations
 migrate_agent_conversations(AgentHost())
 migrate_ownership(connect, DATA)
+from market_video_models import install_shared_market_video_models
+install_shared_market_video_models(connect)
 install_conversations(app, AgentHost())
 install_agent(app, AgentHost())
 from studio_render import install_studio_render

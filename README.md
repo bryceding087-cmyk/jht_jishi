@@ -1,5 +1,9 @@
 # 建绘通 · AI 视频创作平台
 
+项目源代码采用 [MIT License](LICENSE) 开源。随附的第三方依赖和资源遵循各自许可证；模型服务需自行配置访问凭据和使用权限。仓库不包含部署密钥、账号数据库、用户项目或生成素材。
+
+近期更新：支持 [AI 集市 Wan 3.0](docs/wan3-aimarket-20261031.md)、[视频文件恢复](docs/video-file-recovery-20261031.md)、[轮询闪烁修复](docs/polling-stability-20261031.md)、[统一视频加载动画](docs/triangle-video-loading-20261031.md)、[画布超时状态修复](docs/canvas-timeout-state-20261031.md)和[视频参考图片压缩](docs/video-reference-compression-20261031.md)。
+
 此目录为 AI 集市接入版本。默认文本模型为 `deepseek-v4.1-flash`，图片模型为 `doubao-seedream-5.0-pro`，视频模型为 `minimax-h3`；三者使用 AI 集市网关及 SDK 下发的当前会话 Key。音频使用火山引擎 `seed-audio-1.0` 和独立服务端 Key。部署入口、环境变量、接口映射及验证边界见 [AI 集市版本部署说明](docs/aimarket-jishi-deployment.md)。
 
 通过 `npm start` / `server.py` 本地启动时，文本、图片和视频模型默认使用 `https://aimarket.hncig.cn:4090`；Docker 镜像和容器入口默认使用服务器内网网关 `http://192.168.241.202:4091`。配置项为 `JIANHUITONG_MARKET_MODEL_ORIGIN`，显式进程环境变量优先于 `.env`。默认模型、AI Market 服务商预设及保存过的这两个网关地址会在读取时统一到当前环境；其他自定义地址和音频接口保持各自配置。
@@ -36,7 +40,7 @@ Agent 在理解故事、设计创意、确认分镜和续作时，会结合当�
 
 ## 在另一台电脑上启动
 
-安装 Git、Python 3.11 或更新版本，以及 Node.js 18 或更新版本（包含 npm）。本仓库为私有仓库，克隆时需要使用有访问权限的 GitHub 账号登录。前端静态文件由同一个 Python 服务提供，无需单独构建前端。
+安装 Git、Python 3.11 或更新版本，以及 Node.js 18 或更新版本（包含 npm）。本仓库公开，可直接克隆。前端静态文件由同一个 Python 服务提供，无需单独构建前端。
 
 Windows（首次本地数据库安装使用 PowerShell 7）：
 

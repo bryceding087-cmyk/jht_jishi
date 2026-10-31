@@ -95,4 +95,6 @@ def download_generated_video(url, trusted_origin=None):
         data = b''.join(chunks)
         if not data:
             raise ValueError('模型返回了空视频，请重试')
+        if str(length).isdigit() and total != int(length):
+            raise ConnectionError('视频文件下载不完整，请重试保存')
         return data, _suffix(final_url, response.headers.get('Content-Type', ''), data)

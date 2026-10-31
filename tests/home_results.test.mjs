@@ -199,6 +199,18 @@ function assertRunning(env, message) {
   assert.equal(env.results.querySelector('video'),video);
 }
 
+// Temporary playback must not claim persistence; restored task URLs beat old asset snapshots.
+{
+  const job={kind:'video',conversationId:'conversation-1',prompt:'已生成但未保存的视频',settings:{},
+    task:{id:'recovering-video',status:'done',video_url:'https://cdn.test/temporary.mp4',video_cache_status:'pending',
+      assets:[{id:'old-asset',kind:'video',url:'https://cdn.test/temporary.mp4'}]}};
+  const env=homeHarness([job],'video');env.render();
+  assert.match(env.results.querySelector('.home-turn-note').textContent,/临时预览.*正在保存/);
+  job.task.video_url='/uploads/recovered.mp4';job.task.video_cache_status='cached';env.render();
+  assert.equal(env.results.querySelector('video').getAttribute('src'),'/uploads/recovered.mp4');
+  assert.match(env.results.querySelector('.home-turn-note').textContent,/文件已保存/);
+}
+
 // Deleted videos retain their prompt and regeneration actions, never the old media URL.
 for (const flag of ['asset_save_status', 'video_cache_status']) {
   const job={kind:'video',conversationId:'conversation-1',prompt:'保留这段视频提示词',

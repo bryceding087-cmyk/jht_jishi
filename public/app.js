@@ -3,11 +3,11 @@ import { createCanvasGroups, normalizeGroups, groupBounds, compactStudioGroups }
 import { createCanvasHistory } from './canvas-history.js?v=arrange-undo-2';
 import { JHT_LIMITS, inputSpecs, mentionReference, assertReferenceLink, detachReference, isHiddenStudioEdge, groupStudioAudio } from './studio-contract.js?v=direct-reference-3';
 import { beginRequest, withLoading } from './loading-state.js?v=1';
-import { installNodePlayers } from './node-player.js?v=video-preview-loading-1';
+import { installNodePlayers } from './node-player.js?v=triangle-video-loading-1';
 import { describeTaskError, ARK_MODEL_MANAGEMENT_URL } from './task-errors.js?v=content-rejection-3';
 import { resolveVideoInput, resolveVideoAssets, deriveVideoMode, materializeVideoAssets, referenceAssetId, scriptScenePrompt } from './node-inputs.js?v=studio-references-2';
 import { attachAssetMentions } from './asset-mentions.js?v=studio-references-2';
-import { createAssetLibrary } from './asset-library.js?v=asset-download-1';
+import { createAssetLibrary } from './asset-library.js?v=triangle-video-loading-1';
 import { mediaNodeBody, mediaNodeDetail, bindMediaNodeDetail } from './media-nodes.js?v=library-toggle-1';
 import { RESOURCE_TYPES, PREPARATION_TYPES, preparationResources, resourceKind, acceptsResourceAsset } from './script-resources.js?v=icons-font-2';
 import { createModelManager } from './model-manager.js?v=account-video-1';
@@ -20,7 +20,7 @@ import { initializeMarket, isMarketEntry, isMarketSessionRequired, navigateToMar
 import { createAgentChat } from './agent-chat.js?v=single-thinking-1';
 import { createCanvasAgent } from './canvas-agent.js?v=shared-studio-2';
 import { createCanvasAgentActions } from './canvas-agent-actions.js?v=2';
-import { createHomeComposer } from './home-composer.js?v=agent-first-1';
+import { createHomeComposer } from './home-composer.js?v=video-file-recovery-1';
 import { createConversationResume } from './conversation-resume.js?v=1';
 import { createHomeHub } from './home-hub.js?v=brand-headings-1';
 import { createCanvasWorkspace } from './canvas-workspace.js?v=video-cover-1';
@@ -58,7 +58,7 @@ const canvasHistory = createCanvasHistory({ state, onRestore: () => {
 const emptyScriptData = (sourceNodeId = '') => ({ title: '未命名脚本', genre: '企业宣传片', duration: '60-90秒', style: '写实电影感', aspect_ratio: '16:9', resolution: '768p', source_node_id: sourceNodeId, scenes: [], resources: [], updated_at: Date.now() / 1000 });
 
 const toast = (message) => { const el = $('#toast'); el.textContent = message; el.classList.add('show'); window.setTimeout(() => el.classList.remove('show'), 2600); };
-function statusText(status, task = {}, compact = false) { if (!compact && task.status_message && ['queued','running','done'].includes(status)) return task.status_message; if (status === 'blocked' && describeTaskError(task).quotaLimited) return '模型限额暂停'; return ({ queued: '排队中', running: '生成中', done: '生成完成', failed: '生成失败', blocked: '未配置模型', cancelled: '已停止' }[status] || status || '待生成'); }
+function statusText(status, task = {}, compact = false) { if(status==='failed'&&task.queue_timed_out_at)return '任务超时'; if(status==='done'&&task.video_cache_status==='pending')return '视频已生成，正在保存'; if(status==='done'&&['failed','expired','fallback'].includes(task.video_cache_status))return '文件未保存，可恢复'; if(status==='done'&&task.video_cache_status==='cached')return '视频文件已保存'; if (task.submit_unknown && status !== 'cancelled') return '提交结果待确认'; if (!compact && task.status_message && ['queued','running','done'].includes(status)) return task.status_message; if (status === 'blocked' && describeTaskError(task).quotaLimited) return '模型限额暂停'; return ({ queued: '排队中', running: '生成中', done: '生成完成', failed: '生成失败', blocked: '未配置模型', cancelled: '已停止' }[status] || status || '待生成'); }
 const videoSubmissions = new Set();
 const videoRequests = new Map();
 const videoPollVersions = new Map();
@@ -794,7 +794,7 @@ function videoPreviewBody(node, task) {
   const url = videoPreviewUrl(node, task);
   if (url) return `<video class="frame-media" controls preload="metadata" playsinline${task?.id ? ` data-video-task="${escapeHtml(task.id)}"` : ''} src="${escapeHtml(url)}"></video>`;
   const failed = task?.status === 'failed' || task?.video_cache_status === 'expired';
-  const label = task?.video_cache_status === 'expired' ? '视频链接已失效，请重新生成' : task?.status === 'failed' ? describeTaskError(task).title : task ? statusText(task.status, task, true) : '等待生成预览';
+  const label = task?.video_cache_status === 'expired' ? '视频暂时无法播放，请在生成历史中恢复视频' : task?.status === 'failed' ? describeTaskError(task).title : task ? statusText(task.status, task, true) : '等待生成预览';
   return `<div class="play">${icon(failed ? 'close' : 'play')}</div><span>${escapeHtml(label)}</span>`;
 }
 function videoStatusClass(task, node) {
@@ -810,8 +810,8 @@ function videoMetaHtml(node, task) {
 }
 function videoPlaybackErrorText(task) {
   return task?.video_cache_status === 'fallback'
-    ? '视频已生成，但本地缓存失败，请立即下载或重新生成'
-    : '视频链接已失效，请重新生成';
+    ? '视频已生成，文件尚未保存，请在生成历史中恢复视频'
+    : '视频暂时无法播放，请在生成历史中恢复视频';
 }
 function bindVideoPlayback(video, task) {
   if (!video || video.dataset.playbackBound === 'true') return;
@@ -1699,12 +1699,14 @@ function updateTaskNode(task, nodeId = state.selectedNodeId) {
   const targetId = nodeId || state.nodes.find(node => node.type === 'video')?.id;
   if (!targetId) return;
   const previous=state.nodeTasks[targetId];
-  if(previous?.id===task?.id&&['done','cancelled'].includes(previous.status)&&['queued','running'].includes(task?.status))task=previous;
+  if(previous?.id===task?.id&&(['done','cancelled'].includes(previous.status)||previous.queue_timed_out_at)&&['queued','running'].includes(task?.status))task=previous;
   const request=videoRequests.get(videoSubmissionKey(targetId));
   if(request?.stopped&&(task?.id===request.task_id||request.request_id&&task?.params?.request_id===request.request_id)){
     task={...task,stop_requested:true,local_stop_requested:true,status_message:'已停止等待'};
   }
-  if(stoppedTask(task))task={...task,provider_status:task.status,status:'cancelled'};
+  // Queue expiry also sets stop flags to reject late provider writes. Preserve
+  // its failed state instead of presenting it as a user cancellation.
+  if(stoppedTask(task)&&!task.queue_timed_out_at)task={...task,provider_status:task.status,status:'cancelled'};
   const plannedNode=state.nodes.find(n=>n.id===targetId);
   if(plannedNode?.studioOutputAfter&&(task?.created_at||0)<plannedNode.studioOutputAfter)return;
   if(plannedNode?.mujian&&!plannedNode.mujian.needsReview&&task?.status==='done'&&task.video_url&&plannedNode.referenceTaskId!==task.id){
@@ -1724,7 +1726,10 @@ function updateTaskNode(task, nodeId = state.selectedNodeId) {
   const preview = node.querySelector('.video-preview');
   const dot = node.querySelector('.status-dot');
   if (dot) dot.className = `status-dot ${videoStatusClass(task, modelNode)}`;
-  if (meta && modelNode) meta.outerHTML = videoMetaHtml(modelNode, task);
+  if (meta && modelNode) {
+    const label=statusText(task?.status || (videoPreviewUrl(modelNode, task)?'done':undefined), task || {}, true);
+    const text=meta.querySelector('span');if(text&&text.textContent!==label)text.textContent=label;
+  }
   if (preview) {
     const video=preview.querySelector('video'),url=videoPreviewUrl(modelNode,task);
     const sameVideo=video&&url&&(video.getAttribute('src')===url||task?.id&&video.dataset.videoTask===task.id);
@@ -1732,7 +1737,10 @@ function updateTaskNode(task, nodeId = state.selectedNodeId) {
     // playing. Keep that task's current decoder; the next mount uses the cache.
     if(!sameVideo){
       const body=videoPreviewBody(modelNode,task);
-      if(preview.innerHTML!==body){preview.dataset.playbackFailed='false';preview.innerHTML=body;}
+      if(preview.renderedBody!==body){
+        if(preview.innerHTML!==body){preview.dataset.playbackFailed='false';preview.innerHTML=body;}
+        preview.renderedBody=body;
+      }
     }
     const frameMedia = preview.querySelector('.frame-media');
     if (frameMedia) watchFrameMedia(modelNode, node, frameMedia);
@@ -1754,7 +1762,7 @@ async function pollTask(taskId, nodeId) {
   const poll = async () => {
     if (!current()) return;
     try {
-      const task = await api(`/api/tasks/${taskId}`);
+      const task = await api(`/api/tasks/${taskId}`, { background: true });
       if (!current()) return;
       const request=videoRequests.get(videoSubmissionKey(nodeId,projectId));
       if(request?.task_id===taskId&&(request.stopping||request.stopped)){state.taskPollers.delete(taskId);return;}
@@ -1836,7 +1844,7 @@ async function submitTask() {
 async function loadHistory() {
   if (!state.project) return;
   const projectId = state.project.id;
-  const tasks = await api(`/api/tasks?project_id=${projectId}`);
+  const tasks = await api(`/api/tasks?project_id=${projectId}`, { background: true });
   if (state.project?.id !== projectId) return;
   const sortedTasks = [...tasks].sort((a, b) => (b.created_at || b.updated_at || 0) - (a.created_at || a.updated_at || 0));
   const latestByNode = {};
@@ -2106,7 +2114,7 @@ function renderAssets() {
   });
 }
 async function deleteAsset(id) { try { await api(`/api/assets/${id}`, { method: 'DELETE' }); state.assets = state.assets.filter(asset => asset.id !== id); state.selectedAssetIds = state.selectedAssetIds.filter(assetId => assetId !== id); state.nodes = state.nodes.map(node => node.assetId === id ? { ...node, assetId: '', assetUrl: '', assetName: '' } : node); renderAssets(); renderNodes(); renderAssetLibrary(); scheduleSave(); toast('素材已删除'); } catch (error) { toast(error.message); } }
-function downloadTask(task) { if (!task?.video_url) return toast('该任务还没有可下载的视频'); const link = document.createElement('a'); link.href = task.video_url; link.download = `${(task.params?.prompt || '建绘通作品').slice(0, 18)}.mp4`; link.target = '_blank'; link.rel = 'noopener'; document.body.appendChild(link); link.click(); link.remove(); }
+async function downloadTask(task) { if(task?.status!=='done')return toast('请等待视频生成完成'); try {const asset=await api(`/api/tasks/${encodeURIComponent(task.id)}/history-asset`,json({}));await assetLibrary.downloadAsset(asset);}catch(error){toast(error.message);} }
 const escapeHtml = (value = '') => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 async function refreshModelState() {
   const [models, llm] = await Promise.all([api('/api/models'), api('/api/llm')]);
@@ -2260,7 +2268,7 @@ const assetLibrary = createAssetLibrary({ state, api, json, escapeHtml, toast, s
       if (Object.entries(patch).some(([key, value]) => node[key] !== value)) { Object.assign(node, patch); changed = true; }
     }
     changed = syncScriptResourcesToCanvas() || changed;
-    renderNodes(); loadNodeSettings(); if (changed) scheduleSave();
+    if (changed) { renderNodes(); loadNodeSettings(); scheduleSave(); }
   }
 });
 const projectLibrary = createProjectLibrary({ state, api, json, icon, escapeHtml, toast, showModal, closeModal, flushSave,

@@ -125,7 +125,7 @@ export function installNodePlayers(root = document) {
     on(media,'canplay',() => {status.textContent=silentRecovery?recoveryMessage:'';});
     on(media,'error',() => {if(!conversation)status.textContent='无法播放，请检查文件或更换素材';toggle.disabled=true;seek.disabled=true;});
     if (conversation) {
-      player.insertAdjacentHTML('beforeend', '<div class="np-preview"><span class="np-preview-spinner" aria-hidden="true"></span><span class="np-preview-error-icon" aria-hidden="true">'+icon('warning')+'</span><span class="np-preview-label" role="status" aria-live="polite"></span><button type="button" class="np-preview-retry" hidden>重新加载</button></div>');
+      player.insertAdjacentHTML('beforeend', '<div class="np-preview"><img class="np-preview-spinner" src="/triangle-flow.svg?v=1" alt="" aria-hidden="true"><span class="np-preview-error-icon" aria-hidden="true">'+icon('warning')+'</span><span class="np-preview-label" role="status" aria-live="polite"></span><button type="button" class="np-preview-retry" hidden>重新加载</button></div>');
       const preview = find('.np-preview'), label = find('.np-preview-label'), retry = find('.np-preview-retry');
       let previewState = '', slowTimer;
       const clearSlowTimer = () => {clearTimeout(slowTimer);slowTimer=undefined;};
